@@ -8,6 +8,7 @@ use App\Services\BaseService;
 use App\Services\Contracts\UserServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class UserService extends BaseService implements UserServiceInterface
 {
@@ -27,7 +28,7 @@ class UserService extends BaseService implements UserServiceInterface
             return $this->createdResponse($model);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Illuminate\Support\Facades\Log::error("Error in " . get_class($this) . "::create - " . $e->getMessage());
+            Log::error("Error in " . get_class($this) . "::create - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
         }
     }
@@ -44,7 +45,20 @@ class UserService extends BaseService implements UserServiceInterface
             return $this->successResponse(null, $model);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Illuminate\Support\Facades\Log::error("Error in " . get_class($this) . "::update - " . $e->getMessage());
+            Log::error("Error in " . get_class($this) . "::update - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    public function findByIdentifier(string $identifier): JsonResponse
+    {
+        try {
+            $user = $this->repository->findByIdentifier($identifier);
+            if (!$user) {
+                return $this->notFoundResponse();
+            }
+            return $this->successResponse(null, $user);
+        } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 500);
         }
     }

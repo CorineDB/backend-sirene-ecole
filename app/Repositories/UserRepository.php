@@ -9,6 +9,7 @@ use App\Repositories\Contracts\UserInfoRepositoryInterface;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Exception;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 use Illuminate\Support\Str;
@@ -18,21 +19,25 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     protected UserInfoRepositoryInterface $userInfoRepository;
     protected OtpCodeRepositoryInterface $otpCodeRepository;
     protected RoleRepositoryInterface $roleRepository;
+    protected SmsService $smsService;
 
-    public function __construct(User $model, UserInfoRepositoryInterface $userInfoRepository, OtpCodeRepositoryInterface $otpCodeRepository, RoleRepositoryInterface $roleRepository)
+    public function __construct(User $model, UserInfoRepositoryInterface $userInfoRepository, OtpCodeRepositoryInterface $otpCodeRepository, RoleRepositoryInterface $roleRepository, SmsService $smsService)
     {
         parent::__construct($model);
         $this->userInfoRepository = $userInfoRepository;
         $this->otpCodeRepository = $otpCodeRepository;
         $this->roleRepository = $roleRepository;
+        $this->smsService = $smsService;
     }
 
-    public function create(array $data): ?User
+    public function create(array $data): Model
     {
         try {
             DB::beginTransaction();
 
+            $plainPassword = null;
             if (isset($data['mot_de_passe'])) {
+                $plainPassword = $data['mot_de_passe']; // Capture plain-text password
                 $data['mot_de_passe'] = Hash::make($data['mot_de_passe']);
             }
 
@@ -100,10 +105,16 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
                     'expires_at' => now()->addMinutes(10), // OTP valid for 10 minutes
                 ]);
                 // In a real application, you would send this OTP via SMS or email
-                Log::info("OTP for user {$user->id}: {$otpCode}");
+            DB::commit();
+
+            // Send login credentials and OTP via SMS
+            if ($user && $plainPassword && $otpCode && isset($userInfoData['telephone'])) {
+                $message = "Votre compte a été créé. Identifiant: {$user->identifiant}, Mot de passe: {$plainPassword}, Code OTP: {$otpCode}";
+                $this->smsService->sendSms($userInfoData['telephone'], $message);
+            } else {
+                Log::warning("Could not send SMS for user {$user->id}. Missing phone, password or OTP.");
             }
 
-            DB::commit();
             return $user;
         } catch (Exception $e) {
             DB::rollBack();
@@ -112,21 +123,17 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         }
     }
 
-    public function update(string $id, array $data): ?User
+    public function update(string $id, array $data): bool
     {
         try {
             DB::beginTransaction();
-
-            if (isset($data['mot_de_passe'])) {
-                $data['mot_de_passe'] = Hash::make($data['mot_de_passe']);
-            }
 
             if (isset($data['role_id'])) {
                 if (!$this->roleRepository->find($data['role_id'])) {
                     throw new Exception('Role with ID ' . $data['role_id'] . ' not found.');
                 }
             }
-
+            
             $userInfoData = $data['userInfoData'] ?? [];
             unset($data['userInfoData']);
 
@@ -143,7 +150,7 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
             }
 
             DB::commit();
-            return $this->find($id); // Return the updated user with fresh data
+            return $user; // Return the updated user with fresh data
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in " . get_class($this) . "::update - " . $e->getMessage());

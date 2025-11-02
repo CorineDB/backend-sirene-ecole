@@ -5,11 +5,12 @@ namespace App\Repositories;
 use App\Models\Ecole;
 use App\Repositories\Contracts\EcoleRepositoryInterface;
 use App\Repositories\Contracts\SiteRepositoryInterface;
+use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 
 class EcoleRepository extends BaseRepository implements EcoleRepositoryInterface
 {
-    protected $siteRepository;
+    public $siteRepository;
     protected $userRepository;
 
     public function __construct(Ecole $model, SiteRepositoryInterface $siteRepository, UserRepositoryInterface $userRepository)

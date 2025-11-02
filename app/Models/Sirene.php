@@ -35,6 +35,7 @@ class Sirene extends Model
         'date_installation' => 'date',
         'date_fin' => 'date',
         'old_statut' => StatutSirene::class,
+        'statut' =>     StatutSirene::class,
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',

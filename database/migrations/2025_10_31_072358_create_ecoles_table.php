@@ -15,15 +15,12 @@ return new class extends Migration
             $table->string('id', 26)->primary(); // ULID
             $table->string('reference')->unique(); // MCD field
             $table->text('nom_complet'); // MCD field
-            $table->string('slug', 100); // MCD field
+            $table->string('nom', 100);
             $table->string('telephone_contact', 20)->unique(); // MCD field
             $table->string('email_contact', 100)->unique()->nullable(); // MCD field
             $table->json('types_etablissement'); // MCD field - array of types
-            $table->string('nom');
             $table->string('code_etablissement')->unique(); // Code unique de l'établissement
-            $table->string('telephone')->unique();
-            $table->string('email')->nullable();
-            $table->text('adresse')->nullable();
+
             $table->string('responsable_nom')->nullable();
             $table->string('responsable_prenom')->nullable();
             $table->string('responsable_telephone')->nullable();

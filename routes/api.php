@@ -4,6 +4,7 @@ use App\Http\Controllers\API\PermissionController;
 use App\Http\Controllers\API\RoleController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EcoleController;
+use App\Http\Controllers\Api\SireneController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,7 +23,7 @@ Route::prefix('roles')->group(function () {
     Route::delete('{id}', [RoleController::class, 'destroy']);
 });
 
-Route::prefix('users')->group(function () {
+Route::prefix('users')->middleware('auth:api')->group(function () {
     Route::get('/', [UserController::class, 'index']);
     Route::get('{id}', [UserController::class, 'show']);
     Route::post('/', [UserController::class, 'store']);
@@ -53,4 +54,16 @@ Route::prefix('ecoles')->group(function () {
         Route::get('profil', [EcoleController::class, 'show']);
         Route::put('profil', [EcoleController::class, 'update']);
     });
+});
+
+// Sirene routes (Protected - Admin/Technicien)
+Route::prefix('sirenes')->middleware('auth:api')->group(function () {
+    Route::get('/', [SireneController::class, 'index']);
+    Route::get('disponibles', [SireneController::class, 'disponibles']);
+    Route::get('numero-serie/{numeroSerie}', [SireneController::class, 'showByNumeroSerie']);
+    Route::get('{id}', [SireneController::class, 'show']);
+    Route::post('/', [SireneController::class, 'store']); // Admin only
+    Route::put('{id}', [SireneController::class, 'update']); // Admin/Technicien
+    Route::post('{id}/affecter', [SireneController::class, 'affecter']); // Admin/Technicien
+    Route::delete('{id}', [SireneController::class, 'destroy']); // Admin only
 });

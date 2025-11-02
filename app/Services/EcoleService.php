@@ -8,7 +8,7 @@ use App\Repositories\Contracts\SireneRepositoryInterface;
 use App\Services\Contracts\EcoleServiceInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class EcoleService extends BaseService implements EcoleServiceInterface
@@ -28,108 +28,103 @@ class EcoleService extends BaseService implements EcoleServiceInterface
 
     /**
      * Inscription complète d'une école avec sites et affectation de sirènes
-     * 
+     *
      * @param array $ecoleData - Données de l'école (nom, email, telephone, etc.)
-     * @param array $sitesData - Tableau des sites additionnels (optionnel)
-     * @param array $sirenesData - Tableau des numéros de série des sirènes à affecter
+     * @param array $sitePrincipalData - Données du site principal avec sirène
+     * @param array $sitesAnnexeData - Tableau des sites annexes avec leurs sirènes (optionnel)
      * @return Model
      */
-    public function inscrireEcole(array $ecoleData, array $sitesData = [], array $sirenesData = []): Model
+    public function inscrireEcole(array $ecoleData, array $sitePrincipalData, array $sitesAnnexeData = []): Model
     {
         try {
             DB::beginTransaction();
 
-            // 1. Créer l'école avec ses sites (principal + additionnels)
-            $ecole = $this->repository->createEcoleWithSites($ecoleData, $sitesData);
+            // 1. Créer l'école
+            $ecole = $this->repository->create($ecoleData);
 
-            // 2. Affecter les sirènes aux sites
-            // Si c'est mono-site, affecter toutes les sirènes au site principal
-            // Si c'est multi-sites, répartir selon sirenesData
-            if (!empty($sirenesData)) {
-                $sites = $ecole->sites;
-                
-                foreach ($sirenesData as $index => $sireneAffectation) {
-                    // Vérifier que la sirène existe et est disponible
-                    $sirene = $this->sireneRepository->findByNumeroSerie($sireneAffectation['numero_serie']);
-                    
-                    if (!$sirene) {
-                        throw new \Exception("Sirène avec numéro de série {$sireneAffectation['numero_serie']} introuvable.");
-                    }
+            // 2. Créer le site principal avec sa sirène
+            $sitePrincipal = $this->createSiteWithSirene(
+                $ecole->id,
+                $sitePrincipalData,
+                true // est_principale
+            );
 
-                    if ($sirene->statut !== 'DISPONIBLE' || $sirene->site_id !== null) {
-                        throw new \Exception("La sirène {$sireneAffectation['numero_serie']} n'est pas disponible.");
-                    }
-
-                    // Déterminer le site d'affectation
-                    $siteId = null;
-                    if (isset($sireneAffectation['site_nom'])) {
-                        // Rechercher le site par nom
-                        $site = $sites->firstWhere('nom', $sireneAffectation['site_nom']);
-                        if ($site) {
-                            $siteId = $site->id;
-                        }
-                    } else {
-                        // Affecter au site principal par défaut
-                        $sitePrincipal = $sites->firstWhere('est_principale', true);
-                        $siteId = $sitePrincipal->id;
-                    }
-
-                    // Affecter la sirène au site
-                    $this->sireneRepository->affecterSireneASite($sirene->id, $siteId);
+            // 3. Créer les sites annexes avec leurs sirènes (si fournis)
+            if (!empty($sitesAnnexeData)) {
+                foreach ($sitesAnnexeData as $siteAnnexeData) {
+                    $this->createSiteWithSirene(
+                        $ecole->id,
+                        $siteAnnexeData,
+                        false // est_principale
+                    );
                 }
             }
 
-            // 3. Créer le compte utilisateur pour l'école
-            $identifiant = $this->generateIdentifiant($ecoleData['nom']);
+            // 4. Créer le compte utilisateur pour l'école
             $motDePasse = Str::random(12); // Générer un mot de passe temporaire
 
             $userData = [
                 'nom_utilisateur' => $ecoleData['nom'],
-                'identifiant' => $identifiant,
-                'mot_de_passe' => Hash::make($motDePasse),
+                'mot_de_passe' => $motDePasse, // Password en clair (sera haché automatiquement dans UserRepository)
                 'type' => 'ECOLE',
                 'user_account_type_id' => $ecole->id,
                 'user_account_type_type' => get_class($ecole),
+                'userInfoData' => [
+                    'nom' => $ecoleData['nom'],
+                    'telephone' => $ecoleData['telephone_contact'],
+                    'email' => $ecoleData['email_contact'] ?? null,
+                ],
             ];
 
-            $userInfoData = [
-                'nom' => $ecoleData['nom'],
-                'telephone' => $ecoleData['telephone'],
-                'email' => $ecoleData['email'] ?? null,
-            ];
-
-            $user = $this->userRepository->createWithInfo($userData, $userInfoData);
+            $this->userRepository->create($userData);
 
             DB::commit();
 
             // Recharger l'école avec toutes les relations
             return $ecole->load([
-                'sites.sirenes',
+                'sites.sirene',
                 'abonnementActif',
                 'user'
             ])->setAttribute('mot_de_passe_temporaire', $motDePasse);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Error in " . get_class($this) . "::inscrireEcole - " . $e->getMessage());
+            Log::error("Error in " . get_class($this) . "::inscrireEcole - " . $e->getMessage());
             throw $e;
         }
     }
 
     /**
-     * Générer un identifiant unique pour l'école
+     * Créer un site avec sa sirène affectée
      */
-    protected function generateIdentifiant(string $nomEcole): string
+    protected function createSiteWithSirene(string $ecoleId, array $siteData, bool $estPrincipale)
     {
-        $base = Str::slug($nomEcole);
-        $identifiant = $base;
-        $counter = 1;
+        // Extraire les données de la sirène
+        $sireneData = $siteData['sirene'] ?? null;
+        unset($siteData['sirene']);
 
-        while ($this->userRepository->findBy('identifiant', $identifiant)) {
-            $identifiant = $base . '-' . $counter;
-            $counter++;
+        // Créer le site
+        $site = $this->repository->siteRepository->create(array_merge($siteData, [
+            'ecole_principale_id' => $ecoleId,
+            'est_principale' => $estPrincipale,
+        ]));
+
+        // Affecter la sirène au site si fournie
+        if ($sireneData && isset($sireneData['numero_serie'])) {
+            $sirene = $this->sireneRepository->findByNumeroSerie($sireneData['numero_serie']);
+
+            if (!$sirene) {
+                throw new \Exception("Sirène avec numéro de série {$sireneData['numero_serie']} introuvable.");
+            }
+
+            if ($sirene->statut !== 'DISPONIBLE' || $sirene->site_id !== null) {
+                throw new \Exception("La sirène {$sireneData['numero_serie']} n'est pas disponible.");
+            }
+
+            // Affecter la sirène au site
+            $this->sireneRepository->affecterSireneASite($sirene->id, $site->id);
         }
 
-        return $identifiant;
+        return $site;
     }
 }

@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\StatutAbonnement;
-use App\Enums\StatutEcole;
 use App\Traits\HasCodeEtablissement;
 use App\Traits\HasUlid;
 use Illuminate\Database\Eloquent\Model;
@@ -26,17 +25,11 @@ class Ecole extends Model
     protected $fillable = [
         'reference',
         'nom_complet',
-        'slug',
+        'nom',
         'telephone_contact',
         'email_contact',
         'types_etablissement',
-        'nom',
         'code_etablissement',
-        'telephone',
-        'email',
-        'adresse',
-        'latitude',
-        'longitude',
         'responsable_nom',
         'responsable_prenom',
         'responsable_telephone',
@@ -46,9 +39,6 @@ class Ecole extends Model
 
     protected $casts = [
         'types_etablissement' => 'array',
-        'latitude' => 'decimal:7',
-        'longitude' => 'decimal:7',
-        'statut' => StatutEcole::class,
         'date_inscription' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

@@ -13,10 +13,35 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
+ * @OA\Info(
+ *     title="Sirene Automatique API Documentation",
+ *     version="1.0.0",
+ *     description="API Documentation for the Sirene Automatique project"
+ * )
+ *
+ * Class RoleController
+ * @package App\Http\Controllers\API
  * @OA\Tag(
  *     name="Roles",
- *     description="API Endpoints for Roles"
+ *     description="API Endpoints of Roles"
  * )
+ * @OA\Schema(
+ *     schema="Role",
+ *     title="Role",
+ *     description="Role model",
+ *     @OA\Property(
+ *         property="id",
+ *         type="string",
+ *         format="uuid",
+ *         description="ID of the permission"
+ *     ),
+ *     @OA\Property(
+ *         property="name",
+ *         type="string",
+ *         description="Name of the permission"
+ *     )
+ * )
+ * Controller for managing Roles.
  */
 class RoleController extends Controller
 {
