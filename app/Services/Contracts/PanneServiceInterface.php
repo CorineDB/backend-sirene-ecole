@@ -89,6 +89,6 @@ interface PanneServiceInterface extends BaseServiceInterface
      */
     //public function search(string $query, array $filters = []): LengthAwarePaginator;
 
-    public function validerPanne(string $panneId): JsonResponse;
+    public function validerPanne(string $panneId, string $adminId, array $ordreMissionData = []): JsonResponse;
     public function cloturerPanne(string $panneId): JsonResponse;
 }

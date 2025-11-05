@@ -34,9 +34,16 @@ class PanneController extends Controller
     {
         $validated = $request->validate([
             'admin_id' => 'required|string|exists:users,id',
+            'nombre_techniciens_requis' => 'nullable|integer|min:1',
+            'date_debut_candidature' => 'nullable|date',
+            'date_fin_candidature' => 'nullable|date|after:date_debut_candidature',
+            'commentaire' => 'nullable|string',
         ]);
 
-        return $this->panneService->validerPanne($panneId, $validated['admin_id']);
+        $adminId = $validated['admin_id'];
+        unset($validated['admin_id']);
+
+        return $this->panneService->validerPanne($panneId, $adminId, $validated);
     }
 
     public function cloturer($panneId)

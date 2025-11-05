@@ -23,7 +23,6 @@ class JourFerie extends Model
         'ecole_id',
         'pays_id',
         'intitule_journee',
-        'type_jour',
         'date_debut',
         'date_fin',
         'recurrent',
