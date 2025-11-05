@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Enums\StatutCandidature;
 use App\Enums\StatutMission;
 use App\Enums\StatutOrdreMission;
+use App\Models\AvisIntervention;
+use App\Models\AvisRapport;
 use App\Repositories\Contracts\InterventionRepositoryInterface;
 use App\Repositories\Contracts\MissionTechnicienRepositoryInterface;
 use App\Repositories\Contracts\RapportInterventionRepositoryInterface;
@@ -321,6 +323,87 @@ class InterventionService extends BaseService implements InterventionServiceInte
             return $this->successResponse('Rapport noté par l\'admin.', $rapport);
         } catch (Exception $e) {
             Log::error("Error in InterventionService::noterRapport - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    public function ajouterAvisIntervention(string $interventionId, array $avisData): JsonResponse
+    {
+        try {
+            $intervention = $this->repository->find($interventionId);
+            if (!$intervention) {
+                return $this->notFoundResponse('Intervention non trouvée.');
+            }
+
+            $avisData['intervention_id'] = $interventionId;
+            $avisData['date_avis'] = now();
+
+            $avis = AvisIntervention::create($avisData);
+
+            // Mettre à jour aussi les champs directs dans intervention
+            $this->repository->update($interventionId, [
+                'note_ecole' => $avisData['note'],
+                'commentaire_ecole' => $avisData['commentaire'] ?? null,
+            ]);
+
+            return $this->successResponse('Avis sur l\'intervention enregistré.', $avis);
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::ajouterAvisIntervention - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    public function ajouterAvisRapport(string $rapportId, array $avisData): JsonResponse
+    {
+        try {
+            $rapport = $this->rapportRepository->find($rapportId);
+            if (!$rapport) {
+                return $this->notFoundResponse('Rapport non trouvé.');
+            }
+
+            $avisData['rapport_intervention_id'] = $rapportId;
+            $avisData['date_evaluation'] = now();
+
+            $avis = AvisRapport::create($avisData);
+
+            // Mettre à jour aussi les champs directs dans rapport
+            $this->rapportRepository->update($rapportId, [
+                'review_note' => $avisData['note'],
+                'review_admin' => $avisData['review'] ?? null,
+                'statut' => $avisData['approuve'] ? 'valide' : 'rejete',
+            ]);
+
+            return $this->successResponse('Avis sur le rapport enregistré.', $avis);
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::ajouterAvisRapport - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    public function getAvisIntervention(string $interventionId): JsonResponse
+    {
+        try {
+            $avis = AvisIntervention::where('intervention_id', $interventionId)
+                ->with(['ecole', 'auteur'])
+                ->get();
+
+            return $this->successResponse(null, $avis);
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::getAvisIntervention - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    public function getAvisRapport(string $rapportId): JsonResponse
+    {
+        try {
+            $avis = AvisRapport::where('rapport_intervention_id', $rapportId)
+                ->with(['admin'])
+                ->get();
+
+            return $this->successResponse(null, $avis);
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::getAvisRapport - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
         }
     }

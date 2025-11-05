@@ -234,4 +234,10 @@ Route::prefix('interventions')->middleware('auth:api')->group(function () {
     // Notations
     Route::put('{interventionId}/noter', [InterventionController::class, 'noterIntervention']);
     Route::put('rapports/{rapportId}/noter', [InterventionController::class, 'noterRapport']);
+
+    // Avis détaillés
+    Route::post('{interventionId}/avis', [InterventionController::class, 'ajouterAvisIntervention']);
+    Route::get('{interventionId}/avis', [InterventionController::class, 'getAvisIntervention']);
+    Route::post('rapports/{rapportId}/avis', [InterventionController::class, 'ajouterAvisRapport']);
+    Route::get('rapports/{rapportId}/avis', [InterventionController::class, 'getAvisRapport']);
 });

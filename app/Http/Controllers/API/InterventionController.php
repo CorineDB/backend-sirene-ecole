@@ -120,4 +120,43 @@ class InterventionController extends Controller
 
         return $this->interventionService->noterRapport($rapportId, $validated['note'], $validated['review']);
     }
+
+    public function ajouterAvisIntervention(Request $request, string $interventionId): JsonResponse
+    {
+        $validated = $request->validate([
+            'ecole_id' => 'required|string|exists:ecoles,id',
+            'auteur_id' => 'nullable|string|exists:users,id',
+            'note' => 'required|integer|min:1|max:5',
+            'commentaire' => 'nullable|string',
+            'type_avis' => 'nullable|string|in:satisfaction,qualite_travail,professionnalisme,delai,proprete',
+            'recommande' => 'nullable|boolean',
+        ]);
+
+        return $this->interventionService->ajouterAvisIntervention($interventionId, $validated);
+    }
+
+    public function ajouterAvisRapport(Request $request, string $rapportId): JsonResponse
+    {
+        $validated = $request->validate([
+            'admin_id' => 'required|string|exists:users,id',
+            'note' => 'required|integer|min:1|max:5',
+            'review' => 'nullable|string',
+            'type_evaluation' => 'nullable|string|in:completude,clarte,precision,conformite',
+            'approuve' => 'nullable|boolean',
+            'points_forts' => 'nullable|string',
+            'points_amelioration' => 'nullable|string',
+        ]);
+
+        return $this->interventionService->ajouterAvisRapport($rapportId, $validated);
+    }
+
+    public function getAvisIntervention(string $interventionId): JsonResponse
+    {
+        return $this->interventionService->getAvisIntervention($interventionId);
+    }
+
+    public function getAvisRapport(string $rapportId): JsonResponse
+    {
+        return $this->interventionService->getAvisRapport($rapportId);
+    }
 }

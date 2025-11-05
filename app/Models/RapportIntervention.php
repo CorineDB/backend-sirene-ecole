@@ -7,6 +7,7 @@ use App\Enums\ResultatIntervention; // Assuming this enum exists or will be crea
 use App\Traits\HasUlid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RapportIntervention extends Model
@@ -53,5 +54,10 @@ class RapportIntervention extends Model
     public function intervention(): BelongsTo
     {
         return $this->belongsTo(Intervention::class, 'intervention_id');
+    }
+
+    public function avis(): HasMany
+    {
+        return $this->hasMany(AvisRapport::class, 'rapport_intervention_id');
     }
 }

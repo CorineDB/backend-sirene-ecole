@@ -6,6 +6,7 @@ use App\Enums\StatutIntervention;
 use App\Traits\HasUlid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -69,5 +70,10 @@ class Intervention extends Model
     public function rapport(): HasOne
     {
         return $this->hasOne(RapportIntervention::class, 'intervention_id');
+    }
+
+    public function avis(): HasMany
+    {
+        return $this->hasMany(AvisIntervention::class, 'intervention_id');
     }
 }
