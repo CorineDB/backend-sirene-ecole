@@ -8,6 +8,130 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Annotations as OA;
 
+/**
+ * @OA\Schema(
+ *     schema="OrdreMission",
+ *     title="Ordre de Mission",
+ *     description="Détails d'un ordre de mission",
+ *     @OA\Property(property="id", type="string", format="ulid", description="ID de l'ordre de mission"),
+ *     @OA\Property(property="panne_id", type="string", format="ulid", description="ID de la panne associée"),
+ *     @OA\Property(property="ville_id", type="string", format="ulid", description="ID de la ville de la mission"),
+ *     @OA\Property(property="date_generation", type="string", format="date-time", description="Date de génération de l'ordre de mission"),
+ *     @OA\Property(property="date_debut_candidature", type="string", format="date-time", nullable=true, description="Date de début des candidatures"),
+ *     @OA\Property(property="date_fin_candidature", type="string", format="date-time", nullable=true, description="Date de fin des candidatures"),
+ *     @OA\Property(property="nombre_techniciens_requis", type="integer", description="Nombre de techniciens requis"),
+ *     @OA\Property(property="nombre_techniciens_acceptes", type="integer", description="Nombre de techniciens acceptés"),
+ *     @OA\Property(property="candidature_cloturee", type="boolean", description="Indique si les candidatures sont clôturées manuellement"),
+ *     @OA\Property(property="date_cloture_candidature", type="string", format="date-time", nullable=true, description="Date de clôture des candidatures"),
+ *     @OA\Property(property="cloture_par", type="string", format="ulid", nullable=true, description="ID de l'utilisateur ayant clôturé les candidatures"),
+ *     @OA\Property(property="valide_par", type="string", format="ulid", nullable=true, description="ID de l'utilisateur ayant validé l'ordre de mission"),
+ *     @OA\Property(property="statut", type="string", enum={"en_attente", "en_cours", "termine", "cloture"}, description="Statut de l'ordre de mission"),
+ *     @OA\Property(property="commentaire", type="string", nullable=true, description="Commentaire sur l'ordre de mission"),
+ *     @OA\Property(property="numero_ordre", type="string", description="Numéro unique de l'ordre de mission"),
+ *     @OA\Property(property="panne", ref="#/components/schemas/Panne", description="Détails de la panne associée"),
+ *     @OA\Property(property="ville", ref="#/components/schemas/Ville", description="Détails de la ville associée"),
+ *     @OA\Property(property="validePar", ref="#/components/schemas/User", description="Utilisateur ayant validé l'ordre de mission"),
+ *     @OA\Property(property="cloturePar", ref="#/components/schemas/User", description="Utilisateur ayant clôturé les candidatures"),
+ *     @OA\Property(property="interventions", type="array", @OA\Items(ref="#/components/schemas/Intervention"), description="Liste des interventions liées à cet ordre de mission"),
+ *     @OA\Property(property="missionsTechniciens", type="array", @OA\Items(ref="#/components/schemas/MissionTechnicien"), description="Liste des candidatures de techniciens pour cet ordre de mission")
+ * )
+ *
+ * @OA\Schema(
+ *     schema="Panne",
+ *     title="Panne",
+ *     description="Détails d'une panne",
+ *     @OA\Property(property="id", type="string", format="ulid", description="ID de la panne"),
+ *     @OA\Property(property="ecole_id", type="string", format="ulid", description="ID de l'école associée"),
+ *     @OA\Property(property="sirene_id", type="string", format="ulid", description="ID de la sirène associée"),
+ *     @OA\Property(property="site_id", type="string", format="ulid", description="ID du site associé"),
+ *     @OA\Property(property="numero_panne", type="string", description="Numéro unique de la panne"),
+ *     @OA\Property(property="description", type="string", description="Description de la panne"),
+ *     @OA\Property(property="date_signalement", type="string", format="date-time", description="Date de signalement de la panne"),
+ *     @OA\Property(property="priorite", type="string", enum={"basse", "moyenne", "haute", "urgente"}, description="Priorité de la panne"),
+ *     @OA\Property(property="statut", type="string", enum={"signalee", "en_attente_validation", "validee", "en_cours_traitement", "resolue", "annulee"}, description="Statut de la panne"),
+ *     @OA\Property(property="date_declaration", type="string", format="date-time", nullable=true, description="Date de déclaration de la panne"),
+ *     @OA\Property(property="date_validation", type="string", format="date-time", nullable=true, description="Date de validation de la panne"),
+ *     @OA\Property(property="valide_par", type="string", format="ulid", nullable=true, description="ID de l'utilisateur ayant validé la panne"),
+ *     @OA\Property(property="est_cloture", type="boolean", description="Indique si la panne est clôturée"),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ *     @OA\Property(property="updated_at", type="string", format="date-time"),
+ *     @OA\Property(property="sirene", ref="#/components/schemas/Sirene", description="Détails de la sirène associée"),
+ * )
+ *
+
+ *
+ * @OA\Schema(
+ *     schema="Ville",
+ *     title="Ville",
+ *     description="Détails d'une ville",
+ *     @OA\Property(property="id", type="string", format="ulid", description="ID de la ville"),
+ *     @OA\Property(property="pays_id", type="string", format="ulid", description="ID du pays associé"),
+ *     @OA\Property(property="nom", type="string", description="Nom de la ville"),
+ *     @OA\Property(property="code", type="string", nullable=true, description="Code de la ville"),
+ *     @OA\Property(property="latitude", type="number", format="float", nullable=true, description="Latitude de la ville"),
+ *     @OA\Property(property="longitude", type="number", format="float", nullable=true, description="Longitude de la ville"),
+ *     @OA\Property(property="actif", type="boolean", description="Indique si la ville est active"),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ *     @OA\Property(property="updated_at", type="string", format="date-time"),
+ * )
+ *
+ * @OA\Schema(
+ *     schema="User",
+ *     title="User",
+ *     description="Détails d'un utilisateur",
+ *     @OA\Property(property="id", type="string", format="ulid", description="ID de l'utilisateur"),
+ *     @OA\Property(property="nom_utilisateur", type="string", description="Nom d'utilisateur"),
+ *     @OA\Property(property="identifiant", type="string", description="Identifiant de l'utilisateur"),
+ *     @OA\Property(property="type", type="string", description="Type de compte utilisateur"),
+ *     @OA\Property(property="role_id", type="string", format="ulid", description="ID du rôle de l'utilisateur"),
+ *     @OA\Property(property="actif", type="boolean", description="Indique si l'utilisateur est actif"),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ *     @OA\Property(property="updated_at", type="string", format="date-time"),
+ * )
+ *
+ * @OA\Schema(
+ *     schema="MissionTechnicien",
+ *     title="Mission Technicien",
+ *     description="Détails d'une mission de technicien (candidature)",
+ *     @OA\Property(property="id", type="string", format="ulid", description="ID de la mission"),
+ *     @OA\Property(property="ordre_mission_id", type="string", format="ulid", description="ID de l'ordre de mission"),
+ *     @OA\Property(property="technicien_id", type="string", format="ulid", description="ID du technicien"),
+ *     @OA\Property(property="statut_candidature", type="string", enum={"en_attente", "acceptee", "refusee", "retiree"}, description="Statut de la candidature"),
+ *     @OA\Property(property="statut", type="string", enum={"non_demarree", "en_cours", "terminee", "annulee"}, description="Statut de la mission"),
+ *     @OA\Property(property="date_acceptation", type="string", format="date-time", nullable=true, description="Date d'acceptation de la candidature"),
+ *     @OA\Property(property="date_cloture", type="string", format="date-time", nullable=true, description="Date de clôture de la mission"),
+ *     @OA\Property(property="date_retrait", type="string", format="date-time", nullable=true, description="Date de retrait de la candidature"),
+ *     @OA\Property(property="motif_retrait", type="string", nullable=true, description="Motif du retrait de la candidature"),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ *     @OA\Property(property="updated_at", type="string", format="date-time"),
+ *     @OA\Property(property="technicien", ref="#/components/schemas/Technicien", description="Détails du technicien"),
+ * )
+ *
+ * @OA\Schema(
+ *     schema="Intervention",
+ *     title="Intervention",
+ *     description="Détails d'une intervention",
+ *     @OA\Property(property="id", type="string", format="ulid", description="ID de l'intervention"),
+ *     @OA\Property(property="panne_id", type="string", format="ulid", description="ID de la panne associée"),
+ *     @OA\Property(property="technicien_id", type="string", format="ulid", description="ID du technicien assigné"),
+ *     @OA\Property(property="ordre_mission_id", type="string", format="ulid", description="ID de l'ordre de mission associé"),
+ *     @OA\Property(property="date_intervention", type="string", format="date-time", nullable=true, description="Date planifiée de l'intervention"),
+ *     @OA\Property(property="date_affectation", type="string", format="date-time", nullable=true, description="Date d'affectation du technicien"),
+ *     @OA\Property(property="date_assignation", type="string", format="date-time", nullable=true, description="Date d'assignation de la mission"),
+ *     @OA\Property(property="date_acceptation", type="string", format="date-time", nullable=true, description="Date d'acceptation par le technicien"),
+ *     @OA\Property(property="date_debut", type="string", format="date-time", nullable=true, description="Date de début de l'intervention"),
+ *     @OA\Property(property="date_fin", type="string", format="date-time", nullable=true, description="Date de fin de l'intervention"),
+ *     @OA\Property(property="statut", type="string", enum={"planifiee", "en_cours", "terminee", "annulee", "reportee"}, description="Statut de l'intervention"),
+ *     @OA\Property(property="note_ecole", type="integer", nullable=true, description="Note attribuée par l'école"),
+ *     @OA\Property(property="commentaire_ecole", type="string", nullable=true, description="Commentaire de l'école"),
+ *     @OA\Property(property="observations", type="string", nullable=true, description="Observations du technicien"),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ *     @OA\Property(property="updated_at", type="string", format="date-time"),
+ *     @OA\Property(property="technicien", ref="#/components/schemas/Technicien", description="Détails du technicien"),
+ * )
+ *
+
+ */
 class OrdreMissionController extends Controller
 {
     protected OrdreMissionServiceInterface $ordreMissionService;
@@ -41,15 +165,7 @@ class OrdreMissionController extends Controller
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="data", type="object",
      *                 @OA\Property(property="current_page", type="integer", example=1),
-     *                 @OA\Property(property="data", type="array",
-     *                     @OA\Items(
-     *                         @OA\Property(property="id", type="string"),
-     *                         @OA\Property(property="panne", type="object"),
-     *                         @OA\Property(property="ville", type="object"),
-     *                         @OA\Property(property="statut", type="string", example="en_attente"),
-     *                         @OA\Property(property="interventions", type="array", @OA\Items(type="object"))
-     *                     )
-     *                 ),
+     *                 @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/OrdreMission")),
      *                 @OA\Property(property="per_page", type="integer", example=15),
      *                 @OA\Property(property="total", type="integer", example=50)
      *             )
@@ -85,16 +201,7 @@ class OrdreMissionController extends Controller
      *         description="Détails de l'ordre de mission récupérés avec succès",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="object",
-     *                 @OA\Property(property="id", type="string"),
-     *                 @OA\Property(property="panne", type="object",
-     *                     @OA\Property(property="sirene", type="object")
-     *                 ),
-     *                 @OA\Property(property="ville", type="object"),
-     *                 @OA\Property(property="statut", type="string"),
-     *                 @OA\Property(property="interventions", type="array", @OA\Items(type="object")),
-     *                 @OA\Property(property="missionsTechniciens", type="array", @OA\Items(type="object"), description="Candidatures des techniciens")
-     *             )
+     *             @OA\Property(property="data", ref="#/components/schemas/OrdreMission")
      *         )
      *     ),
      *     @OA\Response(
@@ -138,7 +245,7 @@ class OrdreMissionController extends Controller
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Ordre de mission créé avec succès"),
-     *             @OA\Property(property="data", type="object")
+     *             @OA\Property(property="data", ref="#/components/schemas/OrdreMission")
      *         )
      *     )
      * )
@@ -180,14 +287,7 @@ class OrdreMissionController extends Controller
      *         description="Liste des candidatures récupérée avec succès",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="array",
-     *                 @OA\Items(
-     *                     @OA\Property(property="id", type="string"),
-     *                     @OA\Property(property="technicien", type="object"),
-     *                     @OA\Property(property="statut", type="string", example="en_attente"),
-     *                     @OA\Property(property="date_candidature", type="string", format="date-time")
-     *                 )
-     *             )
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/MissionTechnicien"))
      *         )
      *     )
      * )
@@ -219,7 +319,7 @@ class OrdreMissionController extends Controller
      *         description="Liste des ordres de mission de la ville",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/OrdreMission"))
      *         )
      *     )
      * )
@@ -263,7 +363,7 @@ class OrdreMissionController extends Controller
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Ordre de mission mis à jour"),
-     *             @OA\Property(property="data", type="object")
+     *             @OA\Property(property="data", ref="#/components/schemas/OrdreMission")
      *         )
      *     )
      * )

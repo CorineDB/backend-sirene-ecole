@@ -3164,28 +3164,7 @@
                                                 "data": {
                                                     "type": "array",
                                                     "items": {
-                                                        "properties": {
-                                                            "id": {
-                                                                "type": "string"
-                                                            },
-                                                            "panne": {
-                                                                "type": "object"
-                                                            },
-                                                            "ville": {
-                                                                "type": "object"
-                                                            },
-                                                            "statut": {
-                                                                "type": "string",
-                                                                "example": "en_attente"
-                                                            },
-                                                            "interventions": {
-                                                                "type": "array",
-                                                                "items": {
-                                                                    "type": "object"
-                                                                }
-                                                            }
-                                                        },
-                                                        "type": "object"
+                                                        "$ref": "#/components/schemas/OrdreMission"
                                                     }
                                                 },
                                                 "per_page": {
@@ -3290,7 +3269,7 @@
                                             "example": "Ordre de mission créé avec succès"
                                         },
                                         "data": {
-                                            "type": "object"
+                                            "$ref": "#/components/schemas/OrdreMission"
                                         }
                                     },
                                     "type": "object"
@@ -3338,39 +3317,7 @@
                                             "example": true
                                         },
                                         "data": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "string"
-                                                },
-                                                "panne": {
-                                                    "properties": {
-                                                        "sirene": {
-                                                            "type": "object"
-                                                        }
-                                                    },
-                                                    "type": "object"
-                                                },
-                                                "ville": {
-                                                    "type": "object"
-                                                },
-                                                "statut": {
-                                                    "type": "string"
-                                                },
-                                                "interventions": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object"
-                                                    }
-                                                },
-                                                "missionsTechniciens": {
-                                                    "description": "Candidatures des techniciens",
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object"
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
+                                            "$ref": "#/components/schemas/OrdreMission"
                                         }
                                     },
                                     "type": "object"
@@ -3460,7 +3407,7 @@
                                             "example": "Ordre de mission mis à jour"
                                         },
                                         "data": {
-                                            "type": "object"
+                                            "$ref": "#/components/schemas/OrdreMission"
                                         }
                                     },
                                     "type": "object"
@@ -3560,23 +3507,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "string"
-                                                    },
-                                                    "technicien": {
-                                                        "type": "object"
-                                                    },
-                                                    "statut": {
-                                                        "type": "string",
-                                                        "example": "en_attente"
-                                                    },
-                                                    "date_candidature": {
-                                                        "type": "string",
-                                                        "format": "date-time"
-                                                    }
-                                                },
-                                                "type": "object"
+                                                "$ref": "#/components/schemas/MissionTechnicien"
                                             }
                                         }
                                     },
@@ -3627,7 +3558,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "type": "object"
+                                                "$ref": "#/components/schemas/OrdreMission"
                                             }
                                         }
                                     },
@@ -6465,6 +6396,482 @@
                         "description": "Last update timestamp",
                         "type": "string",
                         "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "OrdreMission": {
+                "title": "Ordre de Mission",
+                "description": "Détails d'un ordre de mission",
+                "properties": {
+                    "id": {
+                        "description": "ID de l'ordre de mission",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "panne_id": {
+                        "description": "ID de la panne associée",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "ville_id": {
+                        "description": "ID de la ville de la mission",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "date_generation": {
+                        "description": "Date de génération de l'ordre de mission",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "date_debut_candidature": {
+                        "description": "Date de début des candidatures",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "date_fin_candidature": {
+                        "description": "Date de fin des candidatures",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "nombre_techniciens_requis": {
+                        "description": "Nombre de techniciens requis",
+                        "type": "integer"
+                    },
+                    "nombre_techniciens_acceptes": {
+                        "description": "Nombre de techniciens acceptés",
+                        "type": "integer"
+                    },
+                    "candidature_cloturee": {
+                        "description": "Indique si les candidatures sont clôturées manuellement",
+                        "type": "boolean"
+                    },
+                    "date_cloture_candidature": {
+                        "description": "Date de clôture des candidatures",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cloture_par": {
+                        "description": "ID de l'utilisateur ayant clôturé les candidatures",
+                        "type": "string",
+                        "format": "ulid",
+                        "nullable": true
+                    },
+                    "valide_par": {
+                        "description": "ID de l'utilisateur ayant validé l'ordre de mission",
+                        "type": "string",
+                        "format": "ulid",
+                        "nullable": true
+                    },
+                    "statut": {
+                        "description": "Statut de l'ordre de mission",
+                        "type": "string",
+                        "enum": [
+                            "en_attente",
+                            "en_cours",
+                            "termine",
+                            "cloture"
+                        ]
+                    },
+                    "commentaire": {
+                        "description": "Commentaire sur l'ordre de mission",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "numero_ordre": {
+                        "description": "Numéro unique de l'ordre de mission",
+                        "type": "string"
+                    },
+                    "panne": {
+                        "$ref": "#/components/schemas/Panne"
+                    },
+                    "ville": {
+                        "$ref": "#/components/schemas/Ville"
+                    },
+                    "validePar": {
+                        "$ref": "#/components/schemas/User"
+                    },
+                    "cloturePar": {
+                        "$ref": "#/components/schemas/User"
+                    },
+                    "interventions": {
+                        "description": "Liste des interventions liées à cet ordre de mission",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Intervention"
+                        }
+                    },
+                    "missionsTechniciens": {
+                        "description": "Liste des candidatures de techniciens pour cet ordre de mission",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MissionTechnicien"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "Panne": {
+                "title": "Panne",
+                "description": "Détails d'une panne",
+                "properties": {
+                    "id": {
+                        "description": "ID de la panne",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "ecole_id": {
+                        "description": "ID de l'école associée",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "sirene_id": {
+                        "description": "ID de la sirène associée",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "site_id": {
+                        "description": "ID du site associé",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "numero_panne": {
+                        "description": "Numéro unique de la panne",
+                        "type": "string"
+                    },
+                    "description": {
+                        "description": "Description de la panne",
+                        "type": "string"
+                    },
+                    "date_signalement": {
+                        "description": "Date de signalement de la panne",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "priorite": {
+                        "description": "Priorité de la panne",
+                        "type": "string",
+                        "enum": [
+                            "basse",
+                            "moyenne",
+                            "haute",
+                            "urgente"
+                        ]
+                    },
+                    "statut": {
+                        "description": "Statut de la panne",
+                        "type": "string",
+                        "enum": [
+                            "signalee",
+                            "en_attente_validation",
+                            "validee",
+                            "en_cours_traitement",
+                            "resolue",
+                            "annulee"
+                        ]
+                    },
+                    "date_declaration": {
+                        "description": "Date de déclaration de la panne",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "date_validation": {
+                        "description": "Date de validation de la panne",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "valide_par": {
+                        "description": "ID de l'utilisateur ayant validé la panne",
+                        "type": "string",
+                        "format": "ulid",
+                        "nullable": true
+                    },
+                    "est_cloture": {
+                        "description": "Indique si la panne est clôturée",
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "sirene": {
+                        "$ref": "#/components/schemas/Sirene"
+                    }
+                },
+                "type": "object"
+            },
+            "Ville": {
+                "title": "Ville",
+                "description": "Détails d'une ville",
+                "properties": {
+                    "id": {
+                        "description": "ID de la ville",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "pays_id": {
+                        "description": "ID du pays associé",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "nom": {
+                        "description": "Nom de la ville",
+                        "type": "string"
+                    },
+                    "code": {
+                        "description": "Code de la ville",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "latitude": {
+                        "description": "Latitude de la ville",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "longitude": {
+                        "description": "Longitude de la ville",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "actif": {
+                        "description": "Indique si la ville est active",
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "User": {
+                "title": "User",
+                "description": "Détails d'un utilisateur",
+                "properties": {
+                    "id": {
+                        "description": "ID de l'utilisateur",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "nom_utilisateur": {
+                        "description": "Nom d'utilisateur",
+                        "type": "string"
+                    },
+                    "identifiant": {
+                        "description": "Identifiant de l'utilisateur",
+                        "type": "string"
+                    },
+                    "type": {
+                        "description": "Type de compte utilisateur",
+                        "type": "string"
+                    },
+                    "role_id": {
+                        "description": "ID du rôle de l'utilisateur",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "actif": {
+                        "description": "Indique si l'utilisateur est actif",
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "MissionTechnicien": {
+                "title": "Mission Technicien",
+                "description": "Détails d'une mission de technicien (candidature)",
+                "properties": {
+                    "id": {
+                        "description": "ID de la mission",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "ordre_mission_id": {
+                        "description": "ID de l'ordre de mission",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "technicien_id": {
+                        "description": "ID du technicien",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "statut_candidature": {
+                        "description": "Statut de la candidature",
+                        "type": "string",
+                        "enum": [
+                            "en_attente",
+                            "acceptee",
+                            "refusee",
+                            "retiree"
+                        ]
+                    },
+                    "statut": {
+                        "description": "Statut de la mission",
+                        "type": "string",
+                        "enum": [
+                            "non_demarree",
+                            "en_cours",
+                            "terminee",
+                            "annulee"
+                        ]
+                    },
+                    "date_acceptation": {
+                        "description": "Date d'acceptation de la candidature",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "date_cloture": {
+                        "description": "Date de clôture de la mission",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "date_retrait": {
+                        "description": "Date de retrait de la candidature",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "motif_retrait": {
+                        "description": "Motif du retrait de la candidature",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "technicien": {
+                        "$ref": "#/components/schemas/Technicien"
+                    }
+                },
+                "type": "object"
+            },
+            "Intervention": {
+                "title": "Intervention",
+                "description": "Détails d'une intervention",
+                "properties": {
+                    "id": {
+                        "description": "ID de l'intervention",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "panne_id": {
+                        "description": "ID de la panne associée",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "technicien_id": {
+                        "description": "ID du technicien assigné",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "ordre_mission_id": {
+                        "description": "ID de l'ordre de mission associé",
+                        "type": "string",
+                        "format": "ulid"
+                    },
+                    "date_intervention": {
+                        "description": "Date planifiée de l'intervention",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "date_affectation": {
+                        "description": "Date d'affectation du technicien",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "date_assignation": {
+                        "description": "Date d'assignation de la mission",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "date_acceptation": {
+                        "description": "Date d'acceptation par le technicien",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "date_debut": {
+                        "description": "Date de début de l'intervention",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "date_fin": {
+                        "description": "Date de fin de l'intervention",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "statut": {
+                        "description": "Statut de l'intervention",
+                        "type": "string",
+                        "enum": [
+                            "planifiee",
+                            "en_cours",
+                            "terminee",
+                            "annulee",
+                            "reportee"
+                        ]
+                    },
+                    "note_ecole": {
+                        "description": "Note attribuée par l'école",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "commentaire_ecole": {
+                        "description": "Commentaire de l'école",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "observations": {
+                        "description": "Observations du technicien",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "technicien": {
+                        "$ref": "#/components/schemas/Technicien"
                     }
                 },
                 "type": "object"
