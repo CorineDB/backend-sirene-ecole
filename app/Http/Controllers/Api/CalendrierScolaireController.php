@@ -208,35 +208,35 @@ class CalendrierScolaireController extends Controller
     /**
      * Display a listing of the public holidays for a specific school calendar.
      *
-     * @OA\\Get(
-     *     path=\"/api/calendrier-scolaire/{id}/jours-feries\",
-     *     summary=\"List all public holidays for a specific school calendar\",
-     *     tags={\"Calendrier Scolaire\"},
-     *     security={ {\"passport\": {}} },
-     *     @OA\\Parameter(
-     *         name=\"id\",
-     *         in=\"path\",
-     *         description=\"ID of the school calendar\",
+     * @OA\Get(
+     *     path="/api/calendrier-scolaire/{id}/jours-feries",
+     *     summary="List all public holidays for a specific school calendar",
+     *     tags={"Calendrier Scolaire"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID of the school calendar",
      *         required=true,
-     *         @OA\\Schema(type=\"string\", format=\"uuid\")
+     *         @OA\Schema(type="string", format="uuid")
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=200,
-     *         description=\"Successful operation\",
-     *         @OA\\JsonContent(type=\"array\", @OA\\Items(ref=\"#/components/schemas/JourFerie\"))
+     *         description="Successful operation",
+     *         @OA\JsonContent(type="array", @OA\Items(ref="#/components/schemas/JourFerie"))
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=404,
-     *         description=\"School calendar not found\",
-     *         @OA\\JsonContent(
-     *             @OA\\Property(property=\"message\", type=\"string\", example=\"School calendar not found.\")
+     *         description="School calendar not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="School calendar not found.")
      *         )
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=401,
-     *         description=\"Unauthenticated\",
-     *         @OA\\JsonContent(
-     *             @OA\\Property(property=\"message\", type=\"string\", example=\"Unauthenticated.\")
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
      *         )
      *     )
      * )
@@ -249,44 +249,44 @@ class CalendrierScolaireController extends Controller
     /**
      * Calculate the number of school days for a specific school calendar.
      *
-     * @OA\\Get(
-     *     path=\"/api/calendrier-scolaire/{id}/calculate-school-days\",
-     *     summary=\"Calculate the number of school days for a specific school calendar\",
-     *     tags={\"Calendrier Scolaire\"},
-     *     security={ {\"passport\": {}} },
-     *     @OA\\Parameter(
-     *         name=\"id\",
-     *         in=\"path\",
-     *         description=\"ID of the school calendar\",
+     * @OA\Get(
+     *     path="/api/calendrier-scolaire/{id}/calculate-school-days",
+     *     summary="Calculate the number of school days for a specific school calendar",
+     *     tags={"Calendrier Scolaire"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID of the school calendar",
      *         required=true,
-     *         @OA\\Schema(type=\"string\", format=\"uuid\")
+     *         @OA\Schema(type="string", format="uuid")
      *     ),
-     *     @OA\\Parameter(
-     *         name=\"ecole_id\",
-     *         in=\"query\",
-     *         description=\"ID of the school (optional)\",
+     *     @OA\Parameter(
+     *         name="ecole_id",
+     *         in="query",
+     *         description="ID of the school (optional)",
      *         required=false,
-     *         @OA\\Schema(type=\"string\", format=\"uuid\")
+     *         @OA\Schema(type="string", format="uuid")
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=200,
-     *         description=\"Successful operation\",
-     *         @OA\\JsonContent(
-     *             @OA\\Property(property=\"school_days\", type=\"integer\", example=180)
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="school_days", type="integer", example=180)
      *         )
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=404,
-     *         description=\"School calendar not found\",
-     *         @OA\\JsonContent(
-     *             @OA\\Property(property=\"message\", type=\"string\", example=\"School calendar not found.\")
+     *         description="School calendar not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="School calendar not found.")
      *         )
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=401,
-     *         description=\"Unauthenticated\",
-     *         @OA\\JsonContent(
-     *             @OA\\Property(property=\"message\", type=\"string\", example=\"Unauthenticated.\")
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
      *         )
      *     )
      * )

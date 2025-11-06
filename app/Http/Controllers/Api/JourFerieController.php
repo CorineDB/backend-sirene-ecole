@@ -206,28 +206,28 @@ class JourFerieController extends Controller
     /**
      * Display a listing of the public holidays for a specific school.
      *
-     * @OA\\Get(
-     *     path=\"/api/ecoles/{ecoleId}/jours-feries\",
-     *     summary=\"List all public holidays for a specific school\",
-     *     tags={\"Jours Fériés\"},
-     *     security={ {\"passport\": {}} },
-     *     @OA\\Parameter(
-     *         name=\"ecoleId\",
-     *         in=\"path\",
-     *         description=\"ID of the school\",
+     * @OA\Get(
+     *     path="/api/ecoles/{ecoleId}/jours-feries",
+     *     summary="List all public holidays for a specific school",
+     *     tags={"Jours Fériés"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="ecoleId",
+     *         in="path",
+     *         description="ID of the school",
      *         required=true,
-     *         @OA\\Schema(type=\"string\", format=\"uuid\")
+     *         @OA\Schema(type="string", format="uuid")
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=200,
-     *         description=\"Successful operation\",
-     *         @OA\\JsonContent(type=\"array\", @OA\\Items(ref=\"#/components/schemas/JourFerie\"))
+     *         description="Successful operation",
+     *         @OA\JsonContent(type="array", @OA\Items(ref="#/components/schemas/JourFerie"))
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=401,
-     *         description=\"Unauthenticated\",
-     *         @OA\\JsonContent(
-     *             @OA\\Property(property=\"message\", type=\"string\", example=\"Unauthenticated.\")
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
      *         )
      *     )
      * )
@@ -240,32 +240,32 @@ class JourFerieController extends Controller
     /**
      * Store a newly created or updated public holiday for a specific school.
      *
-     * @OA\\Post(
-     *     path=\"/api/ecoles/{ecoleId}/jours-feries\",
-     *     summary=\"Create or update a public holiday for a specific school\",
-     *     tags={\"Jours Fériés\"},
-     *     security={ {\"passport\": {}} },
-     *     @OA\\Parameter(
-     *         name=\"ecoleId\",
-     *         in=\"path\",
-     *         description=\"ID of the school\",
+     * @OA\Post(
+     *     path="/api/ecoles/{ecoleId}/jours-feries",
+     *     summary="Create or update a public holiday for a specific school",
+     *     tags={"Jours Fériés"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="ecoleId",
+     *         in="path",
+     *         description="ID of the school",
      *         required=true,
-     *         @OA\\Schema(type=\"string\", format=\"uuid\")
+     *         @OA\Schema(type="string", format="uuid")
      *     ),
-     *     @OA\\RequestBody(
+     *     @OA\RequestBody(
      *         required=true,
-     *         @OA\\JsonContent(ref=\"#/components/schemas/CreateJourFerieRequest\")
+     *         @OA\JsonContent(ref="#/components/schemas/CreateJourFerieRequest")
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=201,
-     *         description=\"Public holiday created or updated successfully\",
-     *         @OA\\JsonContent(ref=\"#/components/schemas/JourFerie\")
+     *         description="Public holiday created or updated successfully",
+     *         @OA\JsonContent(ref="#/components/schemas/JourFerie")
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=422,
-     *         description=\"Validation error\",
-     *         @OA\\JsonContent(
-     *             @OA\\Property(property=\"message\", type=\"string\", example=\"The given data was invalid.\")
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="The given data was invalid.")
      *         )
      *     )
      * )

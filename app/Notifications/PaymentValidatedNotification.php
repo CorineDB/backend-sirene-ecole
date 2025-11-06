@@ -45,7 +45,7 @@ class PaymentValidatedNotification extends Notification
         return (new MailMessage)
                     ->line('Un nouveau paiement a été validé.')
                     ->action('Voir le paiement', url('/')) // TODO: Link to payment details
-                    ->line('Merci d'utiliser notre application!');
+                    ->line('Merci d\'utiliser notre application!');
     }
 
     /**

@@ -7,20 +7,20 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 
-class NewMissionOrderNotification extends Notification
+class MissionCompletionNotification extends Notification
 {
     use Queueable;
 
-    protected array $ordreMissionDetails;
+    protected array $missionDetails;
 
     /**
      * Create a new notification instance.
      *
      * @return void
      */
-    public function __construct(array $ordreMissionDetails)
+    public function __construct(array $missionDetails)
     {
-        $this->ordreMissionDetails = $ordreMissionDetails;
+        $this->missionDetails = $missionDetails;
     }
 
     /**
@@ -43,8 +43,8 @@ class NewMissionOrderNotification extends Notification
     public function toMail($notifiable)
     {
         return (new MailMessage)
-                    ->line("Un nouvel ordre de mission ({$this->ordreMissionDetails['numero_ordre']}) a été généré dans votre ville ({$this->ordreMissionDetails['ville_nom']}).")
-                    ->action('Voir la mission', url('/')) // TODO: Link to mission details
+                    ->line("La mission {$this->missionDetails['numero_ordre']} est terminée. Veuillez laisser votre avis.")
+                    ->action('Donner votre avis', url('/')) // TODO: Link to feedback form
                     ->line('Merci d\'utiliser notre application!');
     }
 
@@ -57,12 +57,12 @@ class NewMissionOrderNotification extends Notification
     public function toArray($notifiable)
     {
         return [
-            'title' => 'Nouvel Ordre de Mission Disponible',
-            'message' => "Un nouvel ordre de mission ({$this->ordreMissionDetails['numero_ordre']}) a été généré dans votre ville ({$this->ordreMissionDetails['ville_nom']}).",
-            'ordre_mission_id' => $this->ordreMissionDetails['id'],
-            'numero_ordre' => $this->ordreMissionDetails['numero_ordre'],
-            'ville_nom' => $this->ordreMissionDetails['ville_nom'],
-            'type' => 'new_mission_order',
+            'title' => 'Mission Terminée - Votre Avis',
+            'message' => "La mission {$this->missionDetails['numero_ordre']} est terminée. Veuillez laisser votre avis.",
+            'ordre_mission_id' => $this->missionDetails['id'],
+            'numero_ordre' => $this->missionDetails['numero_ordre'],
+            'ecole_nom' => $this->missionDetails['ecole_nom'],
+            'type' => 'mission_completion',
         ];
     }
 }

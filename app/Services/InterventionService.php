@@ -7,12 +7,15 @@ use App\Enums\StatutMission;
 use App\Enums\StatutOrdreMission;
 use App\Models\AvisIntervention;
 use App\Models\AvisRapport;
+use App\Models\User;
+use App\Models\Ecole;
+use App\Notifications\AdminCandidatureSubmissionNotification;
+use App\Notifications\MissionCompletionNotification;
 use App\Repositories\Contracts\InterventionRepositoryInterface;
 use App\Repositories\Contracts\MissionTechnicienRepositoryInterface;
 use App\Repositories\Contracts\RapportInterventionRepositoryInterface;
 use App\Repositories\Contracts\OrdreMissionRepositoryInterface;
 use App\Services\Contracts\InterventionServiceInterface;
-use App\Services\Contracts\NotificationServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,20 +26,17 @@ class InterventionService extends BaseService implements InterventionServiceInte
     protected MissionTechnicienRepositoryInterface $missionRepository;
     protected RapportInterventionRepositoryInterface $rapportRepository;
     protected OrdreMissionRepositoryInterface $ordreMissionRepository;
-    protected NotificationServiceInterface $notificationService;
 
     public function __construct(
         InterventionRepositoryInterface $repository,
         MissionTechnicienRepositoryInterface $missionRepository,
         RapportInterventionRepositoryInterface $rapportRepository,
-        OrdreMissionRepositoryInterface $ordreMissionRepository,
-        NotificationServiceInterface $notificationService
+        OrdreMissionRepositoryInterface $ordreMissionRepository
     ) {
         parent::__construct($repository);
         $this->missionRepository = $missionRepository;
         $this->rapportRepository = $rapportRepository;
         $this->ordreMissionRepository = $ordreMissionRepository;
-        $this->notificationService = $notificationService;
     }
 
     public function soumettreCandidatureMission(string $ordreMissionId, string $technicienId): JsonResponse
@@ -81,12 +81,18 @@ class InterventionService extends BaseService implements InterventionServiceInte
             ]);
 
             // Envoyer la notification à l'admin
-            $this->notificationService->sendAdminCandidatureSubmissionNotification([
-                'technicien_id' => $technicienId,
-                'technicien_nom' => $mission->technicien->user->full_name ?? 'Technicien Inconnu', // Assuming relations exist
-                'ordre_mission_id' => $ordreMissionId,
-                'numero_ordre' => $ordreMission->numero_ordre,
-            ]);
+            $adminUsers = User::whereHas('roles', function ($query) {
+                $query->where('name', 'admin');
+            })->get();
+
+            foreach ($adminUsers as $admin) {
+                $admin->notify(new AdminCandidatureSubmissionNotification([
+                    'technicien_id' => $technicienId,
+                    'technicien_nom' => $mission->technicien->user->full_name ?? 'Technicien Inconnu',
+                    'ordre_mission_id' => $ordreMissionId,
+                    'numero_ordre' => $ordreMission->numero_ordre,
+                ]));
+            }
 
             DB::commit();
             return $this->createdResponse($mission);
@@ -325,14 +331,11 @@ class InterventionService extends BaseService implements InterventionServiceInte
 
                 if ($allInterventionsTerminated) {
                     // Notifier l'école de la fin de la mission
-                    $this->notificationService->sendMissionCompletionNotificationToEcole(
-                        $intervention->ordreMission->ecole->id,
-                        [
-                            'id' => $intervention->ordreMission->id,
-                            'numero_ordre' => $intervention->ordreMission->numero_ordre,
-                            'ecole_nom' => $intervention->ordreMission->ecole->nom,
-                        ]
-                    );
+                    $intervention->ordreMission->ecole->notify(new MissionCompletionNotification([
+                        'id' => $intervention->ordreMission->id,
+                        'numero_ordre' => $intervention->ordreMission->numero_ordre,
+                        'ecole_nom' => $intervention->ordreMission->ecole->nom,
+                    ]));
                 }
             }
 

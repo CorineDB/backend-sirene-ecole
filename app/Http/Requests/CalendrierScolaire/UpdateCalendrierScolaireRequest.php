@@ -53,7 +53,7 @@ use OpenApi\Annotations as OA;
  *             @OA\Property(property="nom", type="string", example="Vacances de Noël"),
  *             @OA\Property(property="date_debut", type="string", format="date", example="2023-12-20"),
  *             @OA\Property(property="date_fin", type="string", format="date", example="2024-01-05")
- *         )})
+ *         )
  *     ),
  *     @OA\Property(
  *         property="jours_feries_defaut",

@@ -256,32 +256,32 @@ class EcoleController extends Controller
     /**
      * Load the school calendar for the authenticated school, including global and school-specific holidays.
      *
-     * @OA\\Get(
-     *     path=\"/api/ecoles/me/calendrier-scolaire/with-ecole-holidays\",
-     *     summary=\"Load school calendar with merged holidays for authenticated school\",
-     *     tags={\"Ecoles\"},
-     *     security={ {\"passport\": {}} },
-     *     @OA\\Response(
+     * @OA\Get(
+     *     path="/api/ecoles/me/calendrier-scolaire/with-ecole-holidays",
+     *     summary="Load school calendar with merged holidays for authenticated school",
+     *     tags={"Ecoles"},
+     *     security={ {"passport": {}} },
+     *     @OA\Response(
      *         response=200,
-     *         description=\"Successful operation\",
-     *         @OA\\JsonContent(
-     *             @OA\\Property(property=\"id\", type=\"string\", format=\"uuid\"),
-     *             @OA\\Property(property=\"annee_scolaire\", type=\"string\"),
-     *             @OA\\Property(property=\"jours_feries_merged\", type=\"array\", @OA\\Items(type=\"object\"))
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="id", type="string", format="uuid"),
+     *             @OA\Property(property="annee_scolaire", type="string"),
+     *             @OA\Property(property="jours_feries_merged", type="array", @OA\Items(type="object"))
      *         )
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=401,
-     *         description=\"Unauthenticated\",
-     *         @OA\\JsonContent(
-     *             @OA\\Property(property=\"message\", type=\"string\", example=\"Unauthenticated.\")
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
      *         )
      *     ),
-     *     @OA\\Response(
+     *     @OA\Response(
      *         response=404,
-     *         description=\"School calendar or school not found\",
-     *         @OA\\JsonContent(
-     *             @OA\\Property(property=\"message\", type=\"string\", example=\"School calendar or school not found.\")
+     *         description="School calendar or school not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="School calendar or school not found.")
      *         )
      *     )
      * )

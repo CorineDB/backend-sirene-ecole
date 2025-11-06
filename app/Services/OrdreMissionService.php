@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Enums\StatutOrdreMission;
+use App\Models\Technicien;
+use App\Notifications\NewMissionOrderNotification;
+use App\Notifications\CandidatureValidationNotification;
 use App\Repositories\Contracts\OrdreMissionRepositoryInterface;
 use App\Repositories\Contracts\MissionTechnicienRepositoryInterface;
 use App\Repositories\Contracts\PanneRepositoryInterface;
 use App\Services\Contracts\OrdreMissionServiceInterface;
-use App\Services\Contracts\NotificationServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,18 +19,15 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
 {
     protected MissionTechnicienRepositoryInterface $missionTechnicienRepository;
     protected PanneRepositoryInterface $panneRepository;
-    protected NotificationServiceInterface $notificationService;
 
     public function __construct(
         OrdreMissionRepositoryInterface $repository,
         MissionTechnicienRepositoryInterface $missionTechnicienRepository,
-        PanneRepositoryInterface $panneRepository,
-        NotificationServiceInterface $notificationService
+        PanneRepositoryInterface $panneRepository
     ) {
         parent::__construct($repository);
         $this->missionTechnicienRepository = $missionTechnicienRepository;
         $this->panneRepository = $panneRepository;
-        $this->notificationService = $notificationService;
     }
 
     // Override create() pour ajouter la logique métier spécifique
@@ -60,14 +59,14 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
 
             // Notifier tous les techniciens de la ville
             if (isset($data['ville_id'])) {
-                $this->notificationService->sendNewOrdreMissionNotificationToTechnicians(
-                    $data['ville_id'],
-                    [
+                $technicians = Technicien::where('ville_id', $data['ville_id'])->get();
+                foreach ($technicians as $technician) {
+                    $technician->notify(new NewMissionOrderNotification([
                         'id' => $ordreMission->id,
                         'numero_ordre' => $ordreMission->numero_ordre,
-                        'ville_nom' => $ordreMission->ville->nom ?? 'Ville Inconnue', // Assuming OrdreMission has a 'ville' relationship
-                    ]
-                );
+                        'ville_nom' => $ordreMission->ville->nom ?? 'Ville Inconnue',
+                    ]));
+                }
             }
 
             DB::commit();
@@ -154,31 +153,6 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
         }
     }
 
-    public function rouvrirCandidatures(string $ordreMissionId, string $adminId): JsonResponse
-    {
-        try {
-            $ordreMission = $this->repository->find($ordreMissionId);
-            if (!$ordreMission) {
-                return $this->notFoundResponse('Ordre de mission non trouvé.');
-            }
-
-            if (!$ordreMission->candidature_cloturee) {
-                return $this->errorResponse('Les candidatures ne sont pas clôturées.', 400);
-            }
-
-            $ordreMission = $this->repository->update($ordreMissionId, [
-                'candidature_cloturee' => false,
-                'date_cloture_candidature' => null,
-                'cloture_par' => null,
-            ]);
-
-            return $this->successResponse('Candidatures réouvertes avec succès.', $ordreMission);
-        } catch (Exception $e) {
-            Log::error("Error in OrdreMissionService::rouvrirCandidatures - " . $e->getMessage());
-            return $this->errorResponse($e->getMessage(), 500);
-        }
-    }
-
     public function validerCandidature(string $missionTechnicienId): JsonResponse
     {
         try {
@@ -207,17 +181,13 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
             ]);
 
             // Envoyer la notification au technicien
-            $this->notificationService->sendCandidatureValidationNotification(
-                $missionTechnicien->technicien_id,
-                [
-                    'id' => $missionTechnicien->id,
-                    'ordre_mission_id' => $missionTechnicien->ordre_mission_id,
-                    'numero_ordre' => $missionTechnicien->ordreMission->numero_ordre,
-                ]
-            );
+            $missionTechnicien->technicien->notify(new CandidatureValidationNotification([
+                'id' => $missionTechnicien->id,
+                'ordre_mission_id' => $missionTechnicien->ordre_mission_id,
+                'numero_ordre' => $missionTechnicien->ordreMission->numero_ordre,
+            ]));
 
             DB::commit();
-            return $this->successResponse('Candidature validée avec succès.');
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in OrdreMissionService::validerCandidature - " . $e->getMessage());

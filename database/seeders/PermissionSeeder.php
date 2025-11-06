@@ -31,7 +31,7 @@ class PermissionSeeder extends Seeder
             ['nom' => 'Initier le paiement d\'un abonnement', 'slug' => 'initier_paiement_abonnement'],
 
             // AvisIntervention
-            ['nom' => 'Voir les avis d'intervention', 'slug' => 'voir_les_avis_intervention'],
+            ['nom' => 'Voir les avis d\'intervention', 'slug' => 'voir_les_avis_intervention'],
             ['nom' => 'Voir un avis d\'intervention', 'slug' => 'voir_avis_intervention'],
             ['nom' => 'Créer un avis d\'intervention', 'slug' => 'creer_avis_intervention'],
             ['nom' => 'Modifier un avis d\'intervention', 'slug' => 'modifier_avis_intervention'],

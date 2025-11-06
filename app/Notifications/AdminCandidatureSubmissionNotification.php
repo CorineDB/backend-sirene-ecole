@@ -7,7 +7,7 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 
-class CandidatureValidationNotification extends Notification
+class AdminCandidatureSubmissionNotification extends Notification
 {
     use Queueable;
 
@@ -43,8 +43,8 @@ class CandidatureValidationNotification extends Notification
     public function toMail($notifiable)
     {
         return (new MailMessage)
-                    ->line("Votre candidature pour l'ordre de mission {$this->candidatureDetails['numero_ordre']} a été validée.")
-                    ->action('Voir la mission', url('/')) // TODO: Link to mission details
+                    ->line("Une nouvelle candidature a été soumise par le technicien {$this->candidatureDetails['technicien_nom']} pour l'ordre de mission {$this->candidatureDetails['numero_ordre']}.")
+                    ->action('Voir la candidature', url('/')) // TODO: Link to candidature details
                     ->line('Merci d\'utiliser notre application!');
     }
 
@@ -57,11 +57,13 @@ class CandidatureValidationNotification extends Notification
     public function toArray($notifiable)
     {
         return [
-            'title' => 'Candidature Validée',
-            'message' => "Votre candidature pour l'ordre de mission {$this->candidatureDetails['numero_ordre']} a été validée.",
+            'title' => 'Nouvelle Candidature Soumise',
+            'message' => "Une nouvelle candidature a été soumise par le technicien {$this->candidatureDetails['technicien_nom']} pour l'ordre de mission {$this->candidatureDetails['numero_ordre']}.",
+            'technicien_id' => $this->candidatureDetails['technicien_id'],
+            'technicien_nom' => $this->candidatureDetails['technicien_nom'],
             'ordre_mission_id' => $this->candidatureDetails['ordre_mission_id'],
             'numero_ordre' => $this->candidatureDetails['numero_ordre'],
-            'type' => 'candidature_validation',
+            'type' => 'admin_candidature_submission',
         ];
     }
 }
