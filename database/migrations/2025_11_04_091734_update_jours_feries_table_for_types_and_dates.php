@@ -28,24 +28,19 @@ return new class extends Migration
             if (Schema::hasColumn('jours_feries', 'type_jour')) {
                 $table->dropColumn('type_jour');
             }
-
-            // Rename 'date' to 'date_debut' if it exists
-            if (Schema::hasColumn('jours_feries', 'date')) {
-                $table->renameColumn('date', 'date_debut');
-            } else {
-                // If 'date' column doesn't exist, add 'date_debut'
-                $table->date('date_debut')->after('pays_id');
+            if (Schema::hasColumn('jours_feries', 'date_debut')) {
+                $table->dropColumn('date_debut');
+            }
+            if (Schema::hasColumn('jours_feries', 'date_fin')) {
+                $table->dropColumn('date_fin');
             }
 
             // Add 'intitule_journee' as text
-            $table->text('intitule_journee')->after('pays_id');
-
-            // Add 'date_fin'
-            $table->date('date_fin')->nullable()->after('date_debut');
+            $table->text('intitule_journee')->nullable()->after('pays_id');
 
             // Ensure 'est_national' exists (assuming it's a boolean and might be added by another migration or was intended)
             if (!Schema::hasColumn('jours_feries', 'est_national')) {
-                $table->boolean('est_national')->default(false)->after('date_fin');
+                $table->boolean('est_national')->default(false)->after('date');
             }
         });
     }
@@ -60,11 +55,8 @@ return new class extends Migration
             if (Schema::hasColumn('jours_feries', 'intitule_journee')) {
                 $table->dropColumn('intitule_journee');
             }
-            if (Schema::hasColumn('jours_feries', 'date_fin')) {
-                $table->dropColumn('date_fin');
-            }
-            if (Schema::hasColumn('jours_feries', 'date_debut')) {
-                $table->renameColumn('date_debut', 'date');
+            if (Schema::hasColumn('jours_feries', 'date')) {
+                $table->dropColumn('date');
             }
             if (Schema::hasColumn('jours_feries', 'est_national')) {
                 $table->dropColumn('est_national');
@@ -75,6 +67,10 @@ return new class extends Migration
             $table->string('nom')->nullable()->after('libelle');
             $table->date('date_ferie')->nullable()->after('nom');
             $table->enum('type', ['national', 'personnalise'])->default('national')->after('date_ferie');
+
+            // Re-add date_debut and date_fin if they were present before this migration
+            $table->date('date_debut')->nullable();
+            $table->date('date_fin')->nullable();
         });
     }
 };

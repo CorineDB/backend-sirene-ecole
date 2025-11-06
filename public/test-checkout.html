@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Paiement Abonnement Sirène</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .info-value {
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+            text-align: right;
+        }
+
+        .amount {
+            font-size: 36px;
+            color: #667eea;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 2px solid #e0e0e0;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .qr-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: monospace;
+            margin-bottom: 20px;
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .alert-error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+
+        .alert-success {
+            background: #efe;
+            color: #3c3;
+            border: 1px solid #cfc;
+        }
+
+        .metadata-item {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+
+        .metadata-key {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔔 Test Paiement Sirène</h1>
+        <p class="subtitle">Page de test pour simuler le paiement d'un abonnement</p>
+
+        <div id="error-container"></div>
+
+        <!-- Étape 1: Saisie des données QR -->
+        <div id="step-input">
+            <div class="section">
+                <div class="section-title">📱 Données du QR Code</div>
+                <textarea
+                    id="qr-data"
+                    class="qr-input"
+                    placeholder='Collez ici les données JSON du QR code...
+Exemple:
+{
+  "type": "paiement",
+  "abonnement_id": "01ARZ3...",
+  "url": "http://localhost:3000/paiement/...",
+  "metadata": {
+    "cinetpay_payment_url": "https://checkout.cinetpay.com/...",
+    "cinetpay_payment_token": "...",
+    "transaction_id": "ABN-...",
+    ...
+  }
+}'></textarea>
+                <button class="btn btn-primary" onclick="parseQRData()">
+                    🔍 Analyser les données
+                </button>
+            </div>
+
+            <div class="section">
+                <div class="section-title">ℹ️ Instructions</div>
+                <p style="color: #666; font-size: 14px; line-height: 1.6;">
+                    1. Créez une école via l'API<br>
+                    2. Récupérez l'abonnement créé<br>
+                    3. Scannez le QR code ou copiez les données<br>
+                    4. Collez les données JSON ci-dessus<br>
+                    5. Cliquez sur "Analyser les données"
+                </p>
+            </div>
+        </div>
+
+        <!-- Étape 2: Affichage des informations et paiement -->
+        <div id="step-payment" class="hidden">
+            <div class="section">
+                <div class="section-title">💰 Montant à payer</div>
+                <div class="amount" id="amount">-</div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">🏫 Informations Abonnement</div>
+                <div class="info-row">
+                    <span class="info-label">Abonnement ID</span>
+                    <span class="info-value" id="abonnement-id">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Transaction ID</span>
+                    <span class="info-value" id="transaction-id">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">École</span>
+                    <span class="info-value" id="ecole-nom">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Site</span>
+                    <span class="info-value" id="site-nom">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Sirène N°</span>
+                    <span class="info-value" id="sirene-numero">-</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">🔐 Métadonnées CinetPay</div>
+                <div id="metadata-container"></div>
+            </div>
+
+            <button class="btn btn-primary" onclick="goToPayment()">
+                💳 Procéder au paiement CinetPay
+            </button>
+            <button class="btn btn-secondary" onclick="resetForm()">
+                ↩️ Recommencer
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let qrDataParsed = null;
+
+        // Au chargement de la page, vérifier si des données sont passées en paramètre
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const qrDataParam = urlParams.get('qr_data');
+            const hashData = window.location.hash.substring(1);
+
+            if (qrDataParam) {
+                // Données passées en paramètre URL (base64)
+                try {
+                    const decodedData = atob(qrDataParam);
+                    document.getElementById('qr-data').value = decodedData;
+                    parseQRData();
+                } catch (error) {
+                    showError('Erreur de décodage des données URL');
+                }
+            } else if (hashData) {
+                // Données passées dans le hash (base64)
+                try {
+                    const decodedData = atob(hashData);
+                    document.getElementById('qr-data').value = decodedData;
+                    parseQRData();
+                } catch (error) {
+                    showError('Erreur de décodage des données hash');
+                }
+            }
+        });
+
+        function showError(message) {
+            const errorContainer = document.getElementById('error-container');
+            errorContainer.innerHTML = `
+                <div class="alert alert-error">
+                    <strong>❌ Erreur:</strong> ${message}
+                </div>
+            `;
+            setTimeout(() => {
+                errorContainer.innerHTML = '';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const errorContainer = document.getElementById('error-container');
+            errorContainer.innerHTML = `
+                <div class="alert alert-success">
+                    <strong>✅ Succès:</strong> ${message}
+                </div>
+            `;
+        }
+
+        function parseQRData() {
+            const qrInput = document.getElementById('qr-data').value.trim();
+
+            if (!qrInput) {
+                showError('Veuillez saisir les données du QR code');
+                return;
+            }
+
+            try {
+                qrDataParsed = JSON.parse(qrInput);
+
+                // Validation des données
+                if (!qrDataParsed.metadata || !qrDataParsed.metadata.cinetpay_payment_url) {
+                    throw new Error('Données QR invalides: URL de paiement manquante');
+                }
+
+                if (!qrDataParsed.metadata.transaction_id) {
+                    throw new Error('Données QR invalides: Transaction ID manquant');
+                }
+
+                // Afficher les informations
+                displayPaymentInfo();
+
+                // Masquer l'input et afficher les infos
+                document.getElementById('step-input').classList.add('hidden');
+                document.getElementById('step-payment').classList.remove('hidden');
+
+                showSuccess('Données analysées avec succès !');
+
+            } catch (error) {
+                showError('Erreur lors de l\'analyse des données: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        function displayPaymentInfo() {
+            const metadata = qrDataParsed.metadata;
+
+            // Afficher le montant
+            const montant = metadata.montant || 50000;
+            document.getElementById('amount').textContent =
+                new Intl.NumberFormat('fr-FR', {
+                    style: 'currency',
+                    currency: metadata.devise || 'XOF'
+                }).format(montant);
+
+            // Afficher les infos de base
+            document.getElementById('abonnement-id').textContent =
+                qrDataParsed.abonnement_id || '-';
+            document.getElementById('transaction-id').textContent =
+                metadata.transaction_id || '-';
+            document.getElementById('ecole-nom').textContent =
+                metadata.ecole_nom || '-';
+            document.getElementById('site-nom').textContent =
+                metadata.site_nom || '-';
+            document.getElementById('sirene-numero').textContent =
+                metadata.sirene_numero || '-';
+
+            // Afficher les métadonnées détaillées
+            const metadataContainer = document.getElementById('metadata-container');
+            metadataContainer.innerHTML = '';
+
+            const importantKeys = [
+                'cinetpay_payment_token',
+                'cinetpay_api_response_id',
+                'numero_abonnement',
+                'date_debut',
+                'date_fin',
+                'type_paiement'
+            ];
+
+            importantKeys.forEach(key => {
+                if (metadata[key]) {
+                    const div = document.createElement('div');
+                    div.className = 'metadata-item';
+                    div.innerHTML = `
+                        <span class="metadata-key">${key}:</span>
+                        <span style="color: #333; word-break: break-all;">${metadata[key]}</span>
+                    `;
+                    metadataContainer.appendChild(div);
+                }
+            });
+        }
+
+        function goToPayment() {
+            if (!qrDataParsed || !qrDataParsed.metadata.cinetpay_payment_url) {
+                showError('URL de paiement non disponible');
+                return;
+            }
+
+            const paymentUrl = qrDataParsed.metadata.cinetpay_payment_url;
+
+            // Confirmer avant de rediriger
+            if (confirm('Vous allez être redirigé vers le guichet de paiement CinetPay.\n\nContinuer ?')) {
+                // Rediriger vers CinetPay
+                window.location.href = paymentUrl;
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('qr-data').value = '';
+            document.getElementById('step-input').classList.remove('hidden');
+            document.getElementById('step-payment').classList.add('hidden');
+            qrDataParsed = null;
+        }
+
+        // Auto-remplir avec des données de test (optionnel)
+        // Décommentez pour tester rapidement
+        /*
+        window.addEventListener('load', () => {
+            document.getElementById('qr-data').value = JSON.stringify({
+                "type": "paiement",
+                "abonnement_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                "url": "http://localhost:3000/paiement/01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                "metadata": {
+                    "cinetpay_payment_url": "https://checkout.cinetpay.com/payment/test123",
+                    "cinetpay_payment_token": "test_token_123",
+                    "transaction_id": "ABN-20251105-ABCDEF",
+                    "abonnement_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                    "numero_abonnement": "ABO-20251105-ABCDEF",
+                    "ecole_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                    "ecole_nom": "École Test",
+                    "site_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                    "site_nom": "Site Principal",
+                    "sirene_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                    "sirene_numero": "SRN-001",
+                    "montant": 50000,
+                    "devise": "XOF",
+                    "date_debut": "2025-11-05",
+                    "date_fin": "2026-11-05",
+                    "type_paiement": "ABONNEMENT_INITIAL"
+                }
+            }, null, 2);
+        });
+        */
+    </script>
+</body>
+</html>

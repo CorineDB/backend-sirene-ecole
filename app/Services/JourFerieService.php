@@ -15,11 +15,6 @@ class JourFerieService extends BaseService implements JourFerieServiceInterface
     use JsonResponseTrait;
 
     /**
-     * @var JourFerieRepositoryInterface
-     */
-    protected $repository;
-
-    /**
      * @param JourFerieRepositoryInterface $repository
      */
     public function __construct(JourFerieRepositoryInterface $repository)

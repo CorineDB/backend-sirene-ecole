@@ -6,6 +6,7 @@ use App\Enums\StatutAbonnement;
 use App\Traits\HasUlid;
 use App\Traits\HasQrCodeAbonnement;
 use App\Traits\HasTokenCrypte;
+use App\Traits\HasNumeroAbonnement;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Abonnement extends Model
 {
-    use HasUlid, SoftDeletes, HasQrCodeAbonnement, HasTokenCrypte;
+    use HasUlid, SoftDeletes, HasQrCodeAbonnement, HasTokenCrypte/* , HasNumeroAbonnement */;
 
     protected $primaryKey = 'id';
     protected $keyType = 'string';

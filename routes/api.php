@@ -7,6 +7,7 @@ use App\Http\Controllers\API\RoleController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EcoleController;
 use App\Http\Controllers\Api\SireneController;
+use App\Http\Controllers\Api\CinetPayController;
 use App\Http\Controllers\API\TechnicienController;
 use App\Http\Controllers\API\PanneController;
 use App\Http\Controllers\API\InterventionController;
@@ -83,7 +84,7 @@ Route::prefix('ecoles')->group(function () {
         Route::post('{ecoleId}/jours-feries', [JourFerieController::class, 'storeForEcole']);
 
         // School calendar with merged holidays
-        Route::get('me/calendrier-scolaire/{calendrierScolaireId}/with-ecole-holidays', [EcoleController::class, 'getCalendrierScolaireWithJoursFeries']);
+        Route::get('me/calendrier-scolaire/with-ecole-holidays', [EcoleController::class, 'getCalendrierScolaireWithJoursFeries']);
     });
 });
 
@@ -120,6 +121,10 @@ Route::prefix('calendrier-scolaire')->middleware('auth:api')->group(function () 
     Route::delete('{id}', [CalendrierScolaireController::class, 'destroy']);
     Route::get('{id}/jours-feries', [CalendrierScolaireController::class, 'getJoursFeries']);
     Route::get('{id}/calculate-school-days', [CalendrierScolaireController::class, 'calculateSchoolDays']);
+
+    // Bulk operations for jours fériés
+    Route::post('{id}/jours-feries/bulk', [CalendrierScolaireController::class, 'storeMultipleJoursFeries']);
+    Route::put('{id}/jours-feries/bulk', [CalendrierScolaireController::class, 'updateMultipleJoursFeries']);
 });
 
 // JoursFeries routes (Protected)
@@ -193,6 +198,19 @@ Route::prefix('paiements')->group(function () {
         Route::put('{id}/valider', [PaiementController::class, 'valider']);
         Route::get('abonnements/{abonnementId}', [PaiementController::class, 'parAbonnement']);
     });
+});
+
+// CinetPay Payment Gateway routes
+Route::prefix('cinetpay')->group(function () {
+    // Callback de notification (appelé par CinetPay)
+    Route::post('notify', [CinetPayController::class, 'notify']);
+
+    // Page de retour après paiement (redirection utilisateur)
+    Route::get('return', [CinetPayController::class, 'return']);
+    Route::post('return', [CinetPayController::class, 'return']);
+
+    // Vérifier le statut d'une transaction (pour le frontend)
+    Route::post('check-status', [CinetPayController::class, 'checkStatus']);
 });
 
 // Panne routes

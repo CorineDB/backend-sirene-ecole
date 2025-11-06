@@ -23,16 +23,14 @@ class JourFerie extends Model
         'ecole_id',
         'pays_id',
         'intitule_journee',
-        'date_debut',
-        'date_fin',
+        'date',
         'recurrent',
         'actif',
         'est_national',
     ];
 
     protected $casts = [
-        'date_debut' => 'date',
-        'date_fin' => 'date',
+        'date' => 'date',
         'recurrent' => 'boolean',
         'actif' => 'boolean',
         'est_national' => 'boolean',

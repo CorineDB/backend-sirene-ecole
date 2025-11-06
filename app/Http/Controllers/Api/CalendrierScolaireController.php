@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CalendrierScolaire\CreateCalendrierScolaireRequest;
+use App\Http\Requests\CalendrierScolaire\StoreMultipleJoursFeriesRequest;
+use App\Http\Requests\CalendrierScolaire\UpdateMultipleJoursFeriesRequest;
 use App\Http\Requests\CalendrierScolaire\UpdateCalendrierScolaireRequest;
 use App\Services\Contracts\CalendrierScolaireServiceInterface;
 use Illuminate\Http\JsonResponse;
@@ -293,5 +295,81 @@ class CalendrierScolaireController extends Controller
     {
         $ecoleId = $request->get('ecole_id');
         return $this->calendrierScolaireService->calculateSchoolDays($id, $ecoleId);
+    }
+
+    /**
+     * Store multiple public holidays for a specific school calendar.
+     *
+     * @OA\Post(
+     *     path="/api/calendrier-scolaire/{id}/jours-feries/bulk",
+     *     summary="Create or update multiple public holidays for a school calendar",
+     *     tags={"Calendrier Scolaire"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID of the school calendar",
+     *         required=true,
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(ref="#/components/schemas/StoreMultipleJoursFeriesRequest")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Public holidays processed successfully",
+     *         @OA\JsonContent(type="array", @OA\Items(ref="#/components/schemas/JourFerie"))
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="The given data was invalid.")
+     *         )
+     *     )
+     * )
+     */
+    public function storeMultipleJoursFeries(StoreMultipleJoursFeriesRequest $request, string $id): JsonResponse
+    {
+        return $this->calendrierScolaireService->storeMultipleJoursFeries($id, $request->validated());
+    }
+
+    /**
+     * Update multiple public holidays for a specific school calendar.
+     *
+     * @OA\Put(
+     *     path="/api/calendrier-scolaire/{id}/jours-feries/bulk",
+     *     summary="Update multiple public holidays for a school calendar",
+     *     tags={"Calendrier Scolaire"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID of the school calendar",
+     *         required=true,
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(ref="#/components/schemas/StoreMultipleJoursFeriesRequest")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Public holidays processed successfully",
+     *         @OA\JsonContent(type="array", @OA\Items(ref="#/components/schemas/JourFerie"))
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="The given data was invalid.")
+     *         )
+     *     )
+     * )
+     */
+    public function updateMultipleJoursFeries(UpdateMultipleJoursFeriesRequest $request, string $id): JsonResponse
+    {
+        return $this->calendrierScolaireService->updateMultipleJoursFeries($id, $request->validated());
     }
 }

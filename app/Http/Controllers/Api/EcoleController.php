@@ -36,6 +36,7 @@ use OpenApi\Annotations as OA;
  * )
  */
 use App\Services\Contracts\CalendrierScolaireServiceInterface;
+use App\Http\Requests\CalendrierFiltreRequest;
 
 class EcoleController extends Controller
 {
@@ -256,17 +257,10 @@ class EcoleController extends Controller
      * Load the school calendar for the authenticated school, including global and school-specific holidays.
      *
      * @OA\\Get(
-     *     path=\"/api/ecoles/me/calendrier-scolaire/{calendrierScolaireId}/with-ecole-holidays\",
+     *     path=\"/api/ecoles/me/calendrier-scolaire/with-ecole-holidays\",
      *     summary=\"Load school calendar with merged holidays for authenticated school\",
      *     tags={\"Ecoles\"},
      *     security={ {\"passport\": {}} },
-     *     @OA\\Parameter(
-     *         name=\"calendrierScolaireId\",
-     *         in=\"path\",
-     *         description=\"ID of the school calendar\",
-     *         required=true,
-     *         @OA\\Schema(type=\"string\", format=\"uuid\")
-     *     ),
      *     @OA\\Response(
      *         response=200,
      *         description=\"Successful operation\",
@@ -292,9 +286,12 @@ class EcoleController extends Controller
      *     )
      * )
      */
-    public function getCalendrierScolaireWithJoursFeries(string $calendrierScolaireId): JsonResponse
+    public function getCalendrierScolaireWithJoursFeries(CalendrierFiltreRequest $request): JsonResponse
     {
-        $ecoleId = auth()->user()->user_account_type_id;
-        return $this->calendrierScolaireService->getCalendrierScolaireWithJoursFeries($calendrierScolaireId, $ecoleId);
+        $filtres = $request->getFiltres();
+        if (!isset($filtres['ecoleId'])) {
+            $filtres['ecoleId'] = auth()->user()->user_account_type_id;
+        }
+        return $this->calendrierScolaireService->getCalendrierScolaireWithJoursFeries($filtres);
     }
 }

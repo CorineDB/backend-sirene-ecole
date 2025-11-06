@@ -10,5 +10,5 @@ interface ProgrammationRepositoryInterface
      * @param int $sireneId
      * @return Collection
      */
-    public function getBySireneId(int $sireneId): Collection;
+    public function getBySireneId(string $sireneId): Collection;
 }

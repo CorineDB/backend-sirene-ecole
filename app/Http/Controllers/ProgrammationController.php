@@ -40,12 +40,10 @@ class ProgrammationController extends Controller
         $date = $request->query('date');
 
         if ($date) {
-            $programmations = $this->programmationService->getEffectiveProgrammationsForSirene($sirene->id, $date);
-        } else {
-            $programmations = $this->programmationService->getBySireneId($sirene->id);
+            return $this->programmationService->getEffectiveProgrammationsForSirene($sirene->id, $date);
         }
 
-        return $this->success($programmations);
+        return $this->programmationService->getBySireneId($sirene->id);
     }
 
     /**
@@ -56,8 +54,7 @@ class ProgrammationController extends Controller
     public function store(StoreProgrammationRequest $request, Sirene $sirene): JsonResponse
     {
         $data = array_merge($request->validated(), ['sirene_id' => $sirene->id]);
-        $programmation = $this->programmationService->create($data);
-        return $this->created($programmation);
+        return $this->programmationService->create($data);
     }
 
     /**
@@ -66,7 +63,10 @@ class ProgrammationController extends Controller
      */
     public function show(Sirene $sirene, Programmation $programmation): JsonResponse
     {
-        return $this->success($programmation);
+        return $this->programmationService->findBy([
+            'sirene_id' => $sirene->id,
+            'id' => $programmation->id,
+        ]);
     }
 
     /**
@@ -76,8 +76,8 @@ class ProgrammationController extends Controller
      */
     public function update(UpdateProgrammationRequest $request, Sirene $sirene, Programmation $programmation): JsonResponse
     {
-        $this->programmationService->update($programmation->id, $request->validated());
-        return $this->noContent();
+        $data = array_merge($request->validated(), ['sirene_id' => $sirene->id]);
+        return $this->programmationService->update($programmation->id, $data);
     }
 
     /**
@@ -86,7 +86,6 @@ class ProgrammationController extends Controller
      */
     public function destroy(Sirene $sirene, Programmation $programmation): JsonResponse
     {
-        $this->programmationService->delete($programmation->id);
-        return $this->noContent();
+        return $this->programmationService->delete($programmation->id);
     }
 }

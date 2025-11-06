@@ -10,17 +10,17 @@ interface ProgrammationServiceInterface
 {
 
     /**
-     * @param int $sireneId
+     * @param string $sireneId
      * @return JsonResponse
      */
-    public function getBySireneId(int $sireneId): JsonResponse;
+    public function getBySireneId(string $sireneId): JsonResponse;
 
     /**
      * Get effective programmations for a sirene on a specific date, considering holidays.
      *
-     * @param int $sireneId
+     * @param string $sireneId
      * @param string $date (format Y-m-d)
      * @return JsonResponse
      */
-    public function getEffectiveProgrammationsForSirene(int $sireneId, string $date): JsonResponse;
+    public function getEffectiveProgrammationsForSirene(string $sireneId, string $date): JsonResponse;
 }

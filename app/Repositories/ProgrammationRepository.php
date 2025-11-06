@@ -20,7 +20,7 @@ class ProgrammationRepository extends BaseRepository implements ProgrammationRep
      * @param int $sireneId
      * @return Collection
      */
-    public function getBySireneId(int $sireneId): Collection
+    public function getBySireneId(string $sireneId): Collection
     {
         return $this->model->where('sirene_id', $sireneId)->get();
     }

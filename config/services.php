@@ -67,4 +67,13 @@ return [
         'currency' => env('SUBSCRIPTION_CURRENCY', 'XOF'),
     ],
 
+    'cinetpay' => [
+        'api_key' => env('CINETPAY_API_KEY'),
+        'site_id' => env('CINETPAY_SITE_ID'),
+        'api_url' => env('CINETPAY_API_URL', 'https://api-checkout.cinetpay.com/v2/payment'),
+        'mode' => env('CINETPAY_MODE', 'test'), // test ou production
+        'check' => env('CINETPAY_API_CHECK', 'https://api-checkout.cinetpay.com/v2/payment/check'),
+        'demo' => env('CINETPAY_DEMO', 'https://cinetpay.com/demo'),
+    ],
+
 ];

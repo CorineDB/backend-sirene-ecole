@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Traits\HasUlid;
+use App\Traits\HasChaineCryptee;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Programmation extends Model
 {
-    use HasUlid, SoftDeletes;
+    use HasUlid, SoftDeletes, HasChaineCryptee;
 
     protected $table = 'programmations';
 
@@ -24,15 +25,10 @@ class Programmation extends Model
         'abonnement_id',
         'calendrier_id',
         'nom_programmation',
-        'horaire_json',
         'horaires_sonneries',
-        'horaire_debut',
-        'horaire_fin',
         'jour_semaine',
         'jours_feries_inclus',
         'jours_feries_exceptions',
-        'vacances',
-        'types_etablissement',
         'chaine_programmee',
         'chaine_cryptee',
         'date_debut',
@@ -42,13 +38,10 @@ class Programmation extends Model
     ];
 
     protected $casts = [
-        'horaire_json' => 'array',
         'horaires_sonneries' => 'array',
         'jour_semaine' => 'array',
         'jours_feries_inclus' => 'boolean',
         'jours_feries_exceptions' => 'array',
-        'vacances' => 'array',
-        'types_etablissement' => 'array',
         'date_debut' => 'date',
         'date_fin' => 'date',
         'actif' => 'boolean',

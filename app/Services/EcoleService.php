@@ -52,7 +52,7 @@ class EcoleService extends BaseService implements EcoleServiceInterface
 
             // 2. Créer le site principal avec sa sirène
             $sitePrincipalData['nom'] = $ecoleData['nom'];
-            $sitePrincipal = $this->createSiteWithSirene(
+            $this->createSiteWithSirene(
                 $ecole->id,
                 $sitePrincipalData,
                 true // est_principale
@@ -138,21 +138,32 @@ class EcoleService extends BaseService implements EcoleServiceInterface
             $this->sireneRepository->affecterSireneASite($sirene->id, $site->id, $ecoleId);
 
             // Créer un abonnement en attente pour l'école
-            /* $abonnement = $this->abonnementService->create([
+            $montantAbonnement = config('services.subscription.price_per_year', 50000);
+
+            $abonnementData = [
                 'ecole_id' => $ecoleId,
-                'site_id' => $site->id, // Link abonnement to the site
-                'sirene_id' => $sirene->id, // Link abonnement to the sirene
+                'site_id' => $site->id,
+                'sirene_id' => $sirene->id,
+                // Le numero_abonnement sera généré automatiquement par le trait HasNumeroAbonnement
+                'date_debut' => now(),
+                'date_fin' => now()->addYear(),
+                'montant' => $montantAbonnement,
                 'statut' => \App\Enums\StatutAbonnement::EN_ATTENTE->value,
-                // Autres champs nécessaires pour l'abonnement, si applicable
-                // Par exemple, date_debut, date_fin, etc.
-                // Pour l'instant, nous créons un abonnement minimal en attente.
+                'auto_renouvellement' => false,
+                'notes' => "Abonnement créé automatiquement lors de l'inscription de l'école",
+            ];
+
+            // Créer l'abonnement via le repository
+            $abonnement = $this->abonnementService->repository->create($abonnementData);
+
+            // Le QR code sera généré automatiquement par le trait HasQrCodeAbonnement
+            // Le token sera généré automatiquement par le trait HasTokenCrypte quand le statut passe à ACTIF
+            Log::info("Abonnement créé avec succès", [
+                'abonnement_id' => $abonnement->id,
+                'numero_abonnement' => $abonnement->numero_abonnement,
+                'ecole_id' => $ecoleId,
+                'montant' => $montantAbonnement,
             ]);
-
-            dd($abonnement);
-
-            // Générer et sauvegarder le QR code pour l'abonnement
-            $qrCodePath = $abonnement->generateAndSaveQrCode();
-            $abonnement->update(['qr_code_path' => $qrCodePath]); */
         }
 
         return $site;
