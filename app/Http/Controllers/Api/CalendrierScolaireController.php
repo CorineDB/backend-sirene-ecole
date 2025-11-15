@@ -57,7 +57,6 @@ class CalendrierScolaireController extends Controller
 
     public function __construct(CalendrierScolaireServiceInterface $calendrierScolaireService)
     {
-        $this->middleware('auth:api');
         $this->calendrierScolaireService = $calendrierScolaireService;
     }
 

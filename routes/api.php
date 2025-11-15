@@ -20,15 +20,20 @@ use App\Http\Controllers\Api\PaysController;
 use App\Http\Controllers\Api\VilleController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('permissions')->middleware('auth:api')->group(function () {
-    Route::get('/', [PermissionController::class, 'index'])->middleware('can:voir_les_permissions');
-    Route::get('{id}', [PermissionController::class, 'show'])->middleware('can:voir_permission');
-    Route::get('slug/{slug}', [PermissionController::class, 'showBySlug'])->middleware('can:voir_permission');
-    Route::get('role/{roleId}', [PermissionController::class, 'showByRole'])->middleware('can:voir_les_permissions_role');
-});
-
-Route::apiResource('pays', PaysController::class)->middleware('auth:api');
-Route::apiResource('villes', VilleController::class)->middleware('auth:api');
+Route::apiResource('pays', PaysController::class)->middleware('auth:api')->middleware([
+    'index' => 'can:voir_les_pays',
+    'show' => 'can:voir_pays',
+    'store' => 'can:creer_pays',
+    'update' => 'can:modifier_pays',
+    'destroy' => 'can:supprimer_pays',
+]);
+Route::apiResource('villes', VilleController::class)->middleware('auth:api')->middleware([
+    'index' => 'can:voir_les_villes',
+    'show' => 'can:voir_ville',
+    'store' => 'can:creer_ville',
+    'update' => 'can:modifier_ville',
+    'destroy' => 'can:supprimer_ville',
+]);
 
 Route::prefix('roles')->middleware('auth:api')->group(function () {
     Route::get('/', [RoleController::class, 'index'])->middleware('can:voir_les_roles');
@@ -105,6 +110,15 @@ Route::prefix('sirenes')->middleware('auth:api')->group(function () {
     Route::apiResource('{sirene}/programmations', ProgrammationController::class);
 });
 
+use App\Http\Controllers\Api\ModeleSireneController;
+Route::apiResource('modeles-sirene', ModeleSireneController::class)->middleware('auth:api')->middleware([
+    'index' => 'can:voir_les_modeles_sirene',
+    'show' => 'can:voir_modele_sirene',
+    'store' => 'can:creer_modele_sirene',
+    'update' => 'can:modifier_modele_sirene',
+    'destroy' => 'can:supprimer_modele_sirene',
+]);
+
 // Technicien routes (Protected)
 Route::prefix('techniciens')->middleware('auth:api')->group(function () {
     Route::get('/', [TechnicienController::class, 'index']);
@@ -116,17 +130,20 @@ Route::prefix('techniciens')->middleware('auth:api')->group(function () {
 
 // CalendrierScolaire routes (Protected)
 Route::prefix('calendrier-scolaire')->middleware('auth:api')->group(function () {
-    Route::get('/', [CalendrierScolaireController::class, 'index']);
-    Route::post('/', [CalendrierScolaireController::class, 'store']);
-    Route::get('{id}', [CalendrierScolaireController::class, 'show']);
-    Route::put('{id}', [CalendrierScolaireController::class, 'update']);
-    Route::delete('{id}', [CalendrierScolaireController::class, 'destroy']);
-    Route::get('{id}/jours-feries', [CalendrierScolaireController::class, 'getJoursFeries']);
-    Route::get('{id}/calculate-school-days', [CalendrierScolaireController::class, 'calculateSchoolDays']);
+    Route::apiResource('/', CalendrierScolaireController::class)->middleware([
+        'index' => 'can:voir_les_calendriers_scolaires',
+        'show' => 'can:voir_calendrier_scolaire',
+        'store' => 'can:creer_calendrier_scolaire',
+        'update' => 'can:modifier_calendrier_scolaire',
+        'destroy' => 'can:supprimer_calendrier_scolaire',
+    ]);
+
+    Route::get('{id}/jours-feries', [CalendrierScolaireController::class, 'getJoursFeries'])->middleware('can:voir_calendrier_scolaire');
+    Route::get('{id}/calculate-school-days', [CalendrierScolaireController::class, 'calculateSchoolDays'])->middleware('can:voir_calendrier_scolaire');
 
     // Bulk operations for jours fériés
-    Route::post('{id}/jours-feries/bulk', [CalendrierScolaireController::class, 'storeMultipleJoursFeries']);
-    Route::put('{id}/jours-feries/bulk', [CalendrierScolaireController::class, 'updateMultipleJoursFeries']);
+    Route::post('{id}/jours-feries/bulk', [CalendrierScolaireController::class, 'storeMultipleJoursFeries'])->middleware('can:creer_calendrier_scolaire');
+    Route::put('{id}/jours-feries/bulk', [CalendrierScolaireController::class, 'updateMultipleJoursFeries'])->middleware('can:modifier_calendrier_scolaire');
 });
 
 // JoursFeries routes (Protected)

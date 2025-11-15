@@ -74,6 +74,11 @@ class ServiceLayerServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
+            \App\Services\Contracts\ModeleSireneServiceInterface::class,
+            \App\Services\ModeleSireneService::class
+        );
+
+        $this->app->bind(
             \App\Services\Contracts\ProgrammationServiceInterface::class,
             \App\Services\ProgrammationService::class
         );
@@ -183,6 +188,11 @@ class ServiceLayerServiceProvider extends ServiceProvider
         $this->app->bind(
             \App\Repositories\Contracts\VilleRepositoryInterface::class,
             \App\Repositories\VilleRepository::class
+        );
+
+        $this->app->bind(
+            \App\Repositories\Contracts\ModeleSireneRepositoryInterface::class,
+            \App\Repositories\ModeleSireneRepository::class
         );
 
     }
