@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\Contracts\PermissionServiceInterface;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Gate;
@@ -69,10 +70,11 @@ class PermissionController extends Controller implements HasMiddleware
      * )
      * @return JsonResponse
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         Gate::authorize('voir_les_permissions');
-        return $this->permissionService->getAll();
+        $perPage = $request->get('per_page', 15);
+        return $this->permissionService->getAll($perPage);
     }
 
     /**

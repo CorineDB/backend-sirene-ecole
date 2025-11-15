@@ -9,8 +9,6 @@ use App\Http\Requests\Sirene\UpdateSireneRequest;
 use App\Services\Contracts\SireneServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controllers\HasMiddleware;
-use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Gate;
 use OpenApi\Annotations as OA;
 
@@ -36,7 +34,7 @@ use OpenApi\Annotations as OA;
  *     @OA\Property(property="site_id", type="string", format="uuid", nullable=true, description="ID of the associated site")
  * )
  */
-class SireneController extends Controller implements HasMiddleware
+class SireneController extends Controller
 {
     protected $sireneService;
 
