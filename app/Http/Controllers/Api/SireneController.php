@@ -9,6 +9,8 @@ use App\Http\Requests\Sirene\UpdateSireneRequest;
 use App\Services\Contracts\SireneServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Gate;
 use OpenApi\Annotations as OA;
 
@@ -34,7 +36,7 @@ use OpenApi\Annotations as OA;
  *     @OA\Property(property="site_id", type="string", format="uuid", nullable=true, description="ID of the associated site")
  * )
  */
-class SireneController extends Controller
+class SireneController extends Controller implements HasMiddleware
 {
     protected $sireneService;
 
@@ -42,12 +44,19 @@ class SireneController extends Controller
     {
         parent::__construct();
         $this->sireneService = $sireneService;
-        $this->middleware('can:viewAny-sirene')->only(['index', 'disponibles']);
-        $this->middleware('can:create-sirene')->only('store');
-        $this->middleware('can:view-sirene')->only(['show', 'showByNumeroSerie']);
-        $this->middleware('can:update-sirene')->only('update');
-        $this->middleware('can:affect-sirene')->only('affecter');
-        $this->middleware('can:delete-sirene')->only('destroy');
+    }
+
+    public static function middleware(): array
+    {
+        return [
+            // Les middlewares sont appliqués dans les routes
+            // On les laisse commentés ici pour éviter la duplication
+            /*new Middleware('can:voir_les_sirenes', only: ['index', 'disponibles']),
+            new Middleware('can:creer_sirene', only: ['store']),
+            new Middleware('can:voir_sirene', only: ['show', 'showByNumeroSerie']),
+            new Middleware('can:modifier_sirene', only: ['update', 'affecter']),
+            new Middleware('can:supprimer_sirene', only: ['destroy']),*/
+        ];
     }
 
     /**
