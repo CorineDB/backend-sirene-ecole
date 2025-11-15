@@ -77,10 +77,10 @@ Route::prefix('ecoles')->group(function () {
 
     // Protected routes for Ecole management
     Route::middleware('auth:api')->group(function () {
-        Route::get('/', [EcoleController::class, 'index']); // List all schools
-        Route::get('me', [EcoleController::class, 'show']); // Get authenticated school details
-        Route::put('me', [EcoleController::class, 'update']); // Update authenticated school details
-        Route::delete('{id}', [EcoleController::class, 'destroy']); // Delete a school by ID
+        Route::get('/', [EcoleController::class, 'index'])->middleware('can:voir_les_ecoles');
+        Route::get('me', [EcoleController::class, 'show'])->middleware('can:voir_ecole');
+        Route::put('me', [EcoleController::class, 'update'])->middleware('can:modifier_ecole');
+        Route::delete('{id}', [EcoleController::class, 'destroy'])->middleware('can:supprimer_ecole');
 
         // School-specific holidays
         Route::get('{ecoleId}/jours-feries', [JourFerieController::class, 'indexForEcole']);
@@ -89,7 +89,7 @@ Route::prefix('ecoles')->group(function () {
         Route::post('{ecoleId}/jours-feries', [JourFerieController::class, 'storeForEcole']);
 
         // School calendar with merged holidays
-        Route::get('me/calendrier-scolaire/with-ecole-holidays', [EcoleController::class, 'getCalendrierScolaireWithJoursFeries']);
+        Route::get('me/calendrier-scolaire/with-ecole-holidays', [EcoleController::class, 'getCalendrierScolaireWithJoursFeries'])->middleware('can:voir_ecole');
     });
 });
 

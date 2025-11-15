@@ -8,6 +8,8 @@ use App\Http\Requests\Ecole\UpdateEcoleRequest;
 use App\Services\Contracts\EcoleServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use OpenApi\Annotations as OA;
 
 /**
@@ -39,16 +41,23 @@ use App\Services\Contracts\CalendrierScolaireServiceInterface;
 use App\Http\Requests\CalendrierFiltreRequest;
 use Illuminate\Support\Facades\Gate;
 
-class EcoleController extends Controller
+class EcoleController extends Controller implements HasMiddleware
 {
     protected $ecoleService;
     protected $calendrierScolaireService;
 
     public function __construct(EcoleServiceInterface $ecoleService, CalendrierScolaireServiceInterface $calendrierScolaireService)
     {
-        $this->middleware('auth:api')->except(['inscrire']);
         $this->ecoleService = $ecoleService;
         $this->calendrierScolaireService = $calendrierScolaireService;
+    }
+
+    public static function middleware(): array
+    {
+        return [
+            // auth:api et permissions sont appliqués dans les routes
+            // inscrire est public, toutes les autres méthodes sont protégées
+        ];
     }
 
     /**
