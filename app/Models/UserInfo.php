@@ -41,6 +41,7 @@ class UserInfo extends Model
 
     protected $appends = [
         'nom_ville',
+        'nom_complet',
     ];
 
     // Accesseurs
@@ -52,6 +53,18 @@ class UserInfo extends Model
     public function getNomVilleAttribute(): ?string
     {
         return $this->ville?->nom;
+    }
+
+    /**
+     * Obtenir le nom complet de l'utilisateur (prénom + nom)
+     * Format: "Prénom Nom" (ex: "John Doe")
+     *
+     * @return string
+     */
+    public function getNomCompletAttribute(): string
+    {
+        $parts = array_filter([$this->prenom, $this->nom]);
+        return implode(' ', $parts) ?: '';
     }
 
     // User relationship
