@@ -221,7 +221,7 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     {
         try {
             return $this->model
-                ->where('user_account_type', $accountType)
+                ->where('user_account_type_type', $accountType)
                 ->where('user_account_type_id', $accountId)
                 ->first();
         } catch (Throwable $e) {

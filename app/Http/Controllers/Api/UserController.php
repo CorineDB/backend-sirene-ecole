@@ -7,20 +7,30 @@ use App\Http\Requests\UpdateUserRequest;
 use App\Services\Contracts\UserServiceInterface;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Gate;
 
-class UserController extends Controller
+class UserController extends Controller implements HasMiddleware
 {
     protected UserServiceInterface $userService;
 
     public function __construct(UserServiceInterface $userService)
     {
         $this->userService = $userService;
-        $this->middleware('can:voir_les_utilisateurs')->only('index');
-        $this->middleware('can:voir_utilisateur')->only('show');
-        $this->middleware('can:creer_utilisateur')->only('store');
-        $this->middleware('can:modifier_utilisateur')->only('update');
-        $this->middleware('can:supprimer_utilisateur')->only('destroy');
+    }
+
+    public static function middleware(): array
+    {
+        return [
+            // Les middlewares sont déjà appliqués dans les routes
+            // On les laisse commentés ici pour éviter la duplication
+            /*new Middleware('can:voir_les_utilisateurs', only: ['index']),
+            new Middleware('can:voir_utilisateur', only: ['show']),
+            new Middleware('can:creer_utilisateur', only: ['store']),
+            new Middleware('can:modifier_utilisateur', only: ['update']),
+            new Middleware('can:supprimer_utilisateur', only: ['destroy']),*/
+        ];
     }
 
     public function index()
