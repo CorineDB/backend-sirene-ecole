@@ -36,13 +36,13 @@ class UserController extends Controller implements HasMiddleware
     public function index()
     {
         Gate::authorize('voir_les_utilisateurs');
-        return $this->userService->getAll(15, relations: ["userInfo"]);
+        return $this->userService->getAll(15, relations: ["role", "userInfo.ville"]);
     }
 
     public function show(string $id)
     {
         Gate::authorize('voir_utilisateur');
-        return $this->userService->getById($id, relations:["userInfo"]);
+        return $this->userService->getById($id, relations:["role", "userInfo.ville"]);
     }
 
     public function store(StoreUserRequest $request)

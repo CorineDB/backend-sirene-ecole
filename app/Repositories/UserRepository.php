@@ -335,4 +335,45 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         }
     }
 
+    /**
+     * Paginate roles with filters
+     *
+     * @param int $perPage
+     * @param array $columns
+     * @param array $relations
+     * @param string|null $profilableType
+     * @param string|null $profilableId
+     * @param bool $excludeDefaults
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function paginate(
+        int $perPage = 15,
+        array $columns = ['*'],
+        array $relations = []
+    ): \Illuminate\Pagination\LengthAwarePaginator {
+        $query = $this->model->with($relations);
+
+        $profilableType = auth()->user()->user_account_type_type;
+
+        // Exclure les rôles par défaut (rôles système sans profilable)
+        if (!$profilableType) {
+            $query->whereNull('user_account_type_id')
+                  ->whereNull('user_account_type_type')
+                  /* ->where("type", ["admin", "ecole", "technicien", "user"]) */;
+        }
+
+        // Filtrer par profilable_type si fourni
+        if ($profilableType !== null) {
+            $query->where('user_account_type_type', $profilableType);
+        }
+        $profilableId = auth()->user()->user_account_type_id;
+
+        // Filtrer par profilable_id si fourni
+        if ($profilableId !== null) {
+            $query->where('user_account_type_id', $profilableId);
+        }
+
+        return $query->paginate($perPage, $columns);
+    }
+
 }

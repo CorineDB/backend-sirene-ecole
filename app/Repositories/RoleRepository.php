@@ -21,33 +21,28 @@ class RoleRepository extends BaseRepository implements RoleRepositoryInterface
 
     /**
      * Get all roles excluding default roles (roles without profilable)
-     * Automatically filters by authenticated user's account type
+     * Can filter by profilable_type and/or profilable_id
      *
      * @param array $columns
      * @param array $relations
-     * @param string|null $profilableId Filter by profilable_id (optional)
-     * @param bool $excludeDefaults Exclude roles where roleable_id and roleable_type are NULL
      * @return Collection
      */
     public function all(
         array $columns = ['*'],
-        array $relations = [],
-        ?string $profilableId = null,
-        bool $excludeDefaults = true
+        array $relations = []
     ): Collection {
         $query = $this->model->with($relations);
 
-        // Récupérer automatiquement le type de profil depuis l'utilisateur connecté
-        $user = auth()->user();
-        $profilableType = $user ? $user->user_account_type_type : null;
+        $profilableType = auth()->user()->user_account_type_type;
 
         // Exclure les rôles par défaut (rôles système sans profilable)
-        if ($excludeDefaults) {
-            $query->whereNotNull('roleable_id')
-                  ->whereNotNull('roleable_type');
+        if (!$profilableType) {
+            $query->whereNull('roleable_id')
+                  ->whereNull('roleable_type')
+                  ->whereNotIn("slug", ["admin", "ecole", "technicien", "user"]);
         }
 
-        // Filtrer par profilable_type récupéré de l'utilisateur
+        // Filtrer par profilable_type si fourni
         if ($profilableType !== null) {
             $query->where('roleable_type', $profilableType);
         }
@@ -144,38 +139,36 @@ class RoleRepository extends BaseRepository implements RoleRepositoryInterface
 
     /**
      * Paginate roles with filters
-     * Automatically filters by authenticated user's account type
      *
      * @param int $perPage
      * @param array $columns
      * @param array $relations
-     * @param string|null $profilableId Filter by profilable_id (optional)
-     * @param bool $excludeDefaults Exclude default roles
+     * @param string|null $profilableType
+     * @param string|null $profilableId
+     * @param bool $excludeDefaults
      * @return \Illuminate\Pagination\LengthAwarePaginator
      */
     public function paginate(
         int $perPage = 15,
         array $columns = ['*'],
-        array $relations = [],
-        ?string $profilableId = null,
-        bool $excludeDefaults = true
+        array $relations = []
     ): \Illuminate\Pagination\LengthAwarePaginator {
         $query = $this->model->with($relations);
 
-        // Récupérer automatiquement le type de profil depuis l'utilisateur connecté
-        $user = auth()->user();
-        $profilableType = $user ? $user->user_account_type_type : null;
+        $profilableType = auth()->user()->user_account_type_type;
 
         // Exclure les rôles par défaut (rôles système sans profilable)
-        if ($excludeDefaults) {
-            $query->whereNotNull('roleable_id')
-                  ->whereNotNull('roleable_type');
+        if (!$profilableType) {
+            $query->whereNull('roleable_id')
+                  ->whereNull('roleable_type')
+                  ->whereNotIn("slug", ["admin", "ecole", "technicien", "user"]);
         }
 
-        // Filtrer par profilable_type récupéré de l'utilisateur
+        // Filtrer par profilable_type si fourni
         if ($profilableType !== null) {
             $query->where('roleable_type', $profilableType);
         }
+        $profilableId = auth()->user()->user_account_type_id;
 
         // Filtrer par profilable_id si fourni
         if ($profilableId !== null) {

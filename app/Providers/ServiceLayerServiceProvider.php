@@ -64,6 +64,16 @@ class ServiceLayerServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
+            \App\Services\Contracts\PaysServiceInterface::class,
+            \App\Services\PaysService::class
+        );
+
+        $this->app->bind(
+            \App\Services\Contracts\VilleServiceInterface::class,
+            \App\Services\VilleService::class
+        );
+
+        $this->app->bind(
             \App\Services\Contracts\ProgrammationServiceInterface::class,
             \App\Services\ProgrammationService::class
         );
@@ -163,6 +173,16 @@ class ServiceLayerServiceProvider extends ServiceProvider
         $this->app->bind(
             \App\Repositories\Contracts\PaiementRepositoryInterface::class,
             \App\Repositories\PaiementRepository::class
+        );
+
+        $this->app->bind(
+            \App\Repositories\Contracts\PaysRepositoryInterface::class,
+            \App\Repositories\PaysRepository::class
+        );
+
+        $this->app->bind(
+            \App\Repositories\Contracts\VilleRepositoryInterface::class,
+            \App\Repositories\VilleRepository::class
         );
 
     }

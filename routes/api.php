@@ -16,17 +16,9 @@ use App\Http\Controllers\Api\CalendrierScolaireController;
 use App\Http\Controllers\Api\JourFerieController;
 use App\Http\Controllers\Api\ProgrammationController;
 use App\Http\Controllers\Api\UserController;
-use App\Models\Pays;
-use App\Models\Ville;
-use Illuminate\Http\Request;
+use App\Http\Controllers\Api\PaysController;
+use App\Http\Controllers\Api\VilleController;
 use Illuminate\Support\Facades\Route;
-
-Route::get("/villes", function(Request $request){
-    return Ville::all();
-});
-Route::get("/pays", function(Request $request){
-    return Pays::all();
-});
 
 Route::prefix('permissions')->middleware('auth:api')->group(function () {
     Route::get('/', [PermissionController::class, 'index'])->middleware('can:voir_les_permissions');
@@ -34,6 +26,9 @@ Route::prefix('permissions')->middleware('auth:api')->group(function () {
     Route::get('slug/{slug}', [PermissionController::class, 'showBySlug'])->middleware('can:voir_permission');
     Route::get('role/{roleId}', [PermissionController::class, 'showByRole'])->middleware('can:voir_les_permissions_role');
 });
+
+Route::apiResource('pays', PaysController::class)->middleware('auth:api');
+Route::apiResource('villes', VilleController::class)->middleware('auth:api');
 
 Route::prefix('roles')->middleware('auth:api')->group(function () {
     Route::get('/', [RoleController::class, 'index'])->middleware('can:voir_les_roles');
