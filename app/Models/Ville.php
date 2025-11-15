@@ -36,6 +36,10 @@ class Ville extends Model
         'deleted_at' => 'datetime',
     ];
 
+    protected $appends = [
+        'nom_pays',
+    ];
+
     // Accesseurs
     /**
      * Obtenir le nom du pays de la ville
