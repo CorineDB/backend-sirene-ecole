@@ -40,7 +40,6 @@ class SireneController extends Controller
 
     public function __construct(SireneServiceInterface $sireneService)
     {
-        parent::__construct();
         $this->sireneService = $sireneService;
     }
 

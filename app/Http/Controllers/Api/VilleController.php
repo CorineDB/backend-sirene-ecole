@@ -20,7 +20,7 @@ class VilleController extends Controller
 
     public function index(): JsonResponse
     {
-        Gate::authorize('voir_les_villes');
+        //Gate::authorize('voir_les_villes');
         return $this->villeService->getAll();
     }
 
