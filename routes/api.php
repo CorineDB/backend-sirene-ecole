@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AbonnementController;
 use App\Http\Controllers\Api\PaiementController;
 use App\Http\Controllers\Api\PermissionController;
+use App\Http\Controllers\Api\ModeleSireneController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EcoleController;
@@ -20,20 +21,27 @@ use App\Http\Controllers\Api\PaysController;
 use App\Http\Controllers\Api\VilleController;
 use Illuminate\Support\Facades\Route;
 
-Route::apiResource('pays', PaysController::class)->middleware('auth:api')->middleware([
-    'index' => 'can:voir_les_pays',
-    'show' => 'can:voir_pays',
-    'store' => 'can:creer_pays',
-    'update' => 'can:modifier_pays',
-    'destroy' => 'can:supprimer_pays',
-]);
-Route::apiResource('villes', VilleController::class)->middleware('auth:api')->middleware([
-    'index' => 'can:voir_les_villes',
-    'show' => 'can:voir_ville',
-    'store' => 'can:creer_ville',
-    'update' => 'can:modifier_ville',
-    'destroy' => 'can:supprimer_ville',
-]);
+Route::prefix('permissions')->middleware('auth:api')->group(function () {
+    Route::get('/', [PermissionController::class, 'index'])->middleware('can:voir_les_permissions');
+    Route::get('{id}', [PermissionController::class, 'show'])->middleware('can:voir_permission');
+    Route::get('slug/{slug}', [PermissionController::class, 'showBySlug'])->middleware('can:voir_permission');
+    Route::get('role/{roleId}', [PermissionController::class, 'showByRole'])->middleware('can:voir_les_permissions_role');
+});
+
+Route::prefix('pays')->middleware('auth:api')->group(function () {
+    Route::get('/', [PaysController::class, 'index'])->middleware('can:voir_les_pays');
+    Route::get('{id}', [PaysController::class, 'show'])->middleware('can:voir_pays');
+    Route::post('/', [PaysController::class, 'store'])->middleware('can:creer_pays');
+    Route::put('{id}', [PaysController::class, 'update'])->middleware('can:modifier_pays');
+    Route::delete('{id}', [PaysController::class, 'destroy'])->middleware('can:supprimer_pays');
+});
+Route::prefix('villes')->middleware('auth:api')->group(function () {
+    Route::get('/', [VilleController::class, 'index'])->middleware('can:voir_les_villes');
+    Route::get('{id}', [VilleController::class, 'show'])->middleware('can:voir_ville');
+    Route::post('/', [VilleController::class, 'store'])->middleware('can:creer_ville');
+    Route::put('{id}', [VilleController::class, 'update'])->middleware('can:modifier_ville');
+    Route::delete('{id}', [VilleController::class, 'destroy'])->middleware('can:supprimer_ville');
+});
 
 Route::prefix('roles')->middleware('auth:api')->group(function () {
     Route::get('/', [RoleController::class, 'index'])->middleware('can:voir_les_roles');
@@ -110,14 +118,13 @@ Route::prefix('sirenes')->middleware('auth:api')->group(function () {
     Route::apiResource('{sirene}/programmations', ProgrammationController::class);
 });
 
-use App\Http\Controllers\Api\ModeleSireneController;
-Route::apiResource('modeles-sirene', ModeleSireneController::class)->middleware('auth:api')->middleware([
-    'index' => 'can:voir_les_modeles_sirene',
-    'show' => 'can:voir_modele_sirene',
-    'store' => 'can:creer_modele_sirene',
-    'update' => 'can:modifier_modele_sirene',
-    'destroy' => 'can:supprimer_modele_sirene',
-]);
+Route::prefix('modeles-sirene')->middleware('auth:api')->group(function () {
+    Route::get('/', [ModeleSireneController::class, 'index'])->middleware('can:voir_les_modeles_sirene');
+    Route::get('{id}', [ModeleSireneController::class, 'show'])->middleware('can:voir_modele_sirene');
+    Route::post('/', [ModeleSireneController::class, 'store'])->middleware('can:creer_modele_sirene');
+    Route::put('{id}', [ModeleSireneController::class, 'update'])->middleware('can:modifier_modele_sirene');
+    Route::delete('{id}', [ModeleSireneController::class, 'destroy'])->middleware('can:supprimer_modele_sirene');
+});
 
 // Technicien routes (Protected)
 Route::prefix('techniciens')->middleware('auth:api')->group(function () {
@@ -130,13 +137,11 @@ Route::prefix('techniciens')->middleware('auth:api')->group(function () {
 
 // CalendrierScolaire routes (Protected)
 Route::prefix('calendrier-scolaire')->middleware('auth:api')->group(function () {
-    Route::apiResource('/', CalendrierScolaireController::class)->middleware([
-        'index' => 'can:voir_les_calendriers_scolaires',
-        'show' => 'can:voir_calendrier_scolaire',
-        'store' => 'can:creer_calendrier_scolaire',
-        'update' => 'can:modifier_calendrier_scolaire',
-        'destroy' => 'can:supprimer_calendrier_scolaire',
-    ]);
+    Route::get('/', [CalendrierScolaireController::class, 'index'])->middleware('can:voir_les_calendriers_scolaires');
+    Route::get('{id}', [CalendrierScolaireController::class, 'show'])->middleware('can:voir_calendrier_scolaire');
+    Route::post('/', [CalendrierScolaireController::class, 'store'])->middleware('can:creer_calendrier_scolaire');
+    Route::put('{id}', [CalendrierScolaireController::class, 'update'])->middleware('can:modifier_calendrier_scolaire');
+    Route::delete('{id}', [CalendrierScolaireController::class, 'destroy'])->middleware('can:supprimer_calendrier_scolaire');
 
     Route::get('{id}/jours-feries', [CalendrierScolaireController::class, 'getJoursFeries'])->middleware('can:voir_calendrier_scolaire');
     Route::get('{id}/calculate-school-days', [CalendrierScolaireController::class, 'calculateSchoolDays'])->middleware('can:voir_calendrier_scolaire');

@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Enums\TypeUtilisateur;
 use App\Models\User;
 use App\Repositories\Contracts\OtpCodeRepositoryInterface;
 use App\Repositories\Contracts\RoleRepositoryInterface;
@@ -359,7 +360,7 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         if (!$profilableType) {
             $query->whereNull('user_account_type_id')
                   ->whereNull('user_account_type_type')
-                  /* ->where("type", ["admin", "ecole", "technicien", "user"]) */;
+                  ->whereNotIn("type", [TypeUtilisateur::ADMIN->value, TypeUtilisateur::ECOLE->value, TypeUtilisateur::TECHNICIEN->value]);
         }
 
         // Filtrer par profilable_type si fourni
