@@ -88,6 +88,10 @@ Notre application suit une **architecture en 3 couches** (3-Tier Architecture) :
 - **Repository** : Gère uniquement l'accès aux données
 - **FormRequest** : Gère uniquement la validation des données
 
+> 💡 **Question fréquente :** Pourquoi le formatage JSON est dans le Controller et pas dans le Service ?
+> **Réponse :** Le Service doit retourner des objets métier (réutilisables partout : API, CLI, Jobs), tandis que le Controller gère la présentation HTTP/JSON.
+> 📖 [Voir l'explication détaillée dans la FAQ →](FAQ.md#pourquoi-le-formatage-json-est-dans-le-controller-et-pas-dans-le-service)
+
 **Exemple :**
 
 ```php
