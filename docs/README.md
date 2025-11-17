@@ -74,6 +74,19 @@ Ce document couvre :
 
 ---
 
+### 5. [FAQ - Questions Fréquentes](FAQ.md)
+**Réponses aux questions courantes**
+
+Ce document répond aux questions importantes :
+- ❓ **Pourquoi le formatage JSON est dans le Controller et pas dans le Service ?** (avec exemples détaillés)
+- ❓ Quand utiliser un Repository vs Eloquent direct ?
+- ❓ Dois-je toujours créer une interface ?
+- ❓ Où mettre la validation métier ?
+
+**À consulter** quand vous avez des doutes sur l'architecture ou les bonnes pratiques.
+
+---
+
 ## 🚀 Par où commencer ?
 
 ### Pour un nouveau développeur junior :
@@ -240,17 +253,19 @@ backend-sirene-ecole/
 
 ## ❓ Questions fréquentes
 
+**📖 Pour des réponses détaillées avec exemples, consultez [FAQ.md](FAQ.md)**
+
 ### Q: Où dois-je mettre ma logique métier ?
 **R:** Toujours dans le **Service**, jamais dans le Controller.
+
+### Q: Pourquoi le formatage JSON est dans le Controller et pas dans le Service ?
+**R:** Pour respecter le principe de responsabilité unique (SOLID). Le Service retourne des **objets métier** (réutilisables partout), le Controller gère la **présentation HTTP/JSON**. [Voir explication détaillée →](FAQ.md#pourquoi-le-formatage-json-est-dans-le-controller-et-pas-dans-le-service)
 
 ### Q: Comment accéder aux données ?
 **R:** Via le **Repository**, jamais directement avec `Model::find()` dans le Service.
 
 ### Q: Comment valider les données ?
 **R:** Avec un **FormRequest** pour la validation HTTP, et dans le **Service** pour les règles métier.
-
-### Q: Comment tester mon code ?
-**R:** Créer des tests unitaires pour les Services/Repositories, et des tests d'intégration pour les API.
 
 ### Q: Dois-je toujours créer une interface ?
 **R:** Oui, pour les Services et Repositories, afin de respecter le principe d'inversion de dépendances (SOLID).
