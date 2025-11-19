@@ -48,6 +48,11 @@ class Abonnement extends Model
         'deleted_at' => 'datetime',
     ];
 
+    /**
+     * Attributs à ajouter automatiquement dans les réponses JSON
+     */
+    protected $appends = ['qr_code_url'];
+
     // Relations
     public function ecole(): BelongsTo
     {
@@ -82,6 +87,16 @@ class Abonnement extends Model
     public function paiements(): HasMany
     {
         return $this->hasMany(Paiement::class);
+    }
+
+    // Accessors
+    /**
+     * Obtenir l'URL publique du QR code
+     * Utilise la méthode getQrCodeUrl() définie dans le trait HasQrCodeAbonnement
+     */
+    public function getQrCodeUrlAttribute(): ?string
+    {
+        return $this->getQrCodeUrl();
     }
 
     // Helpers
