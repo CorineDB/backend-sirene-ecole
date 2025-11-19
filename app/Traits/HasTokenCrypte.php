@@ -70,12 +70,8 @@ trait HasTokenCrypte
         $model->load(['sirene', 'ecole', 'site']);
 
         // Générer le token au format Python: VERSION|ECOLE|SERIAL|TIMESTAMP_DEBUT|TIMESTAMP_FIN|CHECKSUM
-        $instance = new class {
-            use HasCryptageESP8266;
-        };
-
         $parts = [
-            $instance->TOKEN_VERSION ?? 1, // VERSION
+            1, // VERSION
             $model->ecole_id, // ECOLE (ULID)
             $model->sirene->numero_serie ?? '', // SERIAL
             Carbon::parse($model->date_debut)->timestamp, // TIMESTAMP_DEBUT
@@ -85,7 +81,8 @@ trait HasTokenCrypte
         $data_str = implode('|', $parts);
 
         // Crypter avec checksum de 16 caractères
-        $tokenCrypte = $instance->crypterDonneesESP8266($data_str, true, 16);
+        // On utilise directement $model car il utilise HasTokenCrypte qui utilise HasCryptageESP8266
+        $tokenCrypte = $model->crypterDonneesESP8266($data_str, true, 16);
 
         // Hash du token pour vérification rapide
         $tokenHash = hash('sha256', $tokenCrypte);
