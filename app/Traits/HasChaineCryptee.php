@@ -2,29 +2,43 @@
 
 namespace App\Traits;
 
-use App\Services\TokenEncryptionService;
 use Carbon\Carbon;
-use Illuminate\Support\Str;
 
 trait HasChaineCryptee
 {
+    use HasCryptageESP8266;
+
+    /**
+     * Version du protocole de programmation ESP8266
+     */
+    protected int $PROGRAMMATION_VERSION = 1;
+
+    /**
+     * Durée de la sonnerie en secondes (par défaut: 3 secondes)
+     */
+    protected int $DUREE_SONNERIE = 3;
+
     /**
      * Générer la chaîne programmée (format lisible pour affichage)
+     * Format nouveau: affiche les horaires avec leurs jours spécifiques
      *
      * @return string
      */
     public function genererChaineProgrammee(): string
     {
         $horaires = collect($this->horaires_sonneries)
-            ->map(fn($h) => Carbon::parse($h)->format('H:i'))
-            ->join(', ');
-
-        $jours = collect($this->jour_semaine)->join(', ');
+            ->map(function ($h) {
+                $heure = sprintf('%02d:%02d', $h['heure'], $h['minute']);
+                $jours = collect($h['jours'])->map(function ($j) {
+                    return ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][$j] ?? '?';
+                })->join(',');
+                return "{$heure} ({$jours})";
+            })
+            ->join(' | ');
 
         return sprintf(
-            "Programmation: %s | Jours: %s | Horaires: %s | Période: %s au %s",
+            "Programmation: %s | Horaires: %s | Période: %s au %s",
             $this->nom_programmation,
-            $jours,
             $horaires,
             $this->date_debut->format('d/m/Y'),
             $this->date_fin->format('d/m/Y')
@@ -32,33 +46,121 @@ trait HasChaineCryptee
     }
 
     /**
-     * Générer la chaîne cryptée pour le module physique de la sirène
+     * Générer la chaîne cryptée pour le module ESP8266
+     * Format Python: VERSION|DUREE|NB_HORAIRES|H:M:MASK|...|NB_CONGES|DEBUT:FIN|...|NB_FERIES|Y:M:D|...|CHECKSUM
      *
      * @return string
      */
     public function genererChaineCryptee(): string
     {
-        $tokenService = app(TokenEncryptionService::class);
+        $parts = [];
 
-        // Données à encoder pour le module physique
-        $data = [
-            'programmation_id' => $this->id,
-            'sirene_id' => $this->sirene_id,
-            'ecole_id' => $this->ecole_id,
-            'site_id' => $this->site_id,
-            'nom' => $this->nom_programmation,
-            'horaires' => $this->horaires_sonneries,
-            'jours' => $this->jour_semaine,
-            'date_debut' => $this->date_debut->format('Y-m-d'),
-            'date_fin' => $this->date_fin->format('Y-m-d'),
-            'jours_feries_inclus' => $this->jours_feries_inclus,
-            'jours_feries_exceptions' => $this->jours_feries_exceptions,
-            'actif' => $this->actif,
-            'generated_at' => now()->toIso8601String(),
-            'signature' => Str::random(32), // Signature unique pour éviter la duplication
-        ];
+        // 1. Version et durée
+        $parts[] = $this->PROGRAMMATION_VERSION;
+        $parts[] = $this->DUREE_SONNERIE;
 
-        return $tokenService->encryptToken($data);
+        // 2. Horaires de sonnerie
+        $horaires = $this->horaires_sonneries ?? [];
+        $parts[] = count($horaires);
+
+        foreach ($horaires as $horaire) {
+            $heure = $horaire['heure'] ?? 0;
+            $minute = $horaire['minute'] ?? 0;
+            $jours = $horaire['jours'] ?? [];
+
+            // Convertir le tableau de jours en masque binaire
+            $mask = $this->joursVersIntMasque($jours);
+
+            $parts[] = "{$heure}:{$minute}:{$mask}";
+        }
+
+        // 3. Périodes de congés (vacances)
+        $conges = $this->extraireConges();
+        $parts[] = count($conges);
+
+        foreach ($conges as $conge) {
+            $parts[] = "{$conge['debut']}:{$conge['fin']}";
+        }
+
+        // 4. Jours fériés spécifiques
+        $feries = $this->extraireJoursFeries();
+        $parts[] = count($feries);
+
+        foreach ($feries as $ferie) {
+            $parts[] = "{$ferie['annee']}:{$ferie['mois']}:{$ferie['jour']}";
+        }
+
+        // 5. Assembler la chaîne et crypter avec checksum
+        $data_str = implode('|', $parts);
+
+        return $this->crypterDonneesESP8266($data_str, true, 8);
+    }
+
+    /**
+     * Extraire les périodes de congés (vacances) à partir du calendrier ou des données
+     *
+     * @return array Tableau de congés avec format ['debut' => timestamp, 'fin' => timestamp]
+     */
+    protected function extraireConges(): array
+    {
+        $conges = [];
+
+        // 1. Si un calendrier scolaire est associé, utiliser ses vacances
+        if ($this->calendrier_id && $this->calendrier) {
+            $vacances = $this->calendrier->vacances ?? [];
+
+            foreach ($vacances as $vacance) {
+                if (isset($vacance['date_debut']) && isset($vacance['date_fin'])) {
+                    $conges[] = [
+                        'debut' => Carbon::parse($vacance['date_debut'])->timestamp,
+                        'fin' => Carbon::parse($vacance['date_fin'])->timestamp,
+                    ];
+                }
+            }
+        }
+
+        // 2. Si le champ vacances existe directement sur la programmation
+        if (isset($this->vacances) && is_array($this->vacances)) {
+            foreach ($this->vacances as $vacance) {
+                if (isset($vacance['date_debut']) && isset($vacance['date_fin'])) {
+                    $conges[] = [
+                        'debut' => Carbon::parse($vacance['date_debut'])->timestamp,
+                        'fin' => Carbon::parse($vacance['date_fin'])->timestamp,
+                    ];
+                }
+            }
+        }
+
+        return $conges;
+    }
+
+    /**
+     * Extraire les jours fériés spécifiques à partir des exceptions
+     *
+     * @return array Tableau de jours fériés avec format ['annee' => int, 'mois' => int, 'jour' => int]
+     */
+    protected function extraireJoursFeries(): array
+    {
+        $feries = [];
+
+        // Traiter les exceptions de jours fériés
+        if (isset($this->jours_feries_exceptions) && is_array($this->jours_feries_exceptions)) {
+            foreach ($this->jours_feries_exceptions as $exception) {
+                // Si jours_feries_inclus est false, on envoie les exclusions
+                // Si jours_feries_inclus est true, on envoie les inclusions
+                // Pour simplifier, on envoie toutes les dates avec action "include"
+                if (isset($exception['date']) && ($exception['action'] ?? '') === 'include') {
+                    $date = Carbon::parse($exception['date']);
+                    $feries[] = [
+                        'annee' => $date->year,
+                        'mois' => $date->month,
+                        'jour' => $date->day,
+                    ];
+                }
+            }
+        }
+
+        return $feries;
     }
 
     /**
@@ -87,20 +189,83 @@ trait HasChaineCryptee
 
     /**
      * Décrypter la chaîne cryptée (pour vérification)
+     * Retourne la chaîne décryptée au format brut (pipe-separated)
      *
-     * @return array|null
+     * @return string|null
      */
-    public function decrypterChaineCryptee(): ?array
+    public function decrypterChaineCryptee(): ?string
     {
         if (!$this->chaine_cryptee) {
             return null;
         }
 
         try {
-            $tokenService = app(TokenEncryptionService::class);
-            return $tokenService->decryptToken($this->chaine_cryptee);
+            return $this->decrypterDonneesESP8266($this->chaine_cryptee, true, 8);
         } catch (\Exception $e) {
             \Log::error("Erreur lors du décryptage de la chaîne cryptée: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Parser une chaîne décryptée pour obtenir un tableau structuré
+     *
+     * @param string $data_str Chaîne décryptée au format pipe-separated
+     * @return array|null Données parsées ou null en cas d'erreur
+     */
+    public function parserChaineCryptee(string $data_str): ?array
+    {
+        try {
+            $parts = explode('|', $data_str);
+            $index = 0;
+
+            $version = (int) ($parts[$index++] ?? 1);
+            $duree = (int) ($parts[$index++] ?? 3);
+            $nb_horaires = (int) ($parts[$index++] ?? 0);
+
+            $horaires = [];
+            for ($i = 0; $i < $nb_horaires; $i++) {
+                if (!isset($parts[$index])) break;
+                [$h, $m, $mask] = explode(':', $parts[$index++]);
+                $horaires[] = [
+                    'heure' => (int) $h,
+                    'minute' => (int) $m,
+                    'jours' => $this->intMasqueVersJours((int) $mask),
+                ];
+            }
+
+            $nb_conges = (int) ($parts[$index++] ?? 0);
+            $conges = [];
+            for ($i = 0; $i < $nb_conges; $i++) {
+                if (!isset($parts[$index])) break;
+                [$debut, $fin] = explode(':', $parts[$index++]);
+                $conges[] = [
+                    'debut' => (int) $debut,
+                    'fin' => (int) $fin,
+                ];
+            }
+
+            $nb_feries = (int) ($parts[$index++] ?? 0);
+            $feries = [];
+            for ($i = 0; $i < $nb_feries; $i++) {
+                if (!isset($parts[$index])) break;
+                [$annee, $mois, $jour] = explode(':', $parts[$index++]);
+                $feries[] = [
+                    'annee' => (int) $annee,
+                    'mois' => (int) $mois,
+                    'jour' => (int) $jour,
+                ];
+            }
+
+            return [
+                'version' => $version,
+                'duree' => $duree,
+                'horaires' => $horaires,
+                'conges' => $conges,
+                'feries' => $feries,
+            ];
+        } catch (\Exception $e) {
+            \Log::error("Erreur lors du parsing de la chaîne cryptée: " . $e->getMessage());
             return null;
         }
     }

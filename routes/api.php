@@ -103,21 +103,27 @@ Route::prefix('ecoles')->group(function () {
     });
 });
 
-// Sirene routes (Protected - Admin/Technicien)
-Route::prefix('sirenes')->middleware('auth:api')->group(function () {
-    Route::get('/', [SireneController::class, 'index'])->middleware('can:voir_les_sirenes');
-    Route::get('disponibles', [SireneController::class, 'disponibles'])->middleware('can:voir_les_sirenes');
-    Route::get('numero-serie/{numeroSerie}', [SireneController::class, 'showByNumeroSerie'])->middleware('can:voir_sirene');
-    Route::get('{id}', [SireneController::class, 'show'])->middleware('can:voir_sirene');
-    Route::post('/', [SireneController::class, 'store'])->middleware('can:creer_sirene');
-    Route::put('{id}', [SireneController::class, 'update'])->middleware('can:modifier_sirene');
-    Route::post('{id}/affecter', [SireneController::class, 'affecter'])->middleware('can:modifier_sirene');
-    Route::delete('{id}', [SireneController::class, 'destroy'])->middleware('can:supprimer_sirene');
+// Sirene routes
+Route::prefix('sirenes')->group(function () {
+    // Public: Configuration ESP8266
+    Route::get('config/{numeroSerie}', [SireneController::class, 'getConfig']);
 
-    Route::post('{id}/declarer-panne', [PanneController::class, 'declarer']);
+    // Protected - Admin/Technicien
+    Route::middleware('auth:api')->group(function () {
+        Route::get('/', [SireneController::class, 'index'])->middleware('can:voir_les_sirenes');
+        Route::get('disponibles', [SireneController::class, 'disponibles'])->middleware('can:voir_les_sirenes');
+        Route::get('numero-serie/{numeroSerie}', [SireneController::class, 'showByNumeroSerie'])->middleware('can:voir_sirene');
+        Route::get('{id}', [SireneController::class, 'show'])->middleware('can:voir_sirene');
+        Route::post('/', [SireneController::class, 'store'])->middleware('can:creer_sirene');
+        Route::put('{id}', [SireneController::class, 'update'])->middleware('can:modifier_sirene');
+        Route::post('{id}/affecter', [SireneController::class, 'affecter'])->middleware('can:modifier_sirene');
+        Route::delete('{id}', [SireneController::class, 'destroy'])->middleware('can:supprimer_sirene');
 
-    // Programmations for a sirene
-    Route::apiResource('{sirene}/programmations', ProgrammationController::class);
+        Route::post('{id}/declarer-panne', [PanneController::class, 'declarer']);
+
+        // Programmations for a sirene
+        Route::apiResource('{sirene}/programmations', ProgrammationController::class);
+    });
 });
 
 Route::prefix('modeles-sirene')->middleware('auth:api')->group(function () {

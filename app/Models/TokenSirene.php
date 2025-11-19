@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Traits\HasUlid;
+use App\Traits\HasCryptageESP8266;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TokenSirene extends Model
 {
-    use HasUlid, SoftDeletes;
+    use HasUlid, SoftDeletes, HasCryptageESP8266;
 
     protected $primaryKey = 'id';
     public $incrementing = false;
@@ -69,7 +70,10 @@ class TokenSirene extends Model
     }
 
     /**
-     * Décrypte le token et retourne les données
+     * Décrypte le token et retourne les données au format Python
+     * Format: VERSION|ECOLE|SERIAL|TIMESTAMP_DEBUT|TIMESTAMP_FIN|CHECKSUM
+     *
+     * @return array|null Données décryptées ['version', 'ecole_id', 'numero_serie', 'timestamp_debut', 'timestamp_fin']
      */
     public function decrypterToken(): ?array
     {
@@ -78,8 +82,16 @@ class TokenSirene extends Model
         }
 
         try {
-            $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($this->token_crypte);
-            return json_decode($decrypted, true);
+            // Décrypter avec checksum de 16 caractères
+            $data_str = $this->decrypterDonneesESP8266($this->token_crypte, true, 16);
+
+            if (!$data_str) {
+                return null;
+            }
+
+            // Parser le format pipe-separated
+            return $this->parserTokenCrypte($data_str);
+
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Erreur décryptage token: ' . $e->getMessage());
             return null;
@@ -87,7 +99,41 @@ class TokenSirene extends Model
     }
 
     /**
-     * Vérifie l'intégrité du token
+     * Parser une chaîne décryptée au format Python
+     * Format: VERSION|ECOLE|SERIAL|TIMESTAMP_DEBUT|TIMESTAMP_FIN
+     *
+     * @param string $data_str Chaîne décryptée
+     * @return array|null Données parsées
+     */
+    protected function parserTokenCrypte(string $data_str): ?array
+    {
+        try {
+            $parts = explode('|', $data_str);
+
+            if (count($parts) < 5) {
+                \Illuminate\Support\Facades\Log::warning('Token format invalide: nombre de champs insuffisant', [
+                    'parts_count' => count($parts),
+                    'expected' => 5,
+                ]);
+                return null;
+            }
+
+            return [
+                'version' => (int) $parts[0],
+                'ecole_id' => $parts[1],
+                'numero_serie' => $parts[2],
+                'timestamp_debut' => (int) $parts[3],
+                'timestamp_fin' => (int) $parts[4],
+            ];
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erreur parsing token: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Vérifie l'intégrité du token au format Python
      */
     public function verifierToken(): bool
     {
@@ -97,17 +143,23 @@ class TokenSirene extends Model
             return false;
         }
 
-        // Vérifier l'expiration
-        if (isset($tokenData['expires_at'])) {
-            $expiresAt = \Carbon\Carbon::parse($tokenData['expires_at']);
-            if ($expiresAt->isPast()) {
+        // Vérifier l'expiration via timestamp
+        if (isset($tokenData['timestamp_fin'])) {
+            $timestampFin = $tokenData['timestamp_fin'];
+            if ($timestampFin < now()->timestamp) {
                 return false;
             }
         }
 
         // Vérifier la correspondance des données
-        return $tokenData['sirene_id'] === $this->sirene_id
-            && $tokenData['abonnement_id'] === $this->abonnement_id;
+        // Charger la sirène pour vérifier le numéro de série
+        $sirene = $this->sirene;
+        if (!$sirene) {
+            return false;
+        }
+
+        return $tokenData['numero_serie'] === $sirene->numero_serie
+            && $tokenData['ecole_id'] === $this->abonnement->ecole_id;
     }
 
     /**
