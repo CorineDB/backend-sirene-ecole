@@ -377,6 +377,11 @@ class CinetPayService
 
             // Créer le paiement selon le statut
             if ($statut === 'ACCEPTED' || $statut === '00') {
+                Log::info('CinetPayService::traiterNotification - Paiement accepté, création paiement', [
+                    'abonnement_id' => $abonnement->id,
+                    'statut_actuel_abonnement' => $abonnement->statut->value ?? $abonnement->statut,
+                ]);
+
                 // Paiement accepté - créer l'enregistrement
                 $paiement = Paiement::create([
                     'abonnement_id' => $abonnement->id,
@@ -397,9 +402,19 @@ class CinetPayService
                     ],
                 ]);
 
+                Log::info('CinetPayService::traiterNotification - Paiement créé, activation abonnement', [
+                    'paiement_id' => $paiement->id,
+                    'abonnement_id' => $abonnement->id,
+                ]);
+
                 // Activer l'abonnement
                 $abonnement->update([
                     'statut' => \App\Enums\StatutAbonnement::ACTIF,
+                ]);
+
+                Log::info('CinetPayService::traiterNotification - Abonnement activé avec succès', [
+                    'abonnement_id' => $abonnement->id,
+                    'nouveau_statut' => $abonnement->fresh()->statut->value ?? $abonnement->fresh()->statut,
                 ]);
 
                 // Mettre à jour le statut de la sirène à INSTALLE
@@ -408,9 +423,10 @@ class CinetPayService
                         'statut' => \App\Enums\StatutSirene::INSTALLE,
                     ]);
 
-                    Log::info("Statut de la sirène mis à jour", [
+                    Log::info("CinetPayService::traiterNotification - Statut de la sirène mis à jour", [
                         'sirene_id' => $abonnement->sirene->id,
                         'nouveau_statut' => 'installe',
+                        'ancien_statut' => $abonnement->sirene->getOriginal('statut'),
                     ]);
                 }
 
