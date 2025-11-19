@@ -230,7 +230,7 @@ class EcoleController extends Controller implements HasMiddleware
      */
     public function showById(string $id): JsonResponse
     {
-        Gate::authorize('voir_ecole');
+        // Public route for checkout via QR code - No authorization required
         return $this->ecoleService->getById($id, ['*'], [
             'sitesAnnexe.ville.pays',
             'sitesAnnexe.sirene.modeleSirene',

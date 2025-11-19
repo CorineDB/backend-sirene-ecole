@@ -42,11 +42,11 @@ class TechnicienController extends Controller
     public function __construct(TechnicienServiceInterface $techniqueService)
     {
         $this->techniqueService = $techniqueService;
-        $this->middleware('can:voir_les_techniciens')->only('index');
+        /* $this->middleware('can:voir_les_techniciens')->only('index');
         $this->middleware('can:creer_technicien')->only('store');
         $this->middleware('can:voir_technicien')->only('show');
         $this->middleware('can:modifier_technicien')->only('update');
-        $this->middleware('can:supprimer_technicien')->only('destroy');
+        $this->middleware('can:supprimer_technicien')->only('destroy'); */
     }
 
     /**

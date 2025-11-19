@@ -80,15 +80,15 @@ Route::prefix('auth')->middleware('auth:api')->group(function () {
 
 // Ecole routes
 Route::prefix('ecoles')->group(function () {
-    // Public: Inscription
+    // Public: Inscription & Checkout
     Route::post('inscription', [EcoleController::class, 'inscrire']);
+    Route::get('{id}', [EcoleController::class, 'showById']); // Public pour checkout via QR code
 
     // Protected routes for Ecole management
     Route::middleware('auth:api')->group(function () {
         Route::get('/', [EcoleController::class, 'index'])->middleware('can:voir_les_ecoles');
         Route::get('me', [EcoleController::class, 'show'])->middleware('can:voir_ecole');
         Route::put('me', [EcoleController::class, 'update'])->middleware('can:modifier_ecole');
-        Route::get('{id}', [EcoleController::class, 'showById'])->middleware('can:voir_ecole');
         Route::put('{id}', [EcoleController::class, 'updateById'])->middleware('can:modifier_ecole');
         Route::delete('{id}', [EcoleController::class, 'destroy'])->middleware('can:supprimer_ecole');
 
@@ -167,12 +167,12 @@ Route::prefix('abonnements')->group(function () {
     // Public: Accès via QR Code
     Route::get('{id}/details', [AbonnementController::class, 'details']);
     Route::get('{id}/paiement', [AbonnementController::class, 'paiement']);
+    Route::get('{id}', [AbonnementController::class, 'show']); // Public pour checkout via QR code
 
     // Protected routes
     Route::middleware('auth:api')->group(function () {
         // CRUD de base
         Route::get('/', [AbonnementController::class, 'index']);
-        Route::get('{id}', [AbonnementController::class, 'show']);
         Route::put('{id}', [AbonnementController::class, 'update']);
         Route::delete('{id}', [AbonnementController::class, 'destroy']);
 
