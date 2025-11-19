@@ -4,12 +4,16 @@ namespace App\Traits;
 
 use App\Models\TokenSirene;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 trait HasTokenCrypte
 {
+    use HasCryptageESP8266;
+
+    /**
+     * Version du protocole de token ESP8266
+     */
+    protected int $TOKEN_VERSION = 1;
     protected static function bootHasTokenCrypte(): void
     {
         static::updating(function (Model $model) {
@@ -65,24 +69,23 @@ trait HasTokenCrypte
         // Charger les relations nécessaires
         $model->load(['sirene', 'ecole', 'site']);
 
-        // Données à encoder dans le token
-        $tokenData = [
-            'abonnement_id' => $model->id,
-            'numero_abonnement' => $model->numero_abonnement,
-            'sirene_id' => $model->sirene_id,
-            'numero_serie' => $model->sirene->numero_serie ?? null,
-            'ecole_id' => $model->ecole_id,
-            'ecole_nom' => $model->ecole->nom ?? null,
-            'site_id' => $model->site_id,
-            'generated_at' => Carbon::now()->toIso8601String(),
-            'expires_at' => Carbon::parse($model->date_fin)->toIso8601String(),
-            'signature' => Str::random(32), // Signature unique
+        // Générer le token au format Python: VERSION|ECOLE|SERIAL|TIMESTAMP_DEBUT|TIMESTAMP_FIN|CHECKSUM
+        $instance = new class {
+            use HasCryptageESP8266;
+        };
+
+        $parts = [
+            $instance->TOKEN_VERSION ?? 1, // VERSION
+            $model->ecole_id, // ECOLE (ULID)
+            $model->sirene->numero_serie ?? '', // SERIAL
+            Carbon::parse($model->date_debut)->timestamp, // TIMESTAMP_DEBUT
+            Carbon::parse($model->date_fin)->timestamp, // TIMESTAMP_FIN
         ];
 
-        $tokenJson = json_encode($tokenData);
+        $data_str = implode('|', $parts);
 
-        // Cryptage AES-256-CBC via Laravel Crypt
-        $tokenCrypte = Crypt::encryptString($tokenJson);
+        // Crypter avec checksum de 16 caractères
+        $tokenCrypte = $instance->crypterDonneesESP8266($data_str, true, 16);
 
         // Hash du token pour vérification rapide
         $tokenHash = hash('sha256', $tokenCrypte);
