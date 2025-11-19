@@ -153,7 +153,7 @@ class CinetPayController extends Controller
      */
     protected function redirectToFrontend(string $status, string $message, ?string $transactionId = null)
     {
-        $frontendUrl = config('app.frontend_url', config('app.url'));
+        $frontendUrl = rtrim(config('app.frontend_url', config('app.url')), '/');
         $url = "{$frontendUrl}/paiement/callback?status={$status}&message=" . urlencode($message);
 
         if ($transactionId) {
@@ -161,6 +161,33 @@ class CinetPayController extends Controller
         }
 
         return redirect($url);
+    }
+
+    /**
+     * Get CinetPay configuration for frontend
+     *
+     * @return JsonResponse
+     */
+    public function getConfig(): JsonResponse
+    {
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'apiKey' => config('services.cinetpay.api_key'),
+                    'siteId' => config('services.cinetpay.site_id'),
+                    'notifyUrl' => config('app.url') . '/api/cinetpay/notify',
+                    'returnUrl' => config('app.url') . '/api/cinetpay/return',
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Erreur récupération config CinetPay: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération de la configuration',
+            ], 500);
+        }
     }
 
     /**

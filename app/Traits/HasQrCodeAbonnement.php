@@ -39,85 +39,39 @@ trait HasQrCodeAbonnement
 
             $frontendUrl = config('app.frontend_url', config('app.url'));
 
-            // Si l'abonnement est actif, pointer vers la page de détails
-            if ($model->statut->value === 'actif') {
-                $qrContent = $frontendUrl . '/abonnements/' . $model->id;
-            } else {
-                //
+            // Préparer les données essentielles de l'abonnement pour le QR code
+            // Utilisation de clés courtes pour réduire la taille
+            $qrData = [
+                'a' => $model->id, // abonnement_id
+                'e' => $ecole->id, // ecole_id
+                'n' => $model->numero_abonnement, // numero_abonnement
+                'm' => (int) $model->montant, // montant
+                's' => $model->statut->value, // statut
+                'ec' => $ecole->nom, // nom école (version courte)
+                'si' => [
+                    'n' => $model->site->nom ?? 'N/A', // nom site
+                    'v' => $model->site->ville->nom ?? 'N/A', // ville
+                ],
+                'sr' => $model->sirene->numero_serie ?? 'N/A', // numero_serie sirène
+            ];
 
-                //$frontendUrl . '/paiement/' . $model->id;
+            // Construire l'URL de checkout avec les données encodées
+            $checkoutUrl = rtrim($frontendUrl, '/') . '/checkout/' . $ecole->id . '/' . $model->id;
+            $encodedData = base64_encode(json_encode($qrData));
+            $qrContent = $checkoutUrl . '?d=' . $encodedData;
 
-                try {
-                    $cinetpayService = app(CinetPayService::class);
-                    $paiementData = $cinetpayService->initierPaiement($model);
+            Log::info('QR code généré pour abonnement', [
+                'abonnement_id' => $model->id,
+                'ecole_id' => $ecole->id,
+                'checkout_url' => $checkoutUrl,
+                'statut' => $model->statut->value,
+                'qr_data_size' => strlen($qrContent),
+            ]);
 
-                    if (isset($paiementData['payment_url']) && isset($paiementData['success']) && $paiementData['success']) {
-                        // Encoder les métadonnées CinetPay en JSON dans le QR code
-                        $qrData = [
-                            'type' => 'paiement',
-                            'abonnement_id' => $model->id,
-                            'url' => $frontendUrl . '/paiement/' . $model->id,
-                            'metadata' => array_merge([
-                                'cinetpay_payment_url' => $paiementData['payment_url'],
-                                'cinetpay_payment_token' => $paiementData['payment_token'],
-                                'cinetpay_api_response_id' => $paiementData['api_response_id'] ?? null,
-                                'transaction_id' => $paiementData['transaction_id'],
-                            ], $paiementData["metadata"]),
-                        ];
-
-                        $checkoutUrl = rtrim($frontendUrl, '/') . '/checkout-page.html';
-                        $encodedData = base64_encode(json_encode($qrData));
-                        $qrContent = $checkoutUrl . '#' . $encodedData;
-
-                        // Sauvegarder les infos dans les notes de l'abonnement
-                        $noteDetails = [
-                            "Transaction ID: {$paiementData['transaction_id']}",
-                            "Payment Token: {$paiementData['payment_token']}",
-                            "Payment URL: {$paiementData['payment_url']}",
-                        ];
-
-                        if (isset($paiementData['api_response_id'])) {
-                            $noteDetails[] = "API Response ID: {$paiementData['api_response_id']}";
-                        }
-
-                        $model->updateQuietly([
-                            'notes' => ($model->notes ?? '') . "\n" .
-                                "[" . now()->format('Y-m-d H:i:s') . "] Lien CinetPay généré:\n  - " .
-                                implode("\n  - ", $noteDetails)
-                        ]);
-
-                        Log::info('QR code généré avec métadonnées CinetPay', [
-                            'cinetpay_payment_url' => $paiementData['payment_url'],
-                            'cinetpay_payment_token' => $paiementData['payment_token'],
-                            'abonnement_id' => $model->id,
-                            'transaction_id' => $paiementData['transaction_id'],
-                        ]);
-                    } else {
-                        throw new \Exception('Données CinetPay invalides');
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Erreur génération lien CinetPay: ' . $e->getMessage(), [
-                        'abonnement_id' => $model->id,
-                        'trace' => $e->getTraceAsString(),
-                    ]);
-                    throw new \Exception($e->getMessage());
-
-                    // Fallback: pointer vers la page frontend
-                    $qrData = [
-                        'type' => 'paiement_fallback',
-                        'abonnement_id' => $model->id,
-                        'url' => $frontendUrl . '/paiement/' . $model->id,
-                    ];
-                    $checkoutUrl = rtrim($frontendUrl, '/') . '/checkout-page.html';
-                    $encodedData = base64_encode(json_encode($qrData));
-                    $qrContent = $checkoutUrl . '#' . $encodedData;
-                }
-            }
-
-            // Générer le QR code en PNG
+            // Générer le QR code en PNG avec correction d'erreur moyenne
             $qrCode = QrCode::format('png')
-                ->size(300)
-                ->errorCorrection('H')
+                ->size(400)
+                ->errorCorrection('M')
                 ->generate($qrContent);
 
             // Sauvegarder le QR code

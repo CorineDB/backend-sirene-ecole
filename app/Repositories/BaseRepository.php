@@ -18,7 +18,7 @@ abstract class BaseRepository implements BaseRepositoryInterface
 
     public function all(array $columns = ['*'], array $relations = []): Collection
     {
-        return $this->model->with($relations)->get($columns);
+        return $this->model->with($relations)->orderBy("created_at", "desc")->get($columns);
     }
 
     public function find(string $id, array $columns = ['*'], array $relations = []): ?Model
@@ -108,7 +108,7 @@ abstract class BaseRepository implements BaseRepositoryInterface
      */
     public function paginate(int $perPage = 15, array $columns = ['*'], array $relations = []): LengthAwarePaginator
     {
-        return $this->model->withTrashed()->with($relations)->paginate($perPage);
+        return $this->model/* ->withTrashed() */->with($relations)->orderBy("created_at", "desc")->paginate($perPage);
     }
 
     /**

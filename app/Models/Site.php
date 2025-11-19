@@ -39,6 +39,10 @@ class Site extends Model
         'deleted_at' => 'datetime',
     ];
 
+    protected $appends = [
+        'nom_ville'
+    ];
+
     /**
      * Get the unique fields that should be updated on soft delete.
      *
@@ -60,7 +64,7 @@ class Site extends Model
         return $this->belongsTo(Ville::class, 'ville_id');
     }
 
-    public function sirene(): HasOne
+    public function sirene(): ?HasOne
     {
         return $this->hasOne(Sirene::class, 'site_id');
     }
@@ -78,5 +82,16 @@ class Site extends Model
     public function pannes(): HasMany
     {
         return $this->hasMany(Panne::class, 'site_id');
+    }
+
+    // Accesseurs
+    /**
+     * Obtenir le nom de la ville de l'utilisateur
+     *
+     * @return string|null
+     */
+    public function getNomVilleAttribute(): ?string
+    {
+        return $this->ville?->nom_complet;
     }
 }

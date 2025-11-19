@@ -92,7 +92,14 @@ class EcoleController extends Controller implements HasMiddleware
     {
         Gate::authorize('voir_les_ecoles');
         $perPage = $request->get('per_page', 15);
-        return $this->ecoleService->getAll($perPage, ['sites', 'abonnementActif', 'user']);
+        return $this->ecoleService->getAll($perPage, [
+            'sites.sirene.modeleSirene',
+            'sites.sirene.abonnementActif',
+            'sites.sirene.abonnementEnAttente',
+            'abonnementEnAttente',
+            'abonnementActif',
+            'user'
+        ]);
     }
 
     /**
@@ -166,11 +173,79 @@ class EcoleController extends Controller implements HasMiddleware
     public function show(Request $request): JsonResponse
     {
         Gate::authorize('voir_ecole');
-        return $this->ecoleService->getById($request->user()->user_account_type_id);
+        return $this->ecoleService->getById($request->user()->user_account_type_id, ['*'], [
+            'sites.ville.pays',
+            'sites.sirene.modeleSirene',
+            'sites.sirene.abonnementActif',
+            'sites.sirene.abonnementEnAttente',
+            'sitePrincipal.ville.pays',
+            'sitePrincipal.sirene.modeleSirene',
+            'sitePrincipal.sirene.abonnementActif',
+            'sitePrincipal.sirene.abonnementEnAttente',
+            'user'
+        ]);
     }
 
     /**
-     * Mettre à jour les informations de l'école
+     * Obtenir les informations d'une école par ID
+     * @OA\Get(
+     *     path="/api/ecoles/{id}",
+     *     summary="Get school details by ID",
+     *     tags={"Ecoles"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID of the school",
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="School details retrieved successfully",
+     *         @OA\JsonContent(ref="#/components/schemas/Ecole")
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Unauthorized",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="This action is unauthorized.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="School not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="School not found")
+     *         )
+     *     )
+     * )
+     */
+    public function showById(string $id): JsonResponse
+    {
+        Gate::authorize('voir_ecole');
+        return $this->ecoleService->getById($id, ['*'], [
+            'sites.ville.pays',
+            'sites.sirene.modeleSirene',
+            'sites.sirene.abonnementActif',
+            'sites.sirene.abonnementEnAttente',
+            'sitePrincipal.ville.pays',
+            'sitePrincipal.sirene.modeleSirene',
+            'sitePrincipal.sirene.abonnementActif',
+            'sitePrincipal.sirene.abonnementEnAttente',
+            'user'
+        ]);
+    }
+
+    /**
+     * Mettre à jour les informations de l'école connectée
      * @OA\Put(
      *     path="/api/ecoles/me",
      *     summary="Update authenticated school details",
@@ -219,6 +294,65 @@ class EcoleController extends Controller implements HasMiddleware
     {
         Gate::authorize('modifier_ecole');
         return $this->ecoleService->update($request->user()->user_account_type_id, $request->validated());
+    }
+
+    /**
+     * Mettre à jour les informations d'une école par ID
+     * @OA\Put(
+     *     path="/api/ecoles/{id}",
+     *     summary="Update school details by ID",
+     *     tags={"Ecoles"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID of the school",
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(ref="#/components/schemas/UpdateEcoleRequest")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="School details updated successfully",
+     *         @OA\JsonContent(ref="#/components/schemas/Ecole")
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Unauthorized",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="This action is unauthorized.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="School not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="School not found")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="The given data was invalid.")
+     *         )
+     *     )
+     * )
+     */
+    public function updateById(UpdateEcoleRequest $request, string $id): JsonResponse
+    {
+        Gate::authorize('modifier_ecole');
+        return $this->ecoleService->update($id, $request->validated());
     }
 
     /**

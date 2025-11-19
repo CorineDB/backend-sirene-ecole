@@ -9,8 +9,10 @@ use App\Traits\HasAbonnementAnnuel;
 use App\Traits\HasPannes;
 use App\Traits\SoftDeletesUniqueFields;
 use Illuminate\Database\Eloquent\Model;
+use App\Enums\StatutAbonnement;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Sirene extends Model
@@ -48,10 +50,18 @@ class Sirene extends Model
         'deleted_at' => 'datetime',
     ];
 
+    protected $appends = ['modele'];
+
     // Relations
     public function modeleSirene(): BelongsTo
     {
         return $this->belongsTo(ModeleSirene::class, 'modele_id');
+    }
+
+    // Accessor pour compatibilité avec le frontend
+    public function getModeleAttribute()
+    {
+        return $this->modeleSirene;
     }
 
     public function ecole(): BelongsTo
@@ -67,6 +77,22 @@ class Sirene extends Model
     public function abonnements(): HasMany
     {
         return $this->hasMany(Abonnement::class);
+    }
+
+    public function abonnementActif(): HasOne
+    {
+        return $this->hasOne(Abonnement::class)
+            ->where('statut', StatutAbonnement::ACTIF)
+            ->where('date_fin', '>=', now())
+            ->latest('date_debut');
+    }
+
+    public function abonnementEnAttente(): HasOne
+    {
+        return $this->hasOne(Abonnement::class)
+            ->where('statut', StatutAbonnement::EN_ATTENTE)
+            ->where('date_fin', '>=', now())
+            ->latest('date_debut');
     }
 
     public function programmations(): HasMany

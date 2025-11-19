@@ -91,7 +91,9 @@ class EcoleService extends BaseService implements EcoleServiceInterface
 
             // Recharger l'école avec toutes les relations
             $ecole->load([
-                'sites.sirene',
+                'sites.sirene.modeleSirene',
+                'sites.sirene.abonnementActif',
+                'sites.sirene.abonnementEnAttente',
                 'abonnementActif',
                 'user'
             ]);

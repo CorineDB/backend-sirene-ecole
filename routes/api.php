@@ -88,6 +88,8 @@ Route::prefix('ecoles')->group(function () {
         Route::get('/', [EcoleController::class, 'index'])->middleware('can:voir_les_ecoles');
         Route::get('me', [EcoleController::class, 'show'])->middleware('can:voir_ecole');
         Route::put('me', [EcoleController::class, 'update'])->middleware('can:modifier_ecole');
+        Route::get('{id}', [EcoleController::class, 'showById'])->middleware('can:voir_ecole');
+        Route::put('{id}', [EcoleController::class, 'updateById'])->middleware('can:modifier_ecole');
         Route::delete('{id}', [EcoleController::class, 'destroy'])->middleware('can:supprimer_ecole');
 
         // School-specific holidays
@@ -179,6 +181,7 @@ Route::prefix('abonnements')->group(function () {
         Route::post('{id}/suspendre', [AbonnementController::class, 'suspendre']);
         Route::post('{id}/reactiver', [AbonnementController::class, 'reactiver']);
         Route::post('{id}/annuler', [AbonnementController::class, 'annuler']);
+        Route::post('{id}/regenerer-qr-code', [AbonnementController::class, 'regenererQrCode']);
 
         // Recherche
         Route::get('ecole/{ecoleId}/actif', [AbonnementController::class, 'getActif']);
@@ -232,6 +235,9 @@ Route::prefix('cinetpay')->group(function () {
     // Page de retour après paiement (redirection utilisateur)
     Route::get('return', [CinetPayController::class, 'return']);
     Route::post('return', [CinetPayController::class, 'return']);
+
+    // Get CinetPay configuration for frontend
+    Route::get('config', [CinetPayController::class, 'getConfig']);
 
     // Vérifier le statut d'une transaction (pour le frontend)
     Route::post('check-status', [CinetPayController::class, 'checkStatus']);

@@ -24,7 +24,8 @@ class SireneRepository extends BaseRepository implements SireneRepositoryInterfa
     public function getSirenesDisponibles(array $relations = []): Collection
     {
         return $this->model->with($relations)
-            ->where('statut', 'DISPONIBLE')
+            ->where('statut', StatutSirene::EN_STOCK->value)
+            ->orWhere('old_statut', StatutSirene::EN_STOCK->value)
             ->whereNull('site_id')
             ->get();
     }

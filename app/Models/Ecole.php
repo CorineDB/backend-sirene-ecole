@@ -82,6 +82,14 @@ class Ecole extends Model
             ->latest('date_debut');
     }
 
+    public function abonnementEnAttente(): HasOne
+    {
+        return $this->hasOne(Abonnement::class)
+            ->where('statut', StatutAbonnement::EN_ATTENTE)
+            ->where('date_fin', '>=', now())
+            ->latest('date_debut');
+    }
+
     public function programmations(): HasMany
     {
         return $this->hasMany(Programmation::class);
