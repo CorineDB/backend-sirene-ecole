@@ -260,4 +260,93 @@ class TechnicienController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('supprimer_technicien');
         return $this->techniqueService->delete($id);
     }
+
+    /**
+     * Récupérer toutes les interventions d'un technicien
+     *
+     * @OA\Get(
+     *     path="/api/techniciens/{id}/interventions",
+     *     summary="Récupérer les interventions d'un technicien",
+     *     tags={"Techniciens"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID du technicien",
+     *         @OA\Schema(type="string", format="ulid")
+     *     ),
+     *     @OA\Parameter(
+     *         name="statut",
+     *         in="query",
+     *         required=false,
+     *         description="Filtrer par statut (planifie, en_cours, termine, annule)",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Liste des interventions du technicien",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(ref="#/components/schemas/Intervention")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Technicien non trouvé"
+     *     )
+     * )
+     */
+    public function getInterventions(string $id): JsonResponse
+    {
+        try {
+            $technicien = \App\Models\Technicien::findOrFail($id);
+
+            // Récupérer les paramètres de filtrage
+            $statut = request()->query('statut');
+
+            // Construire la requête avec relations
+            $query = $technicien->interventions()
+                ->with([
+                    'ecole',
+                    'site',
+                    'panne',
+                    'ordreMission',
+                    'rapportIntervention'
+                ]);
+
+            // Filtrer par statut si fourni
+            if ($statut) {
+                $query->where('statut', $statut);
+            }
+
+            // Trier par date (plus récentes en premier)
+            $interventions = $query->orderBy('date_intervention', 'desc')->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $interventions
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Technicien non trouvé'
+            ], 404);
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur récupération interventions technicien: ' . $e->getMessage(), [
+                'technicien_id' => $id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des interventions'
+            ], 500);
+        }
+    }
 }

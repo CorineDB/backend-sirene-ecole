@@ -139,6 +139,7 @@ Route::prefix('techniciens')->middleware('auth:api')->group(function () {
     Route::get('/', [TechnicienController::class, 'index']);
     Route::post('/', [TechnicienController::class, 'store']);
     Route::get('{id}', [TechnicienController::class, 'show']);
+    Route::get('{id}/interventions', [TechnicienController::class, 'getInterventions']); // Interventions du technicien
     Route::put('{id}', [TechnicienController::class, 'update']);
     Route::delete('{id}', [TechnicienController::class, 'destroy']);
 });
