@@ -110,6 +110,52 @@ Authorization: Bearer {token}
 }
 ```
 
+### Option 3: URL signée temporaire (Recommandé pour production) 🔐✅
+
+**Avantage:** Sécurisé, temporaire, traçable
+**Inconvénient:** 2 requêtes HTTP (1 pour obtenir URL, 1 pour télécharger)
+
+#### Obtenir une URL signée (Public)
+
+```http
+GET /api/abonnements/{id}/qr-code-url
+```
+
+**Réponse:**
+```json
+{
+  "success": true,
+  "data": {
+    "qr_code_url": "https://votre-domaine.com/api/abonnements/01ABC/qr-code-download?expires=1234567890&signature=abc123...",
+    "expires_at": "2025-11-19T13:00:00+00:00"
+  }
+}
+```
+
+**Utilisation:**
+```javascript
+// Frontend - Récupérer l'URL signée
+const response = await fetch('/api/abonnements/01ABC123/qr-code-url');
+const { data } = await response.json();
+
+// Afficher le QR code avec l'URL signée
+<img src={data.qr_code_url} alt="QR Code" />
+```
+
+**Fonctionnement:**
+1. Le frontend demande une URL signée temporaire (valide 1 heure)
+2. Le backend génère une URL avec signature cryptographique
+3. Le frontend utilise cette URL pour afficher/télécharger le QR code
+4. L'URL expire automatiquement après 1 heure
+5. Toute modification de l'URL invalide la signature
+
+**Sécurité:**
+- ✅ URL temporaire (expire après 1 heure)
+- ✅ Signature cryptographique (impossible à falsifier)
+- ✅ Logs des accès
+- ✅ Protection contre les accès non autorisés
+- ✅ Révocation automatique après expiration
+
 ## 🔐 Sécurité
 
 ### Option 1 (Public direct)
@@ -124,30 +170,29 @@ Authorization: Bearer {token}
 - ✅ Gestion des erreurs
 - ⚠️ Toujours public (pas d'authentification requise pour GET)
 
-### Amélioration future suggérée
+### Option 3 (URL signée) - NOUVEAU ✨
+- ✅ URL temporaire (expire après 1 heure)
+- ✅ Signature cryptographique
+- ✅ Logs des accès
+- ✅ Validation de l'existence
+- ✅ Protection contre la falsification
+- ✅ Révocation automatique
 
-Pour un contrôle d'accès plus strict, vous pourriez :
+### 📊 Tableau comparatif
 
-1. **Ajouter un token dans l'URL:**
-```php
-GET /api/abonnements/{id}/qr-code?token={signed_token}
-```
-
-2. **Restreindre l'accès par IP:**
-```php
-// Middleware pour vérifier l'IP de l'école
-```
-
-3. **Limiter le nombre de téléchargements:**
-```php
-// Rate limiting sur la route
-Route::get('abonnements/{id}/qr-code')
-    ->middleware('throttle:10,1'); // 10 requêtes par minute
-```
+| Critère | Option 1 (Direct) | Option 2 (API) | Option 3 (Signée) ✅ |
+|---------|-------------------|----------------|----------------------|
+| **Sécurité** | ⚠️ Faible | ✓ Moyenne | ✅ Élevée |
+| **Expiration** | ❌ Non | ❌ Non | ✅ 1 heure |
+| **Falsification** | ❌ Possible | ⚠️ Risque | ✅ Impossible |
+| **Logs** | ❌ Non | ✅ Oui | ✅ Oui |
+| **Requêtes HTTP** | 1 | 1 | 2 |
+| **Complexité** | Simple | Simple | Moyenne |
+| **Production** | ❌ Déconseillé | ⚠️ Acceptable | ✅ Recommandé |
 
 ## 🚀 Intégration Frontend
 
-### React/Vue.js
+### React/Vue.js (Option 1 - Direct)
 
 ```javascript
 // Afficher le QR code dans une image
@@ -159,6 +204,44 @@ Route::get('abonnements/{id}/qr-code')
     e.target.src = `/api/abonnements/${abonnement.id}/qr-code`;
   }}
 />
+```
+
+### React/Vue.js (Option 3 - URL signée) ✅ RECOMMANDÉ
+
+```javascript
+import { ref, onMounted } from 'vue';
+
+const qrCodeUrl = ref(null);
+const loading = ref(true);
+
+onMounted(async () => {
+  try {
+    // Récupérer l'URL signée
+    const response = await fetch(`/api/abonnements/${abonnementId}/qr-code-url`);
+    const { data } = await response.json();
+
+    if (data && data.qr_code_url) {
+      qrCodeUrl.value = data.qr_code_url;
+    }
+  } catch (error) {
+    console.error('Erreur chargement QR code:', error);
+  } finally {
+    loading.value = false;
+  }
+});
+```
+
+```vue
+<template>
+  <div v-if="loading" class="animate-pulse bg-gray-200 h-64 w-64"></div>
+  <img
+    v-else-if="qrCodeUrl"
+    :src="qrCodeUrl"
+    alt="QR Code"
+    class="w-64 h-64"
+  />
+  <div v-else class="text-red-500">QR Code non disponible</div>
+</template>
 ```
 
 ### Mobile (React Native)
