@@ -738,74 +738,7 @@ class AbonnementController extends Controller
      */
     public function regenererToken(string $id): JsonResponse
     {
-        try {
-            // Charger l'abonnement avec ses relations
-            $abonnement = \App\Models\Abonnement::with(['sirene', 'ecole', 'site', 'paiements'])
-                ->find($id);
-
-            if (!$abonnement) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Abonnement non trouvé'
-                ], 404);
-            }
-
-            // Vérifier que l'abonnement est actif
-            if ($abonnement->statut->value !== \App\Enums\StatutAbonnement::ACTIF->value) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Seuls les abonnements actifs peuvent avoir leur token régénéré',
-                    'data' => [
-                        'statut_actuel' => $abonnement->statut->value
-                    ]
-                ], 422);
-            }
-
-            // Vérifier qu'il y a un paiement validé
-            $paiementValide = $abonnement->paiements()
-                ->where('statut', 'valide')
-                ->exists();
-
-            if (!$paiementValide) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Aucun paiement validé trouvé pour cet abonnement',
-                ], 422);
-            }
-
-            // Régénérer le token
-            $abonnement->regenererToken();
-            $abonnement->refresh();
-
-            // Récupérer le token nouvellement créé
-            $token = $abonnement->tokenActif;
-
-            if (!$token) {
-                throw new \Exception('Échec de la génération du token');
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Token régénéré avec succès',
-                'data' => [
-                    'token_id' => $token->id,
-                    'date_generation' => $token->date_generation->toIso8601String(),
-                    'date_expiration' => $token->date_expiration->toIso8601String(),
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Erreur régénération token: ' . $e->getMessage(), [
-                'abonnement_id' => $id,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la régénération du token',
-                'error' => config('app.debug') ? $e->getMessage() : null
-            ], 500);
-        }
+        return $this->abonnementService->regenererToken($id);
     }
 
     /**
