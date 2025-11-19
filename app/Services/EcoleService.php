@@ -6,7 +6,6 @@ use App\Repositories\Contracts\EcoleRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Contracts\SireneRepositoryInterface;
 use App\Repositories\Contracts\SiteRepositoryInterface;
-use App\Services\Contracts\AbonnementServiceInterface;
 use App\Services\Contracts\EcoleServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -17,20 +16,17 @@ class EcoleService extends BaseService implements EcoleServiceInterface
 {
     protected $userRepository;
     protected $sireneRepository;
-    protected $abonnementService;
     protected $siteRepository;
 
     public function __construct(
         EcoleRepositoryInterface $repository,
         UserRepositoryInterface $userRepository,
         SireneRepositoryInterface $sireneRepository,
-        AbonnementServiceInterface $abonnementService,
         SiteRepositoryInterface $siteRepository
     ) {
         parent::__construct($repository);
         $this->userRepository = $userRepository;
         $this->sireneRepository = $sireneRepository;
-        $this->abonnementService = $abonnementService;
         $this->siteRepository = $siteRepository;
     }
 
@@ -137,35 +133,13 @@ class EcoleService extends BaseService implements EcoleServiceInterface
             }
 
             // Affecter la sirène au site
+            // Note: L'affectation de la sirène au site déclenche automatiquement la création d'un abonnement
+            // via le trait HasAbonnementAnnuel sur le modèle Sirene.
+            // L'abonnement sera créé avec:
+            // - numero_abonnement généré automatiquement (trait HasNumeroAbonnement)
+            // - QR code généré automatiquement (trait HasQrCodeAbonnement)
+            // - Token crypté généré automatiquement quand le statut passe à ACTIF (trait HasTokenCrypte)
             $this->sireneRepository->affecterSireneASite($sirene->id, $site->id, $ecoleId);
-
-            // Créer un abonnement en attente pour l'école
-            $montantAbonnement = config('services.subscription.price_per_year', 50000);
-
-            $abonnementData = [
-                'ecole_id' => $ecoleId,
-                'site_id' => $site->id,
-                'sirene_id' => $sirene->id,
-                // Le numero_abonnement sera généré automatiquement par le trait HasNumeroAbonnement
-                'date_debut' => now(),
-                'date_fin' => now()->addYear(),
-                'montant' => $montantAbonnement,
-                'statut' => \App\Enums\StatutAbonnement::EN_ATTENTE->value,
-                'auto_renouvellement' => false,
-                'notes' => "Abonnement créé automatiquement lors de l'inscription de l'école",
-            ];
-
-            // Créer l'abonnement via le repository
-            $abonnement = $this->abonnementService->repository->create($abonnementData);
-
-            // Le QR code sera généré automatiquement par le trait HasQrCodeAbonnement
-            // Le token sera généré automatiquement par le trait HasTokenCrypte quand le statut passe à ACTIF
-            Log::info("Abonnement créé avec succès", [
-                'abonnement_id' => $abonnement->id,
-                'numero_abonnement' => $abonnement->numero_abonnement,
-                'ecole_id' => $ecoleId,
-                'montant' => $montantAbonnement,
-            ]);
         }
 
         return $site;
