@@ -173,6 +173,7 @@ Route::prefix('abonnements')->group(function () {
     // Public: Accès via QR Code
     Route::get('{id}/details', [AbonnementController::class, 'details']);
     Route::get('{id}/paiement', [AbonnementController::class, 'paiement']);
+    Route::get('{id}/qr-code-url', [AbonnementController::class, 'getQrCodeUrl']); // Obtenir URL signée du QR code
     Route::get('{id}', [AbonnementController::class, 'show']); // Public pour checkout via QR code
 
     // Protected routes
@@ -219,6 +220,11 @@ Route::prefix('abonnements')->group(function () {
         Route::post('cron/auto-renouveler', [AbonnementController::class, 'autoRenouveler']);
     });
 });
+
+// Route signée pour téléchargement sécurisé du QR code (avec vérification de signature)
+Route::get('abonnements/{id}/qr-code-download', [AbonnementController::class, 'telechargerQrCode'])
+    ->name('abonnements.qr-code.download')
+    ->middleware('signed');
 
 // Paiement routes
 Route::prefix('paiements')->group(function () {

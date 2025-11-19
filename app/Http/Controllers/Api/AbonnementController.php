@@ -703,6 +703,95 @@ class AbonnementController extends Controller
     }
 
     /**
+     * Obtenir l'URL signée du QR code
+     *
+     * @OA\Get(
+     *     path="/api/abonnements/{id}/qr-code-url",
+     *     tags={"Abonnements"},
+     *     summary="Obtenir l'URL signée du QR code (valide 1 heure)",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'abonnement",
+     *         @OA\Schema(type="string", format="ulid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="URL signée générée avec succès",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="qr_code_url", type="string", description="URL signée temporaire"),
+     *                 @OA\Property(property="expires_at", type="string", format="date-time", description="Date d'expiration de l'URL")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Abonnement non trouvé ou QR code non disponible"
+     *     )
+     * )
+     */
+    public function getQrCodeUrl(string $id): JsonResponse
+    {
+        try {
+            $abonnement = \App\Models\Abonnement::find($id);
+
+            if (!$abonnement) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Abonnement non trouvé'
+                ], 404);
+            }
+
+            if (!$abonnement->qr_code_path) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucun QR code disponible pour cet abonnement'
+                ], 404);
+            }
+
+            // Vérifier que le fichier existe
+            $path = storage_path('app/public/' . $abonnement->qr_code_path);
+            if (!\File::exists($path)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Fichier QR code introuvable'
+                ], 404);
+            }
+
+            // Générer URL signée valide 1 heure
+            $expiresAt = now()->addHour();
+            $url = \URL::temporarySignedRoute(
+                'abonnements.qr-code.download',
+                $expiresAt,
+                ['id' => $id]
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'qr_code_url' => $url,
+                    'expires_at' => $expiresAt->toIso8601String()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur génération URL signée QR code: ' . $e->getMessage(), [
+                'abonnement_id' => $id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la génération de l\'URL signée'
+            ], 500);
+        }
+    }
+
+    /**
      * Télécharger le QR code d'un abonnement
      *
      * @OA\Get(
