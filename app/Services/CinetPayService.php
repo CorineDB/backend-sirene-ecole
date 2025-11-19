@@ -408,42 +408,26 @@ class CinetPayService
                 ]);
 
                 // Activer l'abonnement
-                try {
-                    $abonnement->update([
-                        'statut' => \App\Enums\StatutAbonnement::ACTIF,
-                    ]);
+                $abonnement->update([
+                    'statut' => \App\Enums\StatutAbonnement::ACTIF,
+                ]);
 
-                    Log::info('CinetPayService::traiterNotification - Abonnement activé avec succès', [
-                        'abonnement_id' => $abonnement->id,
-                        'nouveau_statut' => $abonnement->fresh()->statut->value ?? $abonnement->fresh()->statut,
-                    ]);
-                } catch (\Exception $e) {
-                    Log::error('CinetPayService::traiterNotification - Erreur activation abonnement', [
-                        'abonnement_id' => $abonnement->id,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString(),
-                    ]);
-                    throw $e; // Relancer pour logger l'erreur complète
-                }
+                Log::info('CinetPayService::traiterNotification - Abonnement activé avec succès', [
+                    'abonnement_id' => $abonnement->id,
+                    'nouveau_statut' => $abonnement->fresh()->statut->value ?? $abonnement->fresh()->statut,
+                ]);
 
                 // Mettre à jour le statut de la sirène à INSTALLE
                 if ($abonnement->sirene) {
-                    try {
-                        $abonnement->sirene->update([
-                            'statut' => \App\Enums\StatutSirene::INSTALLE,
-                        ]);
+                    $abonnement->sirene->update([
+                        'statut' => \App\Enums\StatutSirene::INSTALLE,
+                    ]);
 
-                        Log::info("CinetPayService::traiterNotification - Statut de la sirène mis à jour", [
-                            'sirene_id' => $abonnement->sirene->id,
-                            'nouveau_statut' => 'installe',
-                            'ancien_statut' => $abonnement->sirene->getOriginal('statut'),
-                        ]);
-                    } catch (\Exception $e) {
-                        Log::error('CinetPayService::traiterNotification - Erreur mise à jour sirène', [
-                            'sirene_id' => $abonnement->sirene->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
+                    Log::info("CinetPayService::traiterNotification - Statut de la sirène mis à jour", [
+                        'sirene_id' => $abonnement->sirene->id,
+                        'nouveau_statut' => 'installe',
+                        'ancien_statut' => $abonnement->sirene->getOriginal('statut'),
+                    ]);
                 }
 
                 Log::info("Paiement enregistré et abonnement activé", [
