@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Abonnement extends Model
 {
-    use HasUlid, SoftDeletes, HasQrCodeAbonnement, HasTokenCrypte/* , HasNumeroAbonnement */;
+    use HasUlid, SoftDeletes, HasQrCodeAbonnement, HasTokenCrypte, HasNumeroAbonnement;
 
     protected $primaryKey = 'id';
     protected $keyType = 'string';
