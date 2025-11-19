@@ -182,6 +182,7 @@ Route::prefix('abonnements')->group(function () {
         Route::post('{id}/reactiver', [AbonnementController::class, 'reactiver']);
         Route::post('{id}/annuler', [AbonnementController::class, 'annuler']);
         Route::post('{id}/regenerer-qr-code', [AbonnementController::class, 'regenererQrCode']);
+        Route::get('{id}/qr-code', [AbonnementController::class, 'telechargerQrCode']);
 
         // Recherche
         Route::get('ecole/{ecoleId}/actif', [AbonnementController::class, 'getActif']);

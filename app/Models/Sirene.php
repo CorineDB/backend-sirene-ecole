@@ -84,7 +84,8 @@ class Sirene extends Model
         return $this->hasOne(Abonnement::class)
             ->where('statut', StatutAbonnement::ACTIF)
             ->where('date_fin', '>=', now())
-            ->latest('date_debut');
+            ->latest('date_debut')
+            ->latest('created_at');
     }
 
     public function abonnementEnAttente(): HasOne
@@ -92,7 +93,8 @@ class Sirene extends Model
         return $this->hasOne(Abonnement::class)
             ->where('statut', StatutAbonnement::EN_ATTENTE)
             ->where('date_fin', '>=', now())
-            ->latest('date_debut');
+            ->latest('date_debut')
+            ->latest('created_at');
     }
 
     public function programmations(): HasMany

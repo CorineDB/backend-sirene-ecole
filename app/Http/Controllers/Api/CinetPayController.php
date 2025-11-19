@@ -171,11 +171,14 @@ class CinetPayController extends Controller
     public function getConfig(): JsonResponse
     {
         try {
+            $mode = config('services.cinetpay.mode', 'test');
+
             return response()->json([
                 'success' => true,
                 'data' => [
                     'apiKey' => config('services.cinetpay.api_key'),
                     'siteId' => config('services.cinetpay.site_id'),
+                    'mode' => strtoupper($mode), // TEST ou PRODUCTION
                     'notifyUrl' => config('app.url') . '/api/cinetpay/notify',
                     'returnUrl' => config('app.url') . '/api/cinetpay/return',
                 ],

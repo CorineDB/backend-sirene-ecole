@@ -54,6 +54,11 @@ class Ecole extends Model
         return $this->hasMany(Site::class, 'ecole_principale_id');
     }
 
+    public function sitesAnnexe(): HasMany
+    {
+        return $this->hasMany(Site::class, 'ecole_principale_id')->where('est_principale', FALSE);
+    }
+
     public function sitePrincipal(): HasOne
     {
         return $this->hasOne(Site::class, 'ecole_principale_id')->where('est_principale', true);
@@ -79,7 +84,8 @@ class Ecole extends Model
         return $this->hasOne(Abonnement::class)
             ->where('statut', StatutAbonnement::ACTIF)
             ->where('date_fin', '>=', now())
-            ->latest('date_debut');
+            ->latest('date_debut')
+            ->latest('created_at');
     }
 
     public function abonnementEnAttente(): HasOne
@@ -87,7 +93,8 @@ class Ecole extends Model
         return $this->hasOne(Abonnement::class)
             ->where('statut', StatutAbonnement::EN_ATTENTE)
             ->where('date_fin', '>=', now())
-            ->latest('date_debut');
+            ->latest('date_debut')
+            ->latest('created_at');
     }
 
     public function programmations(): HasMany

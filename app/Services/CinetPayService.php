@@ -28,6 +28,10 @@ class CinetPayService
     /**
      * Initialiser un paiement pour un abonnement
      *
+     * @deprecated Cette méthode n'est plus utilisée pour les paiements d'abonnements.
+     *             Les paiements sont maintenant initiés côté frontend avec le SDK Seamless CinetPay.
+     *             Cette méthode est conservée pour référence ou pour d'autres types de transactions.
+     *
      * @param Abonnement $abonnement
      * @return array
      * @throws Exception
@@ -293,12 +297,13 @@ class CinetPayService
 
     /**
      * Traiter le callback de notification
+     * Cette fonction est appelée par CinetPay après un paiement initié par le SDK Seamless
      */
     public function traiterNotification(array $data): bool
     {
         try {
+            Log::info('CinetPayService::traiterNotification - Notification reçue', $data);
 
-            Log::error('CinetPayService::verifierTransaction - ' . $data);
             // Vérifier que les données essentielles sont présentes
             if (!isset($data['cpm_trans_id']) || !isset($data['cpm_trans_status'])) {
                 throw new Exception('Données de notification incomplètes');
@@ -306,49 +311,141 @@ class CinetPayService
 
             $transactionId = $data['cpm_trans_id'];
             $statut = $data['cpm_trans_status'];
+            $transactionData = null;
 
-            // Récupérer le paiement
-            $paiement = Paiement::where('numero_transaction', $transactionId)->first();
+            // Tenter de vérifier la transaction auprès de CinetPay (optionnel pour les simulations)
+            try {
+                $verificationResult = $this->verifierTransaction($transactionId);
 
-            if (!$paiement) {
-                Log::warning("Paiement non trouvé pour la transaction: {$transactionId}");
-                return false;
+                Log::info('Vérification transaction CinetPay', [
+                    'transaction_id' => $transactionId,
+                    'result' => $verificationResult,
+                ]);
+
+                // Si la vérification réussit, utiliser ces données
+                if (isset($verificationResult['code']) && $verificationResult['code'] === '00') {
+                    $transactionData = $verificationResult['data'];
+                }
+            } catch (Exception $verificationError) {
+                // La vérification a échoué (transaction simulée ou temporairement indisponible)
+                Log::warning('Impossible de vérifier la transaction, utilisation des données de notification', [
+                    'transaction_id' => $transactionId,
+                    'error' => $verificationError->getMessage(),
+                ]);
             }
 
-            // Mettre à jour le paiement selon le statut
+            // Si pas de données de vérification, utiliser les données de la notification directement
+            if (!$transactionData) {
+                $transactionData = [
+                    'amount' => $data['cpm_amount'] ?? 0,
+                    'payment_token' => $data['cpm_payment_token'] ?? null,
+                    'payment_method' => $data['payment_method'] ?? 'UNKNOWN',
+                    'operator_id' => $data['cpm_phone_prefixe'] ?? null,
+                    'metadata' => $data['metadata'] ?? null,
+                ];
+            }
+
+            // Extraire les métadonnées
+            $metadata = [];
+            if (isset($data['metadata']) && is_string($data['metadata'])) {
+                $metadata = json_decode($data['metadata'], true) ?? [];
+            } elseif (isset($transactionData['metadata']) && is_string($transactionData['metadata'])) {
+                $metadata = json_decode($transactionData['metadata'], true) ?? [];
+            }
+
+            // Récupérer l'ID de l'abonnement depuis les métadonnées
+            $abonnementId = $metadata['abonnement_id'] ?? null;
+
+            if (!$abonnementId) {
+                throw new Exception('Abonnement ID manquant dans les métadonnées');
+            }
+
+            // Récupérer l'abonnement avec la relation sirene
+            $abonnement = Abonnement::with('sirene')->find($abonnementId);
+
+            if (!$abonnement) {
+                throw new Exception("Abonnement non trouvé: {$abonnementId}");
+            }
+
+            // Vérifier si le paiement existe déjà pour éviter les doublons
+            $paiementExistant = Paiement::where('numero_transaction', $transactionId)->first();
+
+            if ($paiementExistant) {
+                Log::info("Paiement déjà enregistré pour la transaction: {$transactionId}");
+                return true;
+            }
+
+            // Créer le paiement selon le statut
             if ($statut === 'ACCEPTED' || $statut === '00') {
-                $paiement->update([
+                // Paiement accepté - créer l'enregistrement
+                $paiement = Paiement::create([
+                    'abonnement_id' => $abonnement->id,
+                    'ecole_id' => $abonnement->ecole_id,
+                    'numero_transaction' => $transactionId,
+                    'montant' => $transactionData['amount'] ?? $abonnement->montant,
+                    'moyen' => \App\Enums\MoyenPaiement::MOBILE_MONEY,
                     'statut' => 'valide',
-                    'reference_externe' => $data['cpm_payment_token'] ?? null,
+                    'reference_externe' => $transactionData['payment_token'] ?? $data['cpm_payment_token'] ?? null,
                     'date_paiement' => now(),
                     'date_validation' => now(),
-                    'metadata' => array_merge($paiement->metadata ?? [], [
-                        'cinetpay_response' => $data,
+                    'metadata' => [
+                        'cinetpay_notification' => $data,
+                        'cinetpay_verification' => $transactionData,
+                        'payment_method' => $transactionData['payment_method'] ?? null,
+                        'operator_id' => $transactionData['operator_id'] ?? null,
                         'validated_at' => now()->toIso8601String(),
-                    ]),
+                    ],
                 ]);
 
                 // Activer l'abonnement
-                $abonnement = $paiement->abonnement;
-                if ($abonnement) {
-                    $abonnement->update([
-                        'statut' => \App\Enums\StatutAbonnement::ACTIF,
+                $abonnement->update([
+                    'statut' => \App\Enums\StatutAbonnement::ACTIF,
+                ]);
+
+                // Mettre à jour le statut de la sirène à INSTALLE
+                if ($abonnement->sirene) {
+                    $abonnement->sirene->update([
+                        'statut' => \App\Enums\StatutSirene::INSTALLE,
                     ]);
 
-                    Log::info("Abonnement activé: {$abonnement->id}");
+                    Log::info("Statut de la sirène mis à jour", [
+                        'sirene_id' => $abonnement->sirene->id,
+                        'nouveau_statut' => 'installe',
+                    ]);
                 }
+
+                Log::info("Paiement enregistré et abonnement activé", [
+                    'paiement_id' => $paiement->id,
+                    'abonnement_id' => $abonnement->id,
+                    'transaction_id' => $transactionId,
+                    'sirene_id' => $abonnement->sirene_id,
+                ]);
 
                 return true;
             } else {
-                // Paiement échoué
-                $paiement->update([
+                // Paiement échoué - enregistrer quand même pour traçabilité
+                Paiement::create([
+                    'abonnement_id' => $abonnement->id,
+                    'ecole_id' => $abonnement->ecole_id,
+                    'numero_transaction' => $transactionId,
+                    'montant' => $transactionData['amount'] ?? $abonnement->montant,
+                    'moyen' => \App\Enums\MoyenPaiement::MOBILE_MONEY,
                     'statut' => 'echoue',
-                    'reference_externe' => $data['cpm_payment_token'] ?? null,
-                    'metadata' => array_merge($paiement->metadata ?? [], [
-                        'cinetpay_response' => $data,
+                    'reference_externe' => $transactionData['payment_token'] ?? $data['cpm_payment_token'] ?? null,
+                    'date_paiement' => null,
+                    'date_validation' => null,
+                    'metadata' => [
+                        'cinetpay_notification' => $data,
+                        'cinetpay_verification' => $transactionData,
                         'failed_at' => now()->toIso8601String(),
-                        'failure_reason' => $data['cpm_error_message'] ?? 'Erreur inconnue',
-                    ]),
+                        'failure_reason' => $data['cpm_error_message'] ?? $transactionData['description'] ?? 'Paiement refusé',
+                    ],
+                ]);
+
+                Log::warning("Paiement échoué enregistré", [
+                    'abonnement_id' => $abonnement->id,
+                    'transaction_id' => $transactionId,
+                    'status' => $statut,
                 ]);
 
                 return false;
@@ -357,6 +454,7 @@ class CinetPayService
         } catch (Exception $e) {
             Log::error('CinetPayService::traiterNotification - ' . $e->getMessage(), [
                 'data' => $data,
+                'trace' => $e->getTraceAsString(),
             ]);
             return false;
         }

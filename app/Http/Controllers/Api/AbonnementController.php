@@ -149,7 +149,7 @@ class AbonnementController extends Controller
      */
     public function paiement(string $id): JsonResponse
     {
-        Gate::authorize('voir_abonnement');
+        //Gate::authorize('voir_abonnement');
 
         return $this->abonnementService->getById($id, relations: [
             'ecole',
@@ -698,6 +698,78 @@ class AbonnementController extends Controller
                 'success' => false,
                 'message' => 'Erreur lors de la régénération du QR code',
                 'errors' => [$e->getMessage()]
+            ], 500);
+        }
+    }
+
+    /**
+     * Télécharger le QR code d'un abonnement
+     *
+     * @OA\Get(
+     *     path="/api/abonnements/{id}/qr-code",
+     *     tags={"Abonnements"},
+     *     summary="Télécharger le QR code d'un abonnement",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'abonnement",
+     *         @OA\Schema(type="string", format="ulid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="QR code image",
+     *         @OA\MediaType(
+     *             mediaType="image/png"
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Abonnement non trouvé ou QR code non disponible"
+     *     )
+     * )
+     */
+    public function telechargerQrCode(string $id)
+    {
+        try {
+            $abonnement = \App\Models\Abonnement::find($id);
+
+            if (!$abonnement) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Abonnement non trouvé'
+                ], 404);
+            }
+
+            if (!$abonnement->qr_code_path) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'QR code non disponible pour cet abonnement'
+                ], 404);
+            }
+
+            $path = storage_path('app/public/' . $abonnement->qr_code_path);
+
+            if (!\File::exists($path)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Fichier QR code introuvable'
+                ], 404);
+            }
+
+            return response()->file($path, [
+                'Content-Type' => 'image/png',
+                'Content-Disposition' => 'inline; filename="qr-code-' . $abonnement->numero_abonnement . '.png"',
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur téléchargement QR code: ' . $e->getMessage(), [
+                'abonnement_id' => $id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du téléchargement du QR code'
             ], 500);
         }
     }

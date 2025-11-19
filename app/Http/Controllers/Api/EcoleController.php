@@ -232,10 +232,10 @@ class EcoleController extends Controller implements HasMiddleware
     {
         Gate::authorize('voir_ecole');
         return $this->ecoleService->getById($id, ['*'], [
-            'sites.ville.pays',
-            'sites.sirene.modeleSirene',
-            'sites.sirene.abonnementActif',
-            'sites.sirene.abonnementEnAttente',
+            'sitesAnnexe.ville.pays',
+            'sitesAnnexe.sirene.modeleSirene',
+            'sitesAnnexe.sirene.abonnementActif',
+            'sitesAnnexe.sirene.abonnementEnAttente',
             'sitePrincipal.ville.pays',
             'sitePrincipal.sirene.modeleSirene',
             'sitePrincipal.sirene.abonnementActif',
