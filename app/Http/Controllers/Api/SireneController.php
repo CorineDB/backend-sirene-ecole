@@ -558,4 +558,108 @@ class SireneController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Obtenir la programmation cryptée pour ESP8266
+     * Endpoint public utilisé par les modules ESP8266 pour récupérer les programmations
+     *
+     * @OA\Get(
+     *     path="/api/sirenes/{numeroSerie}/programmation",
+     *     summary="Get encrypted programmation by serial number (Public endpoint)",
+     *     tags={"Sirenes"},
+     *     @OA\Parameter(
+     *         name="numeroSerie",
+     *         in="path",
+     *         required=true,
+     *         description="Serial number of the sirene",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Programmation retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="chaine_cryptee", type="string", description="Base64 encrypted programmation string"),
+     *             @OA\Property(property="version", type="string", example="01", description="Programmation version"),
+     *             @OA\Property(property="date_generation", type="string", format="date-time", example="2025-11-19 15:30:00", description="Generation timestamp")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Sirene not found or no active programmation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string")
+     *         )
+     *     )
+     * )
+     */
+    public function getProgrammation(string $numeroSerie): JsonResponse
+    {
+        try {
+            // 1. Rechercher la sirène par numéro de série
+            $sirene = \App\Models\Sirene::where('numero_serie', $numeroSerie)
+                ->with([
+                    'programmations' => function ($query) {
+                        $query->where('actif', true)
+                            ->where('date_debut', '<=', now())
+                            ->where('date_fin', '>=', now())
+                            ->orderBy('created_at', 'desc');
+                    }
+                ])
+                ->first();
+
+            if (!$sirene) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sirène non trouvée avec ce numéro de série.',
+                ], 404);
+            }
+
+            // 2. Vérifier qu'il existe une programmation active
+            $programmation = $sirene->programmations->first();
+
+            if (!$programmation) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucune programmation active trouvée pour cette sirène.',
+                ], 404);
+            }
+
+            // 3. Vérifier que la chaîne cryptée existe
+            if (!$programmation->chaine_cryptee) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La programmation n\'a pas de chaîne cryptée générée.',
+                ], 404);
+            }
+
+            // 4. Retourner la programmation cryptée au format attendu par l'ESP8266
+            return response()->json([
+                'chaine_cryptee' => $programmation->chaine_cryptee,
+                'version' => '01',
+                'date_generation' => $programmation->updated_at->format('Y-m-d H:i:s'),
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erreur lors de la récupération de la programmation ESP8266', [
+                'numero_serie' => $numeroSerie,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur est survenue lors de la récupération de la programmation.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
 }

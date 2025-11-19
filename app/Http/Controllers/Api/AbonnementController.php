@@ -703,6 +703,112 @@ class AbonnementController extends Controller
     }
 
     /**
+     * Régénérer le token crypté ESP8266 pour un abonnement
+     *
+     * @OA\Post(
+     *     path="/api/abonnements/{id}/regenerer-token",
+     *     tags={"Abonnements"},
+     *     summary="Régénérer le token crypté ESP8266",
+     *     description="Régénère le token crypté pour un abonnement actif. Utile si la génération automatique a échoué.",
+     *     security={{"passport": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'abonnement",
+     *         @OA\Schema(type="string", format="ulid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Token régénéré avec succès",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Token régénéré avec succès"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="token_id", type="string", format="ulid"),
+     *                 @OA\Property(property="date_generation", type="string", format="date-time"),
+     *                 @OA\Property(property="date_expiration", type="string", format="date-time")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=404, description="Abonnement non trouvé"),
+     *     @OA\Response(response=422, description="L'abonnement n'est pas actif ou n'a pas de paiement validé"),
+     *     @OA\Response(response=500, description="Erreur serveur")
+     * )
+     */
+    public function regenererToken(string $id): JsonResponse
+    {
+        try {
+            // Charger l'abonnement avec ses relations
+            $abonnement = \App\Models\Abonnement::with(['sirene', 'ecole', 'site', 'paiements'])
+                ->find($id);
+
+            if (!$abonnement) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Abonnement non trouvé'
+                ], 404);
+            }
+
+            // Vérifier que l'abonnement est actif
+            if ($abonnement->statut->value !== \App\Enums\StatutAbonnement::ACTIF->value) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Seuls les abonnements actifs peuvent avoir leur token régénéré',
+                    'data' => [
+                        'statut_actuel' => $abonnement->statut->value
+                    ]
+                ], 422);
+            }
+
+            // Vérifier qu'il y a un paiement validé
+            $paiementValide = $abonnement->paiements()
+                ->where('statut', 'valide')
+                ->exists();
+
+            if (!$paiementValide) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucun paiement validé trouvé pour cet abonnement',
+                ], 422);
+            }
+
+            // Régénérer le token
+            $abonnement->regenererToken();
+            $abonnement->refresh();
+
+            // Récupérer le token nouvellement créé
+            $token = $abonnement->tokenActif;
+
+            if (!$token) {
+                throw new \Exception('Échec de la génération du token');
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Token régénéré avec succès',
+                'data' => [
+                    'token_id' => $token->id,
+                    'date_generation' => $token->date_generation->toIso8601String(),
+                    'date_expiration' => $token->date_expiration->toIso8601String(),
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur régénération token: ' . $e->getMessage(), [
+                'abonnement_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la régénération du token',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    /**
      * Télécharger le QR code d'un abonnement
      *
      * @OA\Get(

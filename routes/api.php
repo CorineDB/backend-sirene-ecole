@@ -105,8 +105,9 @@ Route::prefix('ecoles')->group(function () {
 
 // Sirene routes
 Route::prefix('sirenes')->group(function () {
-    // Public: Configuration ESP8266
+    // Public: Configuration et programmation ESP8266
     Route::get('config/{numeroSerie}', [SireneController::class, 'getConfig']);
+    Route::get('{numeroSerie}/programmation', [SireneController::class, 'getProgrammation']);
 
     // Protected - Admin/Technicien
     Route::middleware('auth:api')->group(function () {
@@ -188,6 +189,7 @@ Route::prefix('abonnements')->group(function () {
         Route::post('{id}/reactiver', [AbonnementController::class, 'reactiver']);
         Route::post('{id}/annuler', [AbonnementController::class, 'annuler']);
         Route::post('{id}/regenerer-qr-code', [AbonnementController::class, 'regenererQrCode']);
+        Route::post('{id}/regenerer-token', [AbonnementController::class, 'regenererToken']);
         Route::get('{id}/qr-code', [AbonnementController::class, 'telechargerQrCode']);
 
         // Recherche
