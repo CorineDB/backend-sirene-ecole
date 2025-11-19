@@ -565,7 +565,7 @@ class SireneController extends Controller
      *
      * @OA\Get(
      *     path="/api/sirenes/{numeroSerie}/programmation",
-     *     summary="Get encrypted programmation by serial number (Public endpoint)",
+     *     summary="Get encrypted programmation by serial number (Public endpoint with token auth)",
      *     tags={"Sirenes"},
      *     @OA\Parameter(
      *         name="numeroSerie",
@@ -574,13 +574,31 @@ class SireneController extends Controller
      *         description="Serial number of the sirene",
      *         @OA\Schema(type="string")
      *     ),
+     *     @OA\Parameter(
+     *         name="X-Sirene-Token",
+     *         in="header",
+     *         required=true,
+     *         description="Token crypté d'authentification de la sirène (obtenu via /api/sirenes/config/{numeroSerie})",
+     *         @OA\Schema(type="string")
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Programmation retrieved successfully",
      *         @OA\JsonContent(
-     *             @OA\Property(property="chaine_cryptee", type="string", description="Base64 encrypted programmation string"),
-     *             @OA\Property(property="version", type="string", example="01", description="Programmation version"),
-     *             @OA\Property(property="date_generation", type="string", format="date-time", example="2025-11-19 15:30:00", description="Generation timestamp")
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="chaine_cryptee", type="string", description="Base64 encrypted programmation string"),
+     *                 @OA\Property(property="version", type="string", example="01", description="Programmation version"),
+     *                 @OA\Property(property="date_generation", type="string", format="date-time", example="2025-11-19 15:30:00", description="Generation timestamp")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized - Invalid or missing token",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string")
      *         )
      *     ),
      *     @OA\Response(
@@ -601,8 +619,11 @@ class SireneController extends Controller
      *     )
      * )
      */
-    public function getProgrammation(string $numeroSerie): JsonResponse
+    public function getProgrammation(Request $request, string $numeroSerie): JsonResponse
     {
-        return $this->sireneService->getProgrammationByNumeroSerie($numeroSerie);
+        // Récupérer le token crypté depuis le header
+        $tokenCrypte = $request->header('X-Sirene-Token');
+
+        return $this->sireneService->getProgrammationByNumeroSerie($numeroSerie, $tokenCrypte);
     }
 }
