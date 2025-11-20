@@ -148,17 +148,31 @@ class InterventionService extends BaseService implements InterventionServiceInte
 
             $this->ordreMissionRepository->update($ordreMission->id, $updateData);
 
-            // Créer l'intervention
-            $intervention = $this->repository->create([
-                'panne_id' => $ordreMission->panne_id,
-                'technicien_id' => $missionTechnicien->technicien_id,
-                'ordre_mission_id' => $ordreMission->id,
-                'statut' => 'assignee',
+            // Vérifier si une intervention existe déjà pour cet ordre de mission
+            $intervention = $ordreMission->interventions()->first();
+
+            if (!$intervention) {
+                // Créer UNE intervention pour tout l'ordre de mission
+                $intervention = $this->repository->create([
+                    'panne_id' => $ordreMission->panne_id,
+                    'ordre_mission_id' => $ordreMission->id,
+                    'statut' => 'assignee',
+                    'date_assignation' => now(),
+                ]);
+            }
+
+            // Assigner le technicien à l'intervention via la table pivot
+            $intervention->techniciens()->attach($missionTechnicien->technicien_id, [
                 'date_assignation' => now(),
+                'role' => null, // Peut être défini plus tard
+                'notes' => null,
             ]);
 
+            // Recharger l'intervention avec les techniciens
+            $intervention->load('techniciens');
+
             DB::commit();
-            return $this->successResponse('Candidature acceptée et intervention créée.', $intervention);
+            return $this->successResponse('Candidature acceptée et technicien assigné à l\'intervention.', $intervention);
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in InterventionService::accepterCandidature - " . $e->getMessage());

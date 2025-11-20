@@ -6,6 +6,7 @@ use App\Enums\StatutTechnicien;
 use App\Traits\HasUlid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
@@ -43,9 +44,23 @@ class Technicien extends Model
         'deleted_at' => 'datetime',
     ];
 
-    public function interventions(): HasMany
+    /**
+     * Interventions auxquelles ce technicien participe
+     */
+    public function interventions(): BelongsToMany
     {
-        return $this->hasMany(Intervention::class);
+        return $this->belongsToMany(Intervention::class, 'intervention_technicien', 'technicien_id', 'intervention_id')
+            ->using(InterventionTechnicien::class)
+            ->withPivot(['date_assignation', 'role', 'notes'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Rapports rédigés par ce technicien
+     */
+    public function rapports(): HasMany
+    {
+        return $this->hasMany(RapportIntervention::class, 'technicien_id');
     }
 
     public function notifications(): MorphMany

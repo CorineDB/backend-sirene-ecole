@@ -22,6 +22,7 @@ class RapportIntervention extends Model
 
     protected $fillable = [
         'intervention_id',
+        'technicien_id',
         'rapport',
         'date_soumission',
         'statut',
@@ -56,8 +57,34 @@ class RapportIntervention extends Model
         return $this->belongsTo(Intervention::class, 'intervention_id');
     }
 
+    /**
+     * Technicien qui a rédigé ce rapport
+     * Si null, c'est un rapport collectif pour toute l'équipe
+     */
+    public function technicien(): BelongsTo
+    {
+        return $this->belongsTo(Technicien::class, 'technicien_id');
+    }
+
     public function avis(): HasMany
     {
         return $this->hasMany(AvisRapport::class, 'rapport_intervention_id');
+    }
+
+    // Helper methods
+    /**
+     * Vérifier si c'est un rapport collectif (pas de technicien spécifique)
+     */
+    public function estRapportCollectif(): bool
+    {
+        return $this->technicien_id === null;
+    }
+
+    /**
+     * Vérifier si c'est un rapport individuel
+     */
+    public function estRapportIndividuel(): bool
+    {
+        return $this->technicien_id !== null;
     }
 }
