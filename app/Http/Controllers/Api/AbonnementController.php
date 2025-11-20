@@ -703,6 +703,45 @@ class AbonnementController extends Controller
     }
 
     /**
+     * Régénérer le token crypté ESP8266 pour un abonnement
+     *
+     * @OA\Post(
+     *     path="/api/abonnements/{id}/regenerer-token",
+     *     tags={"Abonnements"},
+     *     summary="Régénérer le token crypté ESP8266",
+     *     description="Régénère le token crypté pour un abonnement actif. Utile si la génération automatique a échoué.",
+     *     security={{"passport": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'abonnement",
+     *         @OA\Schema(type="string", format="ulid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Token régénéré avec succès",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Token régénéré avec succès"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="token_id", type="string", format="ulid"),
+     *                 @OA\Property(property="date_generation", type="string", format="date-time"),
+     *                 @OA\Property(property="date_expiration", type="string", format="date-time")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=404, description="Abonnement non trouvé"),
+     *     @OA\Response(response=422, description="L'abonnement n'est pas actif ou n'a pas de paiement validé"),
+     *     @OA\Response(response=500, description="Erreur serveur")
+     * )
+     */
+    public function regenererToken(string $id): JsonResponse
+    {
+        return $this->abonnementService->regenererToken($id);
+    }
+
+    /**
      * Obtenir l'URL signée du QR code
      *
      * @OA\Get(

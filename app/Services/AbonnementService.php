@@ -575,6 +575,66 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
         }
     }
 
+    // ========== 7. GESTION DES TOKENS ==========
+
+    public function regenererToken(string $abonnementId): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $abonnement = $this->repository->find($abonnementId, relations: ['sirene', 'ecole', 'site', 'paiements', 'tokenActif']);
+            if (!$abonnement) {
+                DB::rollBack();
+                return $this->notFoundResponse('Abonnement non trouvé.');
+            }
+
+            // Vérifier que l'abonnement est actif
+            if ($abonnement->statut !== StatutAbonnement::ACTIF) {
+                DB::rollBack();
+                return $this->errorResponse('Seuls les abonnements actifs peuvent avoir leur token régénéré.', 422);
+            }
+
+            // Vérifier qu'un paiement validé existe
+            $paiementValide = $abonnement->paiements()
+                ->where('statut', 'valide')
+                ->exists();
+
+            if (!$paiementValide) {
+                DB::rollBack();
+                return $this->errorResponse('Impossible de régénérer le token sans paiement validé.', 422);
+            }
+
+            // Régénérer le token via la méthode du trait
+            $abonnement->regenererToken();
+
+            // Récupérer le nouveau token actif
+            $abonnement->load('tokenActif');
+            $token = $abonnement->tokenActif;
+
+            if (!$token) {
+                DB::rollBack();
+                return $this->errorResponse('Erreur lors de la génération du token. Consultez les logs pour plus de détails.', 500);
+            }
+
+            DB::commit();
+
+            return $this->successResponse('Token régénéré avec succès.', [
+                'token_id' => $token->id,
+                'date_generation' => $token->date_generation->toIso8601String(),
+                'date_expiration' => $token->date_expiration->toIso8601String(),
+                'actif' => $token->actif,
+            ]);
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in AbonnementService::regenererToken - " . $e->getMessage(), [
+                'abonnement_id' => $abonnementId,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return $this->errorResponse('Erreur lors de la régénération du token.', 500);
+        }
+    }
+
     // ========== HELPERS PRIVÉS ==========
 
     private function generateNumeroAbonnement(): string
