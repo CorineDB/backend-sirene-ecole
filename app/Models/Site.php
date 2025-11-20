@@ -23,6 +23,8 @@ class Site extends Model
     protected $fillable = [
         'ecole_principale_id',
         'nom',
+        'types_etablissement',
+        'responsable',
         'est_principale',
         'adresse',
         'ville_id',
@@ -31,6 +33,7 @@ class Site extends Model
     ];
 
     protected $casts = [
+        'types_etablissement' => 'array',
         'est_principale' => 'boolean',
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
