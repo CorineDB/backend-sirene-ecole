@@ -42,4 +42,7 @@ interface AbonnementServiceInterface extends BaseServiceInterface
     // 6. Calculs
     public function calculerPrixRenouvellement(string $abonnementId): JsonResponse;
     public function getJoursRestants(string $abonnementId): JsonResponse;
+
+    // 7. Gestion des tokens
+    public function regenererToken(string $abonnementId): JsonResponse;
 }
