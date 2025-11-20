@@ -69,11 +69,11 @@ class CalendrierScolaireController extends Controller
      *     tags={"Calendrier Scolaire"},
      *     security={ {"passport": {}} },
      *     @OA\Parameter(
-     *         name="pays_id",
+     *         name="code_iso",
      *         in="query",
-     *         description="Filter by country ID (required)",
+     *         description="Filter by country ISO code (required)",
      *         required=true,
-     *         @OA\Schema(type="string", format="uuid")
+     *         @OA\Schema(type="string", example="CI")
      *     ),
      *     @OA\Parameter(
      *         name="annee_scolaire",
@@ -106,7 +106,7 @@ class CalendrierScolaireController extends Controller
      *         description="Missing required parameters",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Les paramètres pays_id et annee_scolaire sont obligatoires.")
+     *             @OA\Property(property="message", type="string", example="Les paramètres code_iso et annee_scolaire sont obligatoires.")
      *         )
      *     ),
      *     @OA\Response(
@@ -122,20 +122,30 @@ class CalendrierScolaireController extends Controller
     {
         Gate::authorize('voir_les_calendriers_scolaires');
 
-        // Vérifier que pays_id et annee_scolaire sont présents (obligatoires)
-        $paysId = $request->get('pays_id');
+        // Vérifier que code_iso et annee_scolaire sont présents (obligatoires)
+        $codeIso = $request->get('code_iso');
         $anneeScolaire = $request->get('annee_scolaire');
 
-        if (!$paysId || !$anneeScolaire) {
+        if (!$codeIso || !$anneeScolaire) {
             return response()->json([
                 'success' => false,
-                'message' => 'Les paramètres pays_id et annee_scolaire sont obligatoires.'
+                'message' => 'Les paramètres code_iso et annee_scolaire sont obligatoires.'
             ], 400);
         }
 
-        // Construire les filtres
+        // Récupérer le pays_id à partir du code_iso
+        $pays = \App\Models\Pays::where('code_iso', $codeIso)->first();
+
+        if (!$pays) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pays non trouvé avec le code ISO fourni.'
+            ], 404);
+        }
+
+        // Construire les filtres avec pays_id
         $filters = [
-            'pays_id' => $paysId,
+            'pays_id' => $pays->id,
             'annee_scolaire' => $anneeScolaire,
         ];
 
