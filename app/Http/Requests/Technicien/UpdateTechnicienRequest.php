@@ -40,9 +40,12 @@ class UpdateTechnicienRequest extends FormRequest
      */
     public function rules(): array
     {
-        $userId = $this->route('technicien')->user->id; // Assuming route model binding for technicien
+        // Get technicien ID from route and load the technicien with user relation
+        $technicienId = $this->route('id');
+        $technicien = \App\Models\Technicien::with('user')->find($technicienId);
 
-        dd($userId);
+        // Get user_id if technicien and user exist
+        $userId = $technicien?->user?->id;
 
         return [
             'user.nom_utilisateur' => ['sometimes', 'string', 'max:255'],
@@ -52,11 +55,10 @@ class UpdateTechnicienRequest extends FormRequest
             'date_embauche' => ['nullable', 'date'],
 
             // UserInfo related fields (assuming they come in the same request)
-            'user.userInfoData.email' => ['sometimes', 'string', 'email', 'max:255', Rule::unique('user_infos', 'email')->ignore($userId, 'user_id')],
-            'user.userInfoData.telephone' => ['sometimes', 'string', 'max:20', Rule::unique('user_infos', 'telephone')->ignore($userId, 'user_id')],
+            'user.userInfoData.email' => ['sometimes', 'string', 'email', 'max:255', $userId ? Rule::unique('user_infos', 'email')->ignore($userId, 'user_id') : 'unique:user_infos,email'],
+            'user.userInfoData.telephone' => ['sometimes', 'string', 'max:20', $userId ? Rule::unique('user_infos', 'telephone')->ignore($userId, 'user_id') : 'unique:user_infos,telephone'],
             'user.userInfoData.prenom' => ['sometimes', 'string', 'max:255'],
             'user.userInfoData.nom' => ['sometimes', 'string', 'max:255'],
-            'user.userInfoData.adresse' => ['sometimes', 'string', 'max:255'],
             'user.userInfoData.adresse' => ['sometimes', 'string', 'max:255'],
             'user.userInfoData.ville_id' => ['sometimes', 'string', 'exists:villes,id']
         ];
