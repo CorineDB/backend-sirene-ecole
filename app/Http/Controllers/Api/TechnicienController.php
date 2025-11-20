@@ -73,7 +73,7 @@ class TechnicienController extends Controller
     public function index(): JsonResponse
     {
         Gate::authorize('voir_les_techniciens');
-        return $this->techniqueService->getAll(15, ['user.userInfo']);
+        return $this->techniqueService->getAll(15, ['user.userInfo', 'ville']);
     }
 
     /**
@@ -159,7 +159,7 @@ class TechnicienController extends Controller
     public function show(string $id): JsonResponse
     {
         Gate::authorize('voir_technicien');
-        return $this->techniqueService->getById($id, relations:['user.userInfo']);
+        return $this->techniqueService->getById($id, relations:['user.userInfo', 'ville']);
     }
 
     /**

@@ -29,6 +29,7 @@ class Technicien extends Model
         'date_inscription',
         'statut',
         'date_embauche',
+        'ville_id',
     ];
 
     protected $casts = [
@@ -55,5 +56,10 @@ class Technicien extends Model
     public function user(): MorphOne
     {
         return $this->morphOne(User::class, 'user_account_type');
+    }
+
+    public function ville(): BelongsTo
+    {
+        return $this->belongsTo(Ville::class, 'ville_id');
     }
 }
