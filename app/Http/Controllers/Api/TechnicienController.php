@@ -159,7 +159,7 @@ class TechnicienController extends Controller
     public function show(string $id): JsonResponse
     {
         Gate::authorize('voir_technicien');
-        return $this->techniqueService->getById($id, relations:['user']);
+        return $this->techniqueService->getById($id, relations:['user.userInfo']);
     }
 
     /**
