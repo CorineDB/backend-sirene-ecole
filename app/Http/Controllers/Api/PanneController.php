@@ -96,10 +96,11 @@ class PanneController extends Controller
      *         @OA\Schema(type="string", example="01ARZ3NDEKTSV4RRFFQ69G5FAV")
      *     ),
      *     @OA\RequestBody(
-     *         required=false,
+     *         required=true,
      *         description="Paramètres de validation et de l'ordre de mission",
      *         @OA\JsonContent(
-     *             @OA\Property(property="nombre_techniciens_requis", type="integer", minimum=1, example=2, description="Nombre de techniciens nécessaires"),
+     *             required={"nombre_techniciens_requis"},
+     *             @OA\Property(property="nombre_techniciens_requis", type="integer", minimum=1, example=2, description="Nombre de techniciens nécessaires (OBLIGATOIRE)"),
      *             @OA\Property(property="date_debut_candidature", type="string", format="date", example="2025-11-10", description="Date d'ouverture des candidatures"),
      *             @OA\Property(property="date_fin_candidature", type="string", format="date", example="2025-11-15", description="Date de fermeture des candidatures"),
      *             @OA\Property(property="commentaire", type="string", example="Intervention urgente requise", description="Commentaire de l'administrateur")
@@ -127,7 +128,7 @@ class PanneController extends Controller
     {
         Gate::authorize('modifier_panne');
         $validated = $request->validate([
-            'nombre_techniciens_requis' => 'nullable|integer|min:1',
+            'nombre_techniciens_requis' => 'required|integer|min:1', // OBLIGATOIRE
             'date_debut_candidature' => 'nullable|date',
             'date_fin_candidature' => 'nullable|date|after:date_debut_candidature',
             'commentaire' => 'nullable|string',

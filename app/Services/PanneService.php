@@ -41,6 +41,7 @@ class PanneService extends BaseService implements PanneServiceInterface
             $numeroOrdre = $this->generateNumeroOrdre();
 
             // Préparer les données de l'ordre de mission
+            // Le nombre_techniciens_requis doit être fourni par l'admin lors de la validation
             $ordreMissionPayload = array_merge([
                 'panne_id' => $panneWithSite->id,
                 'ville_id' => $panneWithSite->site->ville_id,
@@ -48,11 +49,9 @@ class PanneService extends BaseService implements PanneServiceInterface
                 'numero_ordre' => $numeroOrdre,
                 'statut' => 'en_attente',
                 'date_generation' => now(),
-                'nombre_techniciens_requis' => 1,
                 'nombre_techniciens_acceptes' => 0,
             ], $ordreMissionData);
 
-            dd($ordreMissionPayload);
             // Create OrdreMission
             $ordreMission = $this->ordreMissionRepository->create($ordreMissionPayload);
 
