@@ -133,28 +133,14 @@ class CalendrierScolaireController extends Controller
             ], 400);
         }
 
-        // Récupérer le pays_id à partir du code_iso
-        $pays = \App\Models\Pays::where('code_iso', $codeIso)->first();
-
-        if (!$pays) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Pays non trouvé avec le code ISO fourni.'
-            ], 404);
-        }
-
-        // Construire les filtres avec pays_id
-        $filters = [
-            'pays_id' => $pays->id,
-            'annee_scolaire' => $anneeScolaire,
-        ];
-
-        // Ajouter les filtres optionnels s'ils sont présents
+        // Construire les filtres optionnels
+        $filters = [];
         if ($request->has('actif')) {
             $filters['actif'] = filter_var($request->get('actif'), FILTER_VALIDATE_BOOLEAN);
         }
 
-        return $this->calendrierScolaireService->findAllBy($filters);
+        // Déléguer la logique au service
+        return $this->calendrierScolaireService->findByCodeIsoAndAnneeScolaire($codeIso, $anneeScolaire, $filters);
     }
 
     /**
