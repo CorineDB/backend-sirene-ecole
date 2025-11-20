@@ -61,6 +61,7 @@ class CreateTechnicienRequest extends FormRequest
             'user.userInfoData.adresse' => ['nullable', 'string', 'max:255'],
             'user.userInfoData.ville_id' => ['nullable', 'string', 'exists:villes,id'],
 
+            'ville_id' => ['required', 'string', 'exists:villes,id'], // Ville d'affectation du technicien
             'specialite' => ['required', 'string', 'max:255'],
             'disponibilite' => ['boolean'],
             'date_embauche' => ['nullable', 'date'],
