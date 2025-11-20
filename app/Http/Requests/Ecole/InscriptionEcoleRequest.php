@@ -136,8 +136,7 @@ class InscriptionEcoleRequest extends FormRequest
             'reference' => ['nullable', 'string'],
             'telephone_contact' => ['required', 'string', 'max:20', 'unique:ecoles,telephone_contact'],
             'email_contact' => ['nullable', 'email', 'max:100', 'unique:ecoles,email_contact'],
-            'types_etablissement' => ['required', 'array'],
-            'types_etablissement.*' => ['string', Rule::in(TypeEtablissement::values())],
+            'est_prive' => ['required', 'boolean'],
 
             // Informations du responsable
             'responsable_nom' => ['required', 'string', 'max:255'],
@@ -146,6 +145,9 @@ class InscriptionEcoleRequest extends FormRequest
 
             // Site principal (obligatoire avec une sirène)
             'site_principal' => ['required', 'array'],
+            'site_principal.types_etablissement' => ['required', 'array'],
+            'site_principal.types_etablissement.*' => ['string', Rule::in(TypeEtablissement::values())],
+            'site_principal.responsable' => ['nullable', 'string', 'max:255'],
             'site_principal.adresse' => ['required', 'string', 'max:500'],
             'site_principal.ville_id' => ['required', 'string', 'exists:villes,id'],
             'site_principal.latitude' => ['nullable', 'numeric', 'between:-90,90'],
@@ -156,6 +158,9 @@ class InscriptionEcoleRequest extends FormRequest
             // Sites annexes (optionnel pour multi-sites)
             'sites_annexe' => ['nullable', 'array'],
             'sites_annexe.*.nom' => ['required', 'string', 'max:255'],
+            'sites_annexe.*.types_etablissement' => ['required', 'array'],
+            'sites_annexe.*.types_etablissement.*' => ['string', Rule::in(TypeEtablissement::values())],
+            'sites_annexe.*.responsable' => ['nullable', 'string', 'max:255'],
             'sites_annexe.*.adresse' => ['nullable', 'string', 'max:500'],
             'sites_annexe.*.ville_id' => ['nullable', 'string', 'exists:villes,id'],
             'sites_annexe.*.latitude' => ['nullable', 'numeric', 'between:-90,90'],

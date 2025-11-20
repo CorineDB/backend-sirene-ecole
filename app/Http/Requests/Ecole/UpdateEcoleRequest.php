@@ -128,6 +128,7 @@ class UpdateEcoleRequest extends FormRequest
             'telephone' => ['sometimes', 'string', 'max:20', Rule::unique('ecoles', 'telephone')->ignore($ecoleId)],
             'email_contact' => ['sometimes', 'nullable', 'email', 'max:255'],
             'telephone_contact' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'est_prive' => ['sometimes', 'boolean'],
             'adresse' => ['sometimes', 'nullable', 'string', 'max:500'],
             'responsable_nom' => ['sometimes', 'string', 'max:255'],
             'responsable_prenom' => ['sometimes', 'string', 'max:255'],
