@@ -58,5 +58,15 @@ interface CalendrierScolaireServiceInterface extends BaseServiceInterface
      */
     public function updateMultipleJoursFeries(string $calendrierScolaireId, array $joursFeriesData): \Illuminate\Http\JsonResponse;
 
+    /**
+     * Find calendriers scolaires by country ISO code and school year.
+     *
+     * @param string $codeIso
+     * @param string $anneeScolaire
+     * @param array $filters Additional optional filters
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function findByCodeIsoAndAnneeScolaire(string $codeIso, string $anneeScolaire, array $filters = []): \Illuminate\Http\JsonResponse;
+
     // Add specific methods for CalendrierScolaireService here if needed
 }

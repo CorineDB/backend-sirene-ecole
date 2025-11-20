@@ -300,5 +300,45 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
         }
     }
 
+    /**
+     * Find calendriers scolaires by country ISO code and school year.
+     *
+     * @param string $codeIso
+     * @param string $anneeScolaire
+     * @param array $filters Additional optional filters
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function findByCodeIsoAndAnneeScolaire(string $codeIso, string $anneeScolaire, array $filters = []): \Illuminate\Http\JsonResponse
+    {
+        try {
+            // Récupérer le pays via code_iso
+            $pays = \App\Models\Pays::where('code_iso', $codeIso)->first();
+
+            if (!$pays) {
+                return $this->notFoundResponse('Pays non trouvé avec le code ISO fourni.');
+            }
+
+            // Construire les critères de recherche avec pays_id
+            $criteria = [
+                'pays_id' => $pays->id,
+                'annee_scolaire' => $anneeScolaire,
+            ];
+
+            // Ajouter les filtres optionnels
+            if (isset($filters['actif'])) {
+                $criteria['actif'] = $filters['actif'];
+            }
+
+            // Rechercher les calendriers
+            $calendriers = $this->repository->findAllBy($criteria, relations: ['joursFeries', 'pays']);
+
+            return $this->successResponse(null, $calendriers);
+
+        } catch (\Exception $e) {
+            Log::error("Error in " . get_class($this) . "::findByCodeIsoAndAnneeScolaire - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
     // Implement specific methods for CalendrierScolaireService here if needed
 }
