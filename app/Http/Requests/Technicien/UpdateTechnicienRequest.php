@@ -19,7 +19,7 @@ use Illuminate\Validation\Rule;
  *         @OA\Property(property="type", type="string", enum={"TECHNICIEN"}, description="User type"),
  *         @OA\Property(property="role_id", type="string", format="uuid", nullable=true, description="ID of the role"),
  *     ),
- *     @OA\Property(property="ville_id", type="string", format="uuid", description="ID of the city"),
+ *     @OA\Property(property="ville_id", type="string", format="uuid", description="ID of the city (ville d'affectation)"),
  *     @OA\Property(property="specialite", type="string", maxLength=255, description="Technician's specialty"),
  *     @OA\Property(property="disponibilite", type="boolean", description="Technician's availability"),
  *     @OA\Property(property="date_embauche", type="string", format="date", nullable=true, description="Date of hire"),
@@ -50,6 +50,7 @@ class UpdateTechnicienRequest extends FormRequest
         return [
             'user.nom_utilisateur' => ['sometimes', 'string', 'max:255'],
 
+            'ville_id' => ['sometimes', 'string', 'exists:villes,id'], // Ville d'affectation du technicien
             'specialite' => ['sometimes', 'string', 'max:255'],
             'disponibilite' => ['boolean'],
             'date_embauche' => ['nullable', 'date'],

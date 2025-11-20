@@ -30,7 +30,7 @@ class Ecole extends Model
         'nom',
         'telephone_contact',
         'email_contact',
-        'types_etablissement',
+        'est_prive',
         'code_etablissement',
         'responsable_nom',
         'responsable_prenom',
@@ -40,7 +40,7 @@ class Ecole extends Model
     ];
 
     protected $casts = [
-        'types_etablissement' => 'array',
+        'est_prive' => 'boolean',
         'date_inscription' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
