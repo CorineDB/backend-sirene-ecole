@@ -8,6 +8,7 @@ use App\Http\Requests\JourFerie\UpdateJourFerieRequest;
 use App\Services\Contracts\JourFerieServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use OpenApi\Annotations as OA;
 
 /**
@@ -41,6 +42,27 @@ class JourFerieController extends Controller
      *         required=false,
      *         @OA\Schema(type="integer", default=15)
      *     ),
+     *     @OA\Parameter(
+     *         name="ecole_id",
+     *         in="query",
+     *         description="Filter by school ID",
+     *         required=false,
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\Parameter(
+     *         name="calendrier_id",
+     *         in="query",
+     *         description="Filter by calendar ID",
+     *         required=false,
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\Parameter(
+     *         name="est_national",
+     *         in="query",
+     *         description="Filter by national holidays (true/false)",
+     *         required=false,
+     *         @OA\Schema(type="boolean")
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Successful operation",
@@ -58,7 +80,25 @@ class JourFerieController extends Controller
     public function index(Request $request): JsonResponse
     {
         Gate::authorize('voir_les_jours_feries');
+
         $perPage = $request->get('per_page', 15);
+        $filters = $request->only(['ecole_id', 'calendrier_id', 'est_national']);
+
+        // Si des filtres sont présents, utiliser la méthode de filtrage
+        if (!empty($filters)) {
+            // Nettoyer les filtres vides
+            $filters = array_filter($filters, function($value) {
+                return $value !== null && $value !== '';
+            });
+
+            // Convertir est_national en booléen si présent
+            if (isset($filters['est_national'])) {
+                $filters['est_national'] = filter_var($filters['est_national'], FILTER_VALIDATE_BOOLEAN);
+            }
+
+            return $this->jourFerieService->findAllBy($filters);
+        }
+
         return $this->jourFerieService->getAll($perPage);
     }
 
