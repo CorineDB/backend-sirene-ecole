@@ -26,11 +26,26 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
         try {
             DB::beginTransaction();
 
+            // Extraire les jours fériés pour les créer dans la table jours_feries
             $joursFeriesData = $data['jours_feries_defaut'] ?? [];
-            unset($data['jours_feries_defaut']);
 
+            // Filtrer uniquement les jours fériés nationaux pour le champ JSON
+            $joursFeriesNationaux = [];
+            if (!empty($joursFeriesData)) {
+                foreach ($joursFeriesData as $jourFerie) {
+                    if (isset($jourFerie['est_national']) && $jourFerie['est_national']) {
+                        $joursFeriesNationaux[] = $jourFerie;
+                    }
+                }
+            }
+
+            // Mettre à jour le champ jours_feries_defaut avec uniquement les jours nationaux
+            $data['jours_feries_defaut'] = $joursFeriesNationaux;
+
+            // Créer le calendrier scolaire avec jours_feries_defaut
             $calendrierScolaire = $this->repository->create($data);
 
+            // Créer tous les jours fériés (nationaux ET spécifiques) dans la table jours_feries
             if (!empty($joursFeriesData)) {
                 foreach ($joursFeriesData as $jourFerieData) {
                     $jourFerieData['calendrier_id'] = $calendrierScolaire->id;
