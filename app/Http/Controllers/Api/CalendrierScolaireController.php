@@ -69,6 +69,27 @@ class CalendrierScolaireController extends Controller
      *     tags={"Calendrier Scolaire"},
      *     security={ {"passport": {}} },
      *     @OA\Parameter(
+     *         name="pays_id",
+     *         in="query",
+     *         description="Filter by country ID (required)",
+     *         required=true,
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\Parameter(
+     *         name="annee_scolaire",
+     *         in="query",
+     *         description="Filter by school year (required, format: YYYY-YYYY)",
+     *         required=true,
+     *         @OA\Schema(type="string", example="2024-2025")
+     *     ),
+     *     @OA\Parameter(
+     *         name="actif",
+     *         in="query",
+     *         description="Filter by active status (optional)",
+     *         required=false,
+     *         @OA\Schema(type="boolean")
+     *     ),
+     *     @OA\Parameter(
      *         name="per_page",
      *         in="query",
      *         description="Number of entries per page",
@@ -79,6 +100,14 @@ class CalendrierScolaireController extends Controller
      *         response=200,
      *         description="Successful operation",
      *         @OA\JsonContent(type="array", @OA\Items(ref="#/components/schemas/CalendrierScolaire"))
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Missing required parameters",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Les paramètres pays_id et annee_scolaire sont obligatoires.")
+     *         )
      *     ),
      *     @OA\Response(
      *         response=401,
@@ -92,8 +121,30 @@ class CalendrierScolaireController extends Controller
     public function index(Request $request): JsonResponse
     {
         Gate::authorize('voir_les_calendriers_scolaires');
-        $perPage = $request->get('per_page', 15);
-        return $this->calendrierScolaireService->getAll($perPage);
+
+        // Vérifier que pays_id et annee_scolaire sont présents (obligatoires)
+        $paysId = $request->get('pays_id');
+        $anneeScolaire = $request->get('annee_scolaire');
+
+        if (!$paysId || !$anneeScolaire) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Les paramètres pays_id et annee_scolaire sont obligatoires.'
+            ], 400);
+        }
+
+        // Construire les filtres
+        $filters = [
+            'pays_id' => $paysId,
+            'annee_scolaire' => $anneeScolaire,
+        ];
+
+        // Ajouter les filtres optionnels s'ils sont présents
+        if ($request->has('actif')) {
+            $filters['actif'] = filter_var($request->get('actif'), FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return $this->calendrierScolaireService->findAllBy($filters);
     }
 
     /**
