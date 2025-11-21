@@ -117,7 +117,7 @@ class UpdateJourFerieRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'annee_scolaire' => ['sometimes', 'string', 'regex:/^\d{4}-\d{4}$/'],
+            'annee_scolaire' => ['sometimes', 'string', 'regex:/^\d{4}-\d{4}$/', 'exists:calendriers_scolaires,annee_scolaire'],
             'ecole_id' => ['sometimes', 'nullable', 'string', 'exists:ecoles,id'],
             'pays_id' => ['sometimes', 'string', 'exists:pays,id'],
             'intitule_journee' => ['sometimes', 'string'],
