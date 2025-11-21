@@ -26,34 +26,35 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
         try {
             DB::beginTransaction();
 
-            // Extraire les jours fériés pour les créer dans la table jours_feries
+            // Extraire les jours fériés du payload pour les créer dans la table jours_feries
             $joursFeriesData = $data['jours_feries_defaut'] ?? [];
+            unset($data['jours_feries_defaut']);
 
-            // Filtrer uniquement les jours fériés nationaux pour le champ JSON
-            $joursFeriesNationaux = [];
-            if (!empty($joursFeriesData)) {
-                foreach ($joursFeriesData as $jourFerie) {
-                    if (isset($jourFerie['est_national']) && $jourFerie['est_national']) {
-                        $joursFeriesNationaux[] = $jourFerie;
-                    }
-                }
-            }
-
-            // Mettre à jour le champ jours_feries_defaut avec uniquement les jours nationaux
-            $data['jours_feries_defaut'] = $joursFeriesNationaux;
-
-            // Créer le calendrier scolaire avec jours_feries_defaut
+            // Créer le calendrier scolaire d'abord (sans jours_feries_defaut)
             $calendrierScolaire = $this->repository->create($data);
 
-            // Créer tous les jours fériés (nationaux ET spécifiques) dans la table jours_feries
+            // Créer les jours fériés fournis dans le payload
             if (!empty($joursFeriesData)) {
                 foreach ($joursFeriesData as $jourFerieData) {
                     $jourFerieData['calendrier_id'] = $calendrierScolaire->id;
-                    $jourFerieData['intitule_journee'] = $jourFerieData['nom'];
+                    $jourFerieData['intitule_journee'] = $jourFerieData['nom'] ?? $jourFerieData['intitule_journee'];
                     unset($jourFerieData['nom']);
                     $this->jourFerieRepository->create($jourFerieData);
                 }
             }
+
+            // Récupérer les jours fériés nationaux depuis la table jours_feries
+            $joursFeriesNationaux = [];
+            if (isset($data['pays_id'])) {
+                $joursFeriesNationaux = \App\Models\JourFerie::where('pays_id', $data['pays_id'])
+                    ->where('est_national', true)
+                    ->where('actif', true)
+                    ->get(['intitule_journee', 'date', 'recurrent', 'est_national'])
+                    ->toArray();
+            }
+
+            // Mettre à jour le champ jours_feries_defaut avec les jours nationaux
+            $calendrierScolaire->update(['jours_feries_defaut' => $joursFeriesNationaux]);
 
             DB::commit();
             return $this->createdResponse($calendrierScolaire->load('joursFeries'));
