@@ -2,7 +2,12 @@
 
 namespace App\Http\Requests\JourFerie;
 
+use App\Models\CalendrierScolaire;
+use App\Models\Ecole;
+use App\Models\JourFerie;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
 use OpenApi\Annotations as OA;
 
 /**
@@ -25,20 +30,7 @@ use OpenApi\Annotations as OA;
  *         description="ID of the school this holiday belongs to (if specific to a school)"
  *     ),
  *     @OA\Property(
- *         property="pays_id",
- *         type="string",
- *         format="uuid",
- *         nullable=true,
- *         description="ID of the country this holiday belongs to (if global for a country)"
- *     ),
- *     @OA\Property(
- *         property="libelle",
- *         type="string",
- *         nullable=true,
- *         description="Label for the holiday (alternative to nom)"
- *     ),
- *     @OA\Property(
- *         property="nom",
+ *         property="intitule_journee",
  *         type="string",
  *         nullable=true,
  *         description="Name of the public holiday"
@@ -51,12 +43,6 @@ use OpenApi\Annotations as OA;
  *         description="Date of the public holiday"
  *     ),
  *     @OA\Property(
- *         property="type",
- *         type="string",
- *         nullable=true,
- *         description="Type of holiday (e.g., national, religious, local)"
- *     ),
- *     @OA\Property(
  *         property="recurrent",
  *         type="boolean",
  *         nullable=true,
@@ -67,6 +53,12 @@ use OpenApi\Annotations as OA;
  *         type="boolean",
  *         nullable=true,
  *         description="Is this holiday active?"
+ *     ),
+ *     @OA\Property(
+ *         property="est_national",
+ *         type="boolean",
+ *         nullable=true,
+ *         description="Is this a national holiday?"
  *     )
  * )
  */
@@ -77,7 +69,41 @@ class UpdateJourFerieRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // Adjust authorization logic as needed
+        return true;
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('date')) {
+            $this->merge([
+                'date' => $this->parseDate($this->date),
+            ]);
+        }
+    }
+
+    /**
+     * Parse date from multiple formats (Y-m-d or d/m/Y) to Y-m-d.
+     */
+    private function parseDate(?string $date): ?string
+    {
+        if (!$date) {
+            return null;
+        }
+
+        // Already in Y-m-d format
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $date;
+        }
+
+        // Convert from d/m/Y format
+        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
+            return \Carbon\Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d');
+        }
+
+        return $date;
     }
 
     /**
@@ -88,14 +114,94 @@ class UpdateJourFerieRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'calendrier_id' => ['sometimes', 'nullable', 'string', 'exists:calendriers_scolaires,id'],
+            'calendrier_id' => ['sometimes', 'string', 'exists:calendriers_scolaires,id'],
             'ecole_id' => ['sometimes', 'nullable', 'string', 'exists:ecoles,id'],
-            'pays_id' => ['sometimes', 'nullable', 'string', 'exists:pays,id'],
-            'intitule_journee' => ['sometimes', 'required', 'string'],
-            'date' => ['sometimes', 'required', 'date'],
+            'intitule_journee' => ['sometimes', 'string'],
+            'date' => ['sometimes', 'date'],
             'recurrent' => ['sometimes', 'boolean'],
             'actif' => ['sometimes', 'boolean'],
             'est_national' => ['sometimes', 'boolean'],
         ];
+    }
+
+    /**
+     * Configure the validator instance.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $jourFerieId = $this->route('jour_fery') ?? $this->route('id');
+            $jourFerie = $jourFerieId ? JourFerie::find($jourFerieId) : null;
+
+            // Déterminer le calendrier (nouveau ou existant)
+            $calendrierId = $this->calendrier_id ?? ($jourFerie ? $jourFerie->calendrier_id : null);
+            $calendrier = $calendrierId ? CalendrierScolaire::find($calendrierId) : null;
+
+            if (!$calendrier) {
+                return;
+            }
+
+            // 1. Vérifier que l'école appartient au pays du calendrier (via site -> ville -> pays)
+            if ($this->has('ecole_id') && $this->ecole_id) {
+                $ecole = Ecole::with('sitePrincipal.ville')->find($this->ecole_id);
+                if ($ecole && $ecole->sitePrincipal && $ecole->sitePrincipal->ville) {
+                    if ($ecole->sitePrincipal->ville->pays_id !== $calendrier->pays_id) {
+                        $validator->errors()->add(
+                            'ecole_id',
+                            "L'école n'appartient pas au pays du calendrier."
+                        );
+                        return;
+                    }
+                }
+            }
+
+            // 2. Vérifier que la date est dans la période de l'année scolaire
+            if ($this->has('date')) {
+                $date = Carbon::parse($this->date);
+                if ($date->lt($calendrier->date_rentree) || $date->gt($calendrier->date_fin_annee)) {
+                    $validator->errors()->add(
+                        'date',
+                        "La date doit être comprise entre {$calendrier->date_rentree->format('d/m/Y')} et {$calendrier->date_fin_annee->format('d/m/Y')}."
+                    );
+                    return;
+                }
+            }
+
+            // 3. Vérifier que si est_national = true, ecole_id doit être null
+            $estNational = $this->has('est_national') ? $this->est_national : ($jourFerie ? $jourFerie->est_national : false);
+            $ecoleId = $this->has('ecole_id') ? $this->ecole_id : ($jourFerie ? $jourFerie->ecole_id : null);
+            if ($estNational && $ecoleId) {
+                $validator->errors()->add(
+                    'ecole_id',
+                    "Un jour férié national ne peut pas être spécifique à une école."
+                );
+                return;
+            }
+
+            // 4. Vérifier l'unicité si date ou ecole_id changé
+            if ($this->has('date') || $this->has('ecole_id')) {
+                $date = $this->date ?? ($jourFerie ? $jourFerie->date->format('Y-m-d') : null);
+                $ecoleId = $this->has('ecole_id') ? $this->ecole_id : ($jourFerie ? $jourFerie->ecole_id : null);
+
+                $query = JourFerie::where('calendrier_id', $calendrier->id)
+                    ->where('date', $date)
+                    ->where('ecole_id', $ecoleId);
+
+                if ($jourFerieId) {
+                    $query->where('id', '!=', $jourFerieId);
+                }
+
+                if ($query->exists()) {
+                    $validator->errors()->add(
+                        'date',
+                        "Un jour férié existe déjà pour cette date."
+                    );
+                }
+            }
+        });
     }
 }
