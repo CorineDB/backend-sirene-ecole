@@ -171,7 +171,18 @@ class UpdateJourFerieRequest extends FormRequest
                 }
             }
 
-            // 3. Vérifier l'unicité si date ou ecole_id changé
+            // 3. Vérifier que si est_national = true, ecole_id doit être null
+            $estNational = $this->has('est_national') ? $this->est_national : ($jourFerie ? $jourFerie->est_national : false);
+            $ecoleId = $this->has('ecole_id') ? $this->ecole_id : ($jourFerie ? $jourFerie->ecole_id : null);
+            if ($estNational && $ecoleId) {
+                $validator->errors()->add(
+                    'ecole_id',
+                    "Un jour férié national ne peut pas être spécifique à une école."
+                );
+                return;
+            }
+
+            // 4. Vérifier l'unicité si date ou ecole_id changé
             if ($this->has('date') || $this->has('ecole_id')) {
                 $date = $this->date ?? ($jourFerie ? $jourFerie->date->format('Y-m-d') : null);
                 $ecoleId = $this->has('ecole_id') ? $this->ecole_id : ($jourFerie ? $jourFerie->ecole_id : null);

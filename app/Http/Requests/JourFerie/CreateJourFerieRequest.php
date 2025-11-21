@@ -114,7 +114,7 @@ class CreateJourFerieRequest extends FormRequest
         return [
             'calendrier_id' => ['required', 'string', 'exists:calendriers_scolaires,id'],
             'ecole_id' => ['nullable', 'string', 'exists:ecoles,id'],
-            'intitule_journee' => ['required', 'string'],
+            'intitule_journee' => ['required', 'string', 'max:100'],
             'date' => ['required', 'date'],
             'recurrent' => ['boolean'],
             'actif' => ['boolean'],
@@ -163,7 +163,16 @@ class CreateJourFerieRequest extends FormRequest
                 }
             }
 
-            // 3. Vérifier l'unicité (même date + calendrier + ecole)
+            // 3. Vérifier que si est_national = true, ecole_id doit être null
+            if ($this->est_national && $this->ecole_id) {
+                $validator->errors()->add(
+                    'ecole_id',
+                    "Un jour férié national ne peut pas être spécifique à une école."
+                );
+                return;
+            }
+
+            // 4. Vérifier l'unicité (même date + calendrier + ecole)
             $exists = JourFerie::where('calendrier_id', $this->calendrier_id)
                 ->where('date', $this->date)
                 ->where('ecole_id', $this->ecole_id)
