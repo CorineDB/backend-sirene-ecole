@@ -330,7 +330,7 @@ class CalendrierScolaireController extends Controller
     public function getJoursFeries(JoursFeriesFiltreRequest $request, string $id): JsonResponse
     {
         Gate::authorize('voir_calendrier_scolaire');
-        return $this->calendrierScolaireService->getJoursFeries($id, $request);
+        return $this->calendrierScolaireService->getJoursFeries($id, $request->getFiltres());
     }
 
     /**
