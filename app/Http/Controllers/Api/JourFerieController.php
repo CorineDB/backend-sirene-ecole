@@ -25,7 +25,6 @@ class JourFerieController extends Controller
     public function __construct(JourFerieServiceInterface $jourFerieService)
     {
         $this->jourFerieService = $jourFerieService;
-        $this->middleware('auth:api');
     }
 
     /**
