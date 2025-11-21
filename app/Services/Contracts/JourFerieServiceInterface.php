@@ -31,4 +31,12 @@ interface JourFerieServiceInterface extends BaseServiceInterface
      * @return JsonResponse
      */
     public function getJoursFeriesForEcole(string $ecoleId): JsonResponse;
+
+    /**
+     * Create multiple public holidays at once.
+     *
+     * @param array $items
+     * @return JsonResponse
+     */
+    public function createBulk(array $items): JsonResponse;
 }
