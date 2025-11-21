@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\StatutPanne;
+use App\Repositories\Contracts\InterventionRepositoryInterface;
 use App\Repositories\Contracts\OrdreMissionRepositoryInterface;
 use App\Repositories\Contracts\PanneRepositoryInterface;
 use App\Services\Contracts\PanneServiceInterface;
@@ -14,13 +15,16 @@ use Illuminate\Support\Facades\Log;
 class PanneService extends BaseService implements PanneServiceInterface
 {
     protected OrdreMissionRepositoryInterface $ordreMissionRepository;
+    protected InterventionRepositoryInterface $interventionRepository;
 
     public function __construct(
         PanneRepositoryInterface $repository,
-        OrdreMissionRepositoryInterface $ordreMissionRepository
+        OrdreMissionRepositoryInterface $ordreMissionRepository,
+        InterventionRepositoryInterface $interventionRepository
     ) {
         parent::__construct($repository);
         $this->ordreMissionRepository = $ordreMissionRepository;
+        $this->interventionRepository = $interventionRepository;
     }
 
     public function validerPanne(string $panneId, array $ordreMissionData = []): JsonResponse
@@ -55,10 +59,21 @@ class PanneService extends BaseService implements PanneServiceInterface
             // Create OrdreMission
             $ordreMission = $this->ordreMissionRepository->create($ordreMissionPayload);
 
+            // Créer automatiquement une intervention d'inspection
+            $intervention = $this->interventionRepository->create([
+                'panne_id' => $panneWithSite->id,
+                'ordre_mission_id' => $ordreMission->id,
+                'type_intervention' => 'inspection',
+                'nombre_techniciens_requis' => 1,
+                'statut' => 'planifiee',
+                'date_assignation' => now(),
+            ]);
+
             DB::commit();
-            return $this->successResponse('Panne validée et ordre de mission créé.', [
+            return $this->successResponse('Panne validée, ordre de mission et intervention d\'inspection créés.', [
                 'panne' => $panne,
                 'ordre_mission' => $ordreMission,
+                'intervention_inspection' => $intervention,
             ]);
         } catch (Exception $e) {
             DB::rollBack();
