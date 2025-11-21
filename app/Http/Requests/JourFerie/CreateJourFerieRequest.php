@@ -3,6 +3,9 @@
 namespace App\Http\Requests\JourFerie;
 
 use App\Models\CalendrierScolaire;
+use App\Models\Ecole;
+use App\Models\JourFerie;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use OpenApi\Annotations as OA;
@@ -131,19 +134,62 @@ class CreateJourFerieRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
-            if ($validator->errors()->isEmpty()) {
-                $calendrier = CalendrierScolaire::where('pays_id', $this->pays_id)
-                    ->where('annee_scolaire', $this->annee_scolaire)
-                    ->first();
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
 
-                if (!$calendrier) {
-                    $validator->errors()->add(
-                        'annee_scolaire',
-                        "Aucun calendrier scolaire trouvé pour l'année {$this->annee_scolaire} et le pays spécifié."
-                    );
-                } else {
-                    $this->merge(['calendrier_id' => $calendrier->id]);
+            // 1. Résoudre le calendrier
+            $calendrier = CalendrierScolaire::where('pays_id', $this->pays_id)
+                ->where('annee_scolaire', $this->annee_scolaire)
+                ->first();
+
+            if (!$calendrier) {
+                $validator->errors()->add(
+                    'annee_scolaire',
+                    "Aucun calendrier scolaire trouvé pour l'année {$this->annee_scolaire} et le pays spécifié."
+                );
+                return;
+            }
+
+            $this->merge(['calendrier_id' => $calendrier->id]);
+
+            // 2. Vérifier que l'école appartient au pays (via site -> ville -> pays)
+            if ($this->ecole_id) {
+                $ecole = Ecole::with('sitePrincipal.ville')->find($this->ecole_id);
+                if ($ecole && $ecole->sitePrincipal && $ecole->sitePrincipal->ville) {
+                    if ($ecole->sitePrincipal->ville->pays_id !== $this->pays_id) {
+                        $validator->errors()->add(
+                            'ecole_id',
+                            "L'école n'appartient pas au pays spécifié."
+                        );
+                        return;
+                    }
                 }
+            }
+
+            // 3. Vérifier que la date est dans la période de l'année scolaire
+            if ($this->date) {
+                $date = Carbon::parse($this->date);
+                if ($date->lt($calendrier->date_rentree) || $date->gt($calendrier->date_fin_annee)) {
+                    $validator->errors()->add(
+                        'date',
+                        "La date doit être comprise entre {$calendrier->date_rentree->format('d/m/Y')} et {$calendrier->date_fin_annee->format('d/m/Y')}."
+                    );
+                    return;
+                }
+            }
+
+            // 4. Vérifier l'unicité (même date + calendrier + ecole)
+            $exists = JourFerie::where('calendrier_id', $calendrier->id)
+                ->where('date', $this->date)
+                ->where('ecole_id', $this->ecole_id)
+                ->exists();
+
+            if ($exists) {
+                $validator->errors()->add(
+                    'date',
+                    "Un jour férié existe déjà pour cette date."
+                );
             }
         });
     }

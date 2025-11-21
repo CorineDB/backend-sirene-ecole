@@ -3,6 +3,9 @@
 namespace App\Http\Requests\JourFerie;
 
 use App\Models\CalendrierScolaire;
+use App\Models\Ecole;
+use App\Models\JourFerie;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use OpenApi\Annotations as OA;
@@ -134,8 +137,16 @@ class UpdateJourFerieRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
-            // Si annee_scolaire et pays_id sont fournis, résoudre calendrier_id
-            if ($this->has('annee_scolaire') && $this->has('pays_id') && $validator->errors()->isEmpty()) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $jourFerieId = $this->route('jour_fery') ?? $this->route('id');
+            $jourFerie = $jourFerieId ? JourFerie::find($jourFerieId) : null;
+            $calendrier = null;
+
+            // 1. Résoudre le calendrier si annee_scolaire et pays_id fournis
+            if ($this->has('annee_scolaire') && $this->has('pays_id')) {
                 $calendrier = CalendrierScolaire::where('pays_id', $this->pays_id)
                     ->where('annee_scolaire', $this->annee_scolaire)
                     ->first();
@@ -145,8 +156,61 @@ class UpdateJourFerieRequest extends FormRequest
                         'annee_scolaire',
                         "Aucun calendrier scolaire trouvé pour l'année {$this->annee_scolaire} et le pays spécifié."
                     );
-                } else {
-                    $this->merge(['calendrier_id' => $calendrier->id]);
+                    return;
+                }
+
+                $this->merge(['calendrier_id' => $calendrier->id]);
+            } elseif ($jourFerie) {
+                $calendrier = $jourFerie->calendrier;
+            }
+
+            // 2. Vérifier que l'école appartient au pays (via site -> ville -> pays)
+            if ($this->has('ecole_id') && $this->ecole_id) {
+                $paysId = $this->pays_id ?? ($jourFerie ? $jourFerie->pays_id : null);
+                if ($paysId) {
+                    $ecole = Ecole::with('sitePrincipal.ville')->find($this->ecole_id);
+                    if ($ecole && $ecole->sitePrincipal && $ecole->sitePrincipal->ville) {
+                        if ($ecole->sitePrincipal->ville->pays_id !== $paysId) {
+                            $validator->errors()->add(
+                                'ecole_id',
+                                "L'école n'appartient pas au pays spécifié."
+                            );
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // 3. Vérifier que la date est dans la période de l'année scolaire
+            if ($this->has('date') && $calendrier) {
+                $date = Carbon::parse($this->date);
+                if ($date->lt($calendrier->date_rentree) || $date->gt($calendrier->date_fin_annee)) {
+                    $validator->errors()->add(
+                        'date',
+                        "La date doit être comprise entre {$calendrier->date_rentree->format('d/m/Y')} et {$calendrier->date_fin_annee->format('d/m/Y')}."
+                    );
+                    return;
+                }
+            }
+
+            // 4. Vérifier l'unicité si date ou ecole_id changé
+            if (($this->has('date') || $this->has('ecole_id')) && $calendrier) {
+                $date = $this->date ?? ($jourFerie ? $jourFerie->date->format('Y-m-d') : null);
+                $ecoleId = $this->has('ecole_id') ? $this->ecole_id : ($jourFerie ? $jourFerie->ecole_id : null);
+
+                $query = JourFerie::where('calendrier_id', $calendrier->id)
+                    ->where('date', $date)
+                    ->where('ecole_id', $ecoleId);
+
+                if ($jourFerieId) {
+                    $query->where('id', '!=', $jourFerieId);
+                }
+
+                if ($query->exists()) {
+                    $validator->errors()->add(
+                        'date',
+                        "Un jour férié existe déjà pour cette date."
+                    );
                 }
             }
         });
