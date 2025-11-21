@@ -114,16 +114,9 @@ class CreateJourFerieRequest extends FormRequest
         return [
             'calendrier_id' => ['required', 'string', 'exists:calendriers_scolaires,id'],
             'ecole_id' => ['nullable', 'string', 'exists:ecoles,id'],
-<<<<<<< HEAD
-            'pays_id' => ['nullable', 'string', 'exists:pays,id'],
-            'intitule_journee' => ['required', 'string'],
-            'date' => ['required', 'date', 'date_format:Y-m-d'],
-            'recurrent' => ['required', 'boolean'],
-=======
             'intitule_journee' => ['required', 'string', 'max:100'],
             'date' => ['required', 'date'],
             'recurrent' => ['boolean'],
->>>>>>> 8e98fc25ba6a76e9c10a5865f36a020ac069f227
             'actif' => ['boolean'],
             'est_national' => ['boolean'],
         ];
