@@ -139,7 +139,7 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
      * @param string $calendrierScolaireId The ID of the school calendar.
      * @return JsonResponse
      */
-    public function getJoursFeries(string $calendrierScolaireId, array $filters = []): JsonResponse
+    public function getJoursFeries(string $calendrierScolaireId, \App\Http\Requests\JoursFeriesFiltreRequest $request): JsonResponse
     {
         try {
             $calendrierScolaire = $this->repository->find($calendrierScolaireId);
@@ -147,6 +147,8 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
             if (!$calendrierScolaire) {
                 return $this->notFoundResponse('School calendar not found.');
             }
+
+            $filters = $request->getFiltres();
 
             // Construire la requête avec filtres
             $query = $calendrierScolaire->joursFeries();

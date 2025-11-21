@@ -18,10 +18,10 @@ interface CalendrierScolaireServiceInterface extends BaseServiceInterface
      * Get all public holidays associated with a specific school calendar.
      *
      * @param string $calendrierScolaireId The ID of the school calendar.
-     * @param array $filters Optional filters (est_national, ecole_id, date_debut, date_fin).
+     * @param \App\Http\Requests\JoursFeriesFiltreRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getJoursFeries(string $calendrierScolaireId, array $filters = []): \Illuminate\Http\JsonResponse;
+    public function getJoursFeries(string $calendrierScolaireId, \App\Http\Requests\JoursFeriesFiltreRequest $request): \Illuminate\Http\JsonResponse;
 
     /**
      * Calculate the number of school days for a given school calendar, excluding weekends, holidays, and vacation periods.
