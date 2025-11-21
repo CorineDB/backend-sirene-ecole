@@ -217,14 +217,14 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
             $startDate = $calendrierScolaire->date_rentree;
             $endDate = $calendrierScolaire->date_fin_annee;
             $vacances = $calendrierScolaire->periodes_vacances;
-            $joursFeries = $calendrierScolaire->joursFeries->pluck('date_ferie')->map(fn ($date) => $date->format('Y-m-d'))->toArray();
+            $joursFeries = $calendrierScolaire->joursFeries->pluck('date')->map(fn ($date) => $date->format('Y-m-d'))->toArray();
 
             if ($ecoleId) {
                 $ecole = \App\Models\Ecole::with('joursFeries')->find($ecoleId);
                 if ($ecole) {
                     $ecoleJoursFeries = $ecole->joursFeries;
                     foreach ($ecoleJoursFeries as $jourFerie) {
-                        $date = $jourFerie->date_ferie->format('Y-m-d');
+                        $date = $jourFerie->date->format('Y-m-d');
                         if ($jourFerie->actif) {
                             // Add holiday if not already in the list
                             if (!in_array($date, $joursFeries)) {
@@ -304,7 +304,7 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
                     return [
                         'id' => $jourFerie->id,
                         'nom' => $jourFerie->nom,
-                        'date' => $jourFerie->date_ferie->format('Y-m-d'),
+                        'date' => $jourFerie->date->format('Y-m-d'),
                         'actif' => $jourFerie->actif,
                         'type' => $jourFerie->type,
                         'recurrent' => $jourFerie->recurrent,
@@ -321,7 +321,7 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
                         return [
                             'id' => $jourFerie->id,
                             'nom' => $jourFerie->nom,
-                            'date' => $jourFerie->date_ferie->format('Y-m-d'),
+                            'date' => $jourFerie->date->format('Y-m-d'),
                             'actif' => $jourFerie->actif,
                             'type' => $jourFerie->type,
                             'recurrent' => $jourFerie->recurrent,
