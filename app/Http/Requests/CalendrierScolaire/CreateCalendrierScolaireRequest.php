@@ -151,17 +151,12 @@ class CreateCalendrierScolaireRequest extends FormRequest
 
                     $currentYear = (int) date('Y');
                     $currentMonth = (int) date('m');
-
-                    // Determine the current academic year based on the month
-                    // Assuming academic year starts around September (month 9)
                     $academicCurrentYearStart = ($currentMonth >= 9) ? $currentYear : $currentYear - 1;
-                    $academicCurrentYearEnd = $academicCurrentYearStart + 1;
 
-                    if ($startYear < $academicCurrentYearStart) {
-                        $fail('The ' . $attribute . ' cannot be in a past academic year.');
+                    // Allow one year in the past, current and next academic year
+                    if ($startYear < $academicCurrentYearStart - 1) {
+                        $fail('The ' . $attribute . ' cannot be more than one academic year in the past.');
                     }
-
-                    // Allow current and next academic year
                     if ($startYear > $academicCurrentYearStart + 1) {
                         $fail('The ' . $attribute . ' cannot be more than one academic year in the future.');
                     }
