@@ -37,7 +37,11 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
             if (!empty($joursFeriesData)) {
                 foreach ($joursFeriesData as $jourFerieData) {
                     $jourFerieData['calendrier_id'] = $calendrierScolaire->id;
+                    $jourFerieData['pays_id'] = $data['pays_id'] ?? null;
                     $jourFerieData['intitule_journee'] = $jourFerieData['nom'] ?? $jourFerieData['intitule_journee'];
+                    $jourFerieData['est_national'] = $jourFerieData['est_national'] ?? false;
+                    $jourFerieData['actif'] = $jourFerieData['actif'] ?? true;
+                    $jourFerieData['date'] = $jourFerieData['date'];
                     unset($jourFerieData['nom']);
                     $this->jourFerieRepository->create($jourFerieData);
                 }
