@@ -271,7 +271,7 @@ class InterventionController extends Controller
     {
         Gate::authorize('creer_intervention');
         $validated = $request->validate([
-            'type_intervention' => 'nullable|string|in:constat,reparation,installation,maintenance,autre',
+            'type_intervention' => 'nullable|string|in:inspection,constat,reparation,installation,maintenance,autre',
             'nombre_techniciens_requis' => 'nullable|integer|min:1',
             'date_intervention' => 'nullable|date',
             'instructions' => 'nullable|string',

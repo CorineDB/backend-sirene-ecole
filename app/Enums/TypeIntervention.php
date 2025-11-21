@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum TypeIntervention: string
 {
+    case INSPECTION = 'inspection';
     case CONSTAT = 'constat';
     case REPARATION = 'reparation';
     case INSTALLATION = 'installation';
@@ -13,6 +14,7 @@ enum TypeIntervention: string
     public function label(): string
     {
         return match($this) {
+            self::INSPECTION => 'Inspection sur site',
             self::CONSTAT => 'Constat de panne',
             self::REPARATION => 'Réparation',
             self::INSTALLATION => 'Installation',
