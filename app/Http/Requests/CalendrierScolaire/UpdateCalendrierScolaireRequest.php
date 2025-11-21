@@ -93,20 +93,20 @@ class UpdateCalendrierScolaireRequest extends FormRequest
     {
         if ($this->has('date_rentree')) {
             $this->merge([
-                'date_rentree' => \Carbon\Carbon::createFromFormat('d/m/Y', $this->date_rentree)->format('Y-m-d'),
+                'date_rentree' => $this->parseDate($this->date_rentree),
             ]);
         }
 
         if ($this->has('date_fin_annee')) {
             $this->merge([
-                'date_fin_annee' => \Carbon\Carbon::createFromFormat('d/m/Y', $this->date_fin_annee)->format('Y-m-d'),
+                'date_fin_annee' => $this->parseDate($this->date_fin_annee),
             ]);
         }
 
         if ($this->has('periodes_vacances')) {
             $periodesVacances = collect($this->periodes_vacances)->map(function ($periode) {
-                $periode['date_debut'] = \Carbon\Carbon::createFromFormat('d/m/Y', $periode['date_debut'])->format('Y-m-d');
-                $periode['date_fin'] = \Carbon\Carbon::createFromFormat('d/m/Y', $periode['date_fin'])->format('Y-m-d');
+                $periode['date_debut'] = $this->parseDate($periode['date_debut']);
+                $periode['date_fin'] = $this->parseDate($periode['date_fin']);
                 return $periode;
             })->toArray();
             $this->merge(['periodes_vacances' => $periodesVacances]);
@@ -114,11 +114,33 @@ class UpdateCalendrierScolaireRequest extends FormRequest
 
         if ($this->has('jours_feries_defaut')) {
             $joursFeriesDefaut = collect($this->jours_feries_defaut)->map(function ($jourFerie) {
-                $jourFerie['date'] = \Carbon\Carbon::createFromFormat('d/m/Y', $jourFerie['date'])->format('Y-m-d');
+                $jourFerie['date'] = $this->parseDate($jourFerie['date']);
                 return $jourFerie;
             })->toArray();
             $this->merge(['jours_feries_defaut' => $joursFeriesDefaut]);
         }
+    }
+
+    /**
+     * Parse date from multiple formats (Y-m-d or d/m/Y) to Y-m-d.
+     */
+    private function parseDate(?string $date): ?string
+    {
+        if (!$date) {
+            return null;
+        }
+
+        // Already in Y-m-d format
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $date;
+        }
+
+        // Convert from d/m/Y format
+        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
+            return \Carbon\Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d');
+        }
+
+        return $date;
     }
 
     public function rules(): array
