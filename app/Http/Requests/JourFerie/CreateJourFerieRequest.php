@@ -79,6 +79,40 @@ class CreateJourFerieRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('date')) {
+            $this->merge([
+                'date' => $this->parseDate($this->date),
+            ]);
+        }
+    }
+
+    /**
+     * Parse date from multiple formats (Y-m-d or d/m/Y) to Y-m-d.
+     */
+    private function parseDate(?string $date): ?string
+    {
+        if (!$date) {
+            return null;
+        }
+
+        // Already in Y-m-d format
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $date;
+        }
+
+        // Convert from d/m/Y format
+        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
+            return \Carbon\Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d');
+        }
+
+        return $date;
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array|string>
