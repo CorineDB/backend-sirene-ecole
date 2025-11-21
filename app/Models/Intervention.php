@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatutIntervention;
+use App\Enums\TypeIntervention;
 use App\Traits\HasUlid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +24,8 @@ class Intervention extends Model
     protected $fillable = [
         'panne_id',
         'ordre_mission_id',
+        'type_intervention',
+        'nombre_techniciens_requis',
         'date_intervention',
         'date_affectation',
         'date_assignation',
@@ -46,7 +49,9 @@ class Intervention extends Model
         'date_acceptation' => 'datetime',
         'date_debut' => 'datetime',
         'date_fin' => 'datetime',
+        'type_intervention' => TypeIntervention::class,
         'old_statut' => StatutIntervention::class,
+        'nombre_techniciens_requis' => 'integer',
         'note_ecole' => 'integer',
         'heure_rdv' => 'datetime:H:i',
         'created_at' => 'datetime',
