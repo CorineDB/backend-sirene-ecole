@@ -298,6 +298,12 @@ Route::prefix('interventions')->middleware('auth:api')->group(function () {
     Route::put('candidatures/{missionTechnicienId}/refuser', [InterventionController::class, 'refuserCandidature']);
     Route::put('candidatures/{missionTechnicienId}/retirer', [InterventionController::class, 'retirerCandidature']);
 
+    // Création et gestion manuelle
+    Route::post('ordres-mission/{ordreMissionId}/creer', [InterventionController::class, 'creerIntervention']);
+    Route::post('{interventionId}/techniciens', [InterventionController::class, 'assignerTechnicien']);
+    Route::delete('{interventionId}/techniciens', [InterventionController::class, 'retirerTechnicien']);
+    Route::put('{interventionId}/planifier', [InterventionController::class, 'planifierIntervention']);
+
     // Gestion des interventions
     Route::put('{interventionId}/demarrer', [InterventionController::class, 'demarrer']);
     Route::put('{interventionId}/terminer', [InterventionController::class, 'terminer']);

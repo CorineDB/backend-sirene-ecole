@@ -265,6 +265,71 @@ class InterventionController extends Controller
     }
 
     /**
+     * Créer une intervention manuellement (sans passer par les candidatures)
+     */
+    public function creerIntervention(Request $request, string $ordreMissionId): JsonResponse
+    {
+        Gate::authorize('creer_intervention');
+        $validated = $request->validate([
+            'date_intervention' => 'nullable|date',
+            'instructions' => 'nullable|string',
+            'lieu_rdv' => 'nullable|string',
+            'heure_rdv' => 'nullable|date_format:H:i',
+            'technicien_ids' => 'nullable|array',
+            'technicien_ids.*' => 'string|exists:techniciens,id',
+        ]);
+
+        return $this->interventionService->creerIntervention($ordreMissionId, $validated);
+    }
+
+    /**
+     * Assigner un technicien à une intervention (même si démarrée)
+     */
+    public function assignerTechnicien(Request $request, string $interventionId): JsonResponse
+    {
+        Gate::authorize('assigner_technicien_intervention');
+        $validated = $request->validate([
+            'technicien_id' => 'required|string|exists:techniciens,id',
+            'role' => 'nullable|string',
+        ]);
+
+        return $this->interventionService->assignerTechnicien(
+            $interventionId,
+            $validated['technicien_id'],
+            $validated['role'] ?? null
+        );
+    }
+
+    /**
+     * Retirer un technicien d'une intervention
+     */
+    public function retirerTechnicien(Request $request, string $interventionId): JsonResponse
+    {
+        Gate::authorize('modifier_intervention');
+        $validated = $request->validate([
+            'technicien_id' => 'required|string|exists:techniciens,id',
+        ]);
+
+        return $this->interventionService->retirerTechnicien($interventionId, $validated['technicien_id']);
+    }
+
+    /**
+     * Planifier une intervention (date, instructions, lieu/heure rdv)
+     */
+    public function planifierIntervention(Request $request, string $interventionId): JsonResponse
+    {
+        Gate::authorize('modifier_intervention');
+        $validated = $request->validate([
+            'date_intervention' => 'nullable|date',
+            'instructions' => 'nullable|string',
+            'lieu_rdv' => 'nullable|string',
+            'heure_rdv' => 'nullable|date_format:H:i',
+        ]);
+
+        return $this->interventionService->planifierIntervention($interventionId, $validated);
+    }
+
+    /**
      * Retirer un technicien d'une mission
      *
      * @OA\Put(
