@@ -18,7 +18,7 @@ class BulkCreateJourFerieRequest extends FormRequest
     {
         return [
             'jours_feries' => ['required', 'array', 'min:1'],
-            'jours_feries.*.calendrier_id' => ['required', 'string', 'exists:calendriers_scolaires,id'],
+            'jours_feries.*.calendrier_id' => ['nullable', 'string', 'exists:calendriers_scolaires,id'],
             'jours_feries.*.ecole_id' => ['nullable', 'string', 'exists:ecoles,id'],
             'jours_feries.*.intitule_journee' => ['required', 'string', 'max:100'],
             'jours_feries.*.date' => ['required', 'date'],

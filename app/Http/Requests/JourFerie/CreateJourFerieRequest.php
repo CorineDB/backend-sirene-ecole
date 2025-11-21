@@ -112,7 +112,7 @@ class CreateJourFerieRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'calendrier_id' => ['required', 'string', 'exists:calendriers_scolaires,id'],
+            'calendrier_id' => ['nullable', 'string', 'exists:calendriers_scolaires,id'],
             'ecole_id' => ['nullable', 'string', 'exists:ecoles,id'],
             'intitule_journee' => ['required', 'string', 'max:100'],
             'date' => ['required', 'date'],
