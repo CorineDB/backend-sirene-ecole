@@ -2,13 +2,17 @@
 
 namespace App\Services;
 
+use App\Models\CalendrierScolaire;
 use App\Models\JourFerie;
 use App\Repositories\Contracts\JourFerieRepositoryInterface;
 use App\Services\Contracts\JourFerieServiceInterface;
 use App\Traits\JsonResponseTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Exception;
 
 class JourFerieService extends BaseService implements JourFerieServiceInterface
 {
@@ -20,6 +24,37 @@ class JourFerieService extends BaseService implements JourFerieServiceInterface
     public function __construct(JourFerieRepositoryInterface $repository)
     {
         parent::__construct($repository);
+    }
+
+    /**
+     * Create a new JourFerie entry.
+     * Automatically sets pays_id from the calendrier.
+     *
+     * @param array $data
+     * @return JsonResponse
+     */
+    public function create(array $data): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            // Récupérer pays_id depuis le calendrier
+            if (isset($data['calendrier_id']) && !isset($data['pays_id'])) {
+                $calendrier = CalendrierScolaire::find($data['calendrier_id']);
+                if ($calendrier) {
+                    $data['pays_id'] = $calendrier->pays_id;
+                }
+            }
+
+            $jourFerie = $this->repository->create($data);
+
+            DB::commit();
+            return $this->createdResponse($jourFerie);
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in " . get_class($this) . "::create - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     /**
