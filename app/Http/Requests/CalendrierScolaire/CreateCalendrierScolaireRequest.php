@@ -148,6 +148,15 @@ class CreateCalendrierScolaireRequest extends FormRequest
                     if ($endYear !== $startYear + 1) {
                         $fail('The ' . $attribute . ' must be in consecutive years (e.g., 2025-2026).');
                     }
+
+                    $currentYear = (int) date('Y');
+                    $currentMonth = (int) date('m');
+                    $academicCurrentYearStart = ($currentMonth >= 9) ? $currentYear : $currentYear - 1;
+
+                    // Allow past academic year, current and next academic year
+                    if ($startYear > $academicCurrentYearStart + 1) {
+                        $fail('The ' . $attribute . ' cannot be more than one academic year in the future.');
+                    }
                 },
             ],
             'description' => ['nullable', 'string', 'max:500'],
