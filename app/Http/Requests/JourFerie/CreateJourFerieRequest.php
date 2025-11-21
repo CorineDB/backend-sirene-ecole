@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\JourFerie;
 
+use App\Models\CalendrierScolaire;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
 use OpenApi\Annotations as OA;
 
 /**
@@ -10,13 +12,11 @@ use OpenApi\Annotations as OA;
  *     schema="CreateJourFerieRequest",
  *     title="Create Public Holiday Request",
  *     description="Request body for creating a new public holiday entry",
- *     required={"nom", "date", "recurrent"},
+ *     required={"intitule_journee", "date", "pays_id", "annee_scolaire"},
  *     @OA\Property(
- *         property="calendrier_id",
+ *         property="annee_scolaire",
  *         type="string",
- *         format="uuid",
- *         nullable=true,
- *         description="ID of the school calendar this holiday belongs to"
+ *         description="Academic year (e.g., '2025-2026') - used to resolve calendrier_id"
  *     ),
  *     @OA\Property(
  *         property="ecole_id",
@@ -29,17 +29,10 @@ use OpenApi\Annotations as OA;
  *         property="pays_id",
  *         type="string",
  *         format="uuid",
- *         nullable=true,
- *         description="ID of the country this holiday belongs to (if global for a country)"
+ *         description="ID of the country this holiday belongs to"
  *     ),
  *     @OA\Property(
- *         property="libelle",
- *         type="string",
- *         nullable=true,
- *         description="Label for the holiday (alternative to nom)"
- *     ),
- *     @OA\Property(
- *         property="nom",
+ *         property="intitule_journee",
  *         type="string",
  *         description="Name of the public holiday"
  *     ),
@@ -50,21 +43,22 @@ use OpenApi\Annotations as OA;
  *         description="Date of the public holiday"
  *     ),
  *     @OA\Property(
- *         property="type",
- *         type="string",
- *         nullable=true,
- *         description="Type of holiday (e.g., national, religious, local)"
- *     ),
- *     @OA\Property(
  *         property="recurrent",
  *         type="boolean",
- *         description="Is this holiday recurrent every year?"
+ *         description="Is this holiday recurrent every year?",
+ *         default=false
  *     ),
  *     @OA\Property(
  *         property="actif",
  *         type="boolean",
  *         description="Is this holiday active?",
  *         default=true
+ *     ),
+ *     @OA\Property(
+ *         property="est_national",
+ *         type="boolean",
+ *         description="Is this a national holiday?",
+ *         default=false
  *     )
  * )
  */
@@ -75,7 +69,7 @@ class CreateJourFerieRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // Adjust authorization logic as needed
+        return true;
     }
 
     /**
@@ -120,14 +114,37 @@ class CreateJourFerieRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'calendrier_id' => ['nullable', 'string', 'exists:calendriers_scolaires,id'],
+            'annee_scolaire' => ['required', 'string', 'regex:/^\d{4}-\d{4}$/'],
             'ecole_id' => ['nullable', 'string', 'exists:ecoles,id'],
-            'pays_id' => ['nullable', 'string', 'exists:pays,id'],
+            'pays_id' => ['required', 'string', 'exists:pays,id'],
             'intitule_journee' => ['required', 'string'],
             'date' => ['required', 'date'],
-            'recurrent' => ['required', 'boolean'],
+            'recurrent' => ['boolean'],
             'actif' => ['boolean'],
             'est_national' => ['boolean'],
         ];
+    }
+
+    /**
+     * Configure the validator instance.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if ($validator->errors()->isEmpty()) {
+                $calendrier = CalendrierScolaire::where('pays_id', $this->pays_id)
+                    ->where('annee_scolaire', $this->annee_scolaire)
+                    ->first();
+
+                if (!$calendrier) {
+                    $validator->errors()->add(
+                        'annee_scolaire',
+                        "Aucun calendrier scolaire trouvé pour l'année {$this->annee_scolaire} et le pays spécifié."
+                    );
+                } else {
+                    $this->merge(['calendrier_id' => $calendrier->id]);
+                }
+            }
+        });
     }
 }
