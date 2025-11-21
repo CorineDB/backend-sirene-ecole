@@ -163,7 +163,10 @@ class UpdateCalendrierScolaireRequest extends FormRequest
                     $currentMonth = (int) date('m');
                     $academicCurrentYearStart = ($currentMonth >= 9) ? $currentYear : $currentYear - 1;
 
-                    // Allow past academic year, current and next academic year
+                    // Allow one year in the past, current and next academic year
+                    if ($startYear < $academicCurrentYearStart - 1) {
+                        $fail('The ' . $attribute . ' cannot be more than one academic year in the past.');
+                    }
                     if ($startYear > $academicCurrentYearStart + 1) {
                         $fail('The ' . $attribute . ' cannot be more than one academic year in the future.');
                     }
