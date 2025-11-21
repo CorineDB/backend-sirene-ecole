@@ -473,4 +473,156 @@ class InterventionService extends BaseService implements InterventionServiceInte
             return $this->errorResponse($e->getMessage(), 500);
         }
     }
+
+    /**
+     * Créer une intervention manuellement (sans passer par les candidatures)
+     * L'admin peut créer une intervention et y assigner des techniciens directement
+     */
+    public function creerIntervention(string $ordreMissionId, array $data): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $ordreMission = $this->ordreMissionRepository->find($ordreMissionId, relations: ['panne']);
+            if (!$ordreMission) {
+                DB::rollBack();
+                return $this->notFoundResponse('Ordre de mission non trouvé.');
+            }
+
+            // Vérifier si une intervention existe déjà
+            $existingIntervention = $ordreMission->interventions()->first();
+            if ($existingIntervention) {
+                DB::rollBack();
+                return $this->errorResponse('Une intervention existe déjà pour cet ordre de mission.', 400);
+            }
+
+            // Créer l'intervention
+            $intervention = $this->repository->create([
+                'panne_id' => $ordreMission->panne_id,
+                'ordre_mission_id' => $ordreMissionId,
+                'date_intervention' => $data['date_intervention'] ?? null,
+                'instructions' => $data['instructions'] ?? null,
+                'lieu_rdv' => $data['lieu_rdv'] ?? null,
+                'heure_rdv' => $data['heure_rdv'] ?? null,
+                'statut' => 'planifiee',
+                'date_assignation' => now(),
+            ]);
+
+            DB::commit();
+            return $this->createdResponse($intervention->load('techniciens'));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in InterventionService::creerIntervention - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Assigner un technicien à une intervention
+     * Peut être fait même après le démarrage de l'intervention
+     */
+    public function assignerTechnicien(string $interventionId, string $technicienId, ?string $role = null): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $intervention = $this->repository->find($interventionId);
+            if (!$intervention) {
+                DB::rollBack();
+                return $this->notFoundResponse('Intervention non trouvée.');
+            }
+
+            // Vérifier si le technicien n'est pas déjà assigné
+            if ($intervention->techniciens()->where('technicien_id', $technicienId)->exists()) {
+                DB::rollBack();
+                return $this->errorResponse('Ce technicien est déjà assigné à cette intervention.', 400);
+            }
+
+            // Assigner le technicien
+            $intervention->techniciens()->attach($technicienId, [
+                'date_assignation' => now(),
+                'role' => $role,
+                'notes' => null,
+            ]);
+
+            // Mettre à jour le compteur dans l'ordre de mission si lié
+            if ($intervention->ordre_mission_id) {
+                $ordreMission = $this->ordreMissionRepository->find($intervention->ordre_mission_id);
+                if ($ordreMission) {
+                    $this->ordreMissionRepository->update($ordreMission->id, [
+                        'nombre_techniciens_acceptes' => $ordreMission->nombre_techniciens_acceptes + 1,
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return $this->successResponse('Technicien assigné à l\'intervention.', $intervention->load('techniciens'));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in InterventionService::assignerTechnicien - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Retirer un technicien d'une intervention
+     */
+    public function retirerTechnicien(string $interventionId, string $technicienId): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $intervention = $this->repository->find($interventionId);
+            if (!$intervention) {
+                DB::rollBack();
+                return $this->notFoundResponse('Intervention non trouvée.');
+            }
+
+            // Vérifier si le technicien est assigné
+            if (!$intervention->techniciens()->where('technicien_id', $technicienId)->exists()) {
+                DB::rollBack();
+                return $this->errorResponse('Ce technicien n\'est pas assigné à cette intervention.', 400);
+            }
+
+            // Retirer le technicien
+            $intervention->techniciens()->detach($technicienId);
+
+            // Mettre à jour le compteur dans l'ordre de mission si lié
+            if ($intervention->ordre_mission_id) {
+                $ordreMission = $this->ordreMissionRepository->find($intervention->ordre_mission_id);
+                if ($ordreMission && $ordreMission->nombre_techniciens_acceptes > 0) {
+                    $this->ordreMissionRepository->update($ordreMission->id, [
+                        'nombre_techniciens_acceptes' => $ordreMission->nombre_techniciens_acceptes - 1,
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return $this->successResponse('Technicien retiré de l\'intervention.', $intervention->load('techniciens'));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in InterventionService::retirerTechnicien - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Planifier une intervention (définir date, instructions, lieu RDV)
+     */
+    public function planifierIntervention(string $interventionId, array $data): JsonResponse
+    {
+        try {
+            $intervention = $this->repository->update($interventionId, [
+                'date_intervention' => $data['date_intervention'] ?? null,
+                'instructions' => $data['instructions'] ?? null,
+                'lieu_rdv' => $data['lieu_rdv'] ?? null,
+                'heure_rdv' => $data['heure_rdv'] ?? null,
+            ]);
+
+            return $this->successResponse('Intervention planifiée.', $intervention);
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::planifierIntervention - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
 }
