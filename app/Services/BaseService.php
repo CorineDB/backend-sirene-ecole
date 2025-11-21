@@ -127,7 +127,7 @@ abstract class BaseService implements BaseServiceInterface
     public function findBy(array $criteria, array $relations = []): JsonResponse
     {
         try {
-            $data = $this->repository->findBy($criteria, $relations);
+            $data = $this->repository->findBy($criteria, ['*'], $relations);
             if (!$data) {
                 return $this->notFoundResponse();
             }
@@ -141,7 +141,7 @@ abstract class BaseService implements BaseServiceInterface
     public function findAllBy(array $criteria, array $relations = []): JsonResponse
     {
         try {
-            $data = $this->repository->findAllBy($criteria, $relations);
+            $data = $this->repository->findAllBy($criteria, ['*'], $relations);
             return $this->successResponse(null, $data);
         } catch (Exception $e) {
             Log::error("Error in " . get_class($this) . "::findAllBy - " . $e->getMessage());
