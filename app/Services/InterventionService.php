@@ -489,17 +489,12 @@ class InterventionService extends BaseService implements InterventionServiceInte
                 return $this->notFoundResponse('Ordre de mission non trouvé.');
             }
 
-            // Vérifier si une intervention existe déjà
-            $existingIntervention = $ordreMission->interventions()->first();
-            if ($existingIntervention) {
-                DB::rollBack();
-                return $this->errorResponse('Une intervention existe déjà pour cet ordre de mission.', 400);
-            }
-
-            // Créer l'intervention
+            // Créer l'intervention (plusieurs interventions possibles par ordre de mission)
             $intervention = $this->repository->create([
                 'panne_id' => $ordreMission->panne_id,
                 'ordre_mission_id' => $ordreMissionId,
+                'type_intervention' => $data['type_intervention'] ?? 'reparation',
+                'nombre_techniciens_requis' => $data['nombre_techniciens_requis'] ?? null,
                 'date_intervention' => $data['date_intervention'] ?? null,
                 'instructions' => $data['instructions'] ?? null,
                 'lieu_rdv' => $data['lieu_rdv'] ?? null,
@@ -507,6 +502,16 @@ class InterventionService extends BaseService implements InterventionServiceInte
                 'statut' => 'planifiee',
                 'date_assignation' => now(),
             ]);
+
+            // Assigner les techniciens si fournis
+            if (!empty($data['technicien_ids'])) {
+                foreach ($data['technicien_ids'] as $technicienId) {
+                    $intervention->techniciens()->attach($technicienId, [
+                        'id' => (string) \Illuminate\Support\Str::ulid(),
+                        'date_assignation' => now(),
+                    ]);
+                }
+            }
 
             DB::commit();
             return $this->createdResponse($intervention->load('techniciens'));
