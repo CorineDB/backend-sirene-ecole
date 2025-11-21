@@ -50,6 +50,14 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
                     ->where('est_national', true)
                     ->where('actif', true)
                     ->get(['intitule_journee', 'date', 'recurrent', 'est_national'])
+                    ->map(function ($item) {
+                        return [
+                            'intitule_journee' => $item->intitule_journee,
+                            'date' => $item->date->format('Y-m-d'),
+                            'recurrent' => $item->recurrent,
+                            'est_national' => $item->est_national,
+                        ];
+                    })
                     ->toArray();
             }
 
