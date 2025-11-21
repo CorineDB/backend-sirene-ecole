@@ -6,13 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 interface CalendrierScolaireServiceInterface extends BaseServiceInterface
 {
-    /**
-     * Create a new school calendar entry with its default holidays.
-     *
-     * @param array $data
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function create(array $data): \Illuminate\Http\JsonResponse;
 
     /**
      * Get all public holidays associated with a specific school calendar.

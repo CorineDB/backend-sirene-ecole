@@ -90,7 +90,7 @@ class CreateJourFerieRequest extends FormRequest
             'ecole_id' => ['nullable', 'string', 'exists:ecoles,id'],
             'pays_id' => ['nullable', 'string', 'exists:pays,id'],
             'intitule_journee' => ['required', 'string'],
-            'date' => ['required', 'date'],
+            'date' => ['required', 'date', 'date_format:Y-m-d'],
             'recurrent' => ['required', 'boolean'],
             'actif' => ['boolean'],
             'est_national' => ['boolean'],
