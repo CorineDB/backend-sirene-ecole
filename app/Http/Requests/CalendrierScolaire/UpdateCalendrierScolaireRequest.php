@@ -158,23 +158,6 @@ class UpdateCalendrierScolaireRequest extends FormRequest
                     if ($endYear !== $startYear + 1) {
                         $fail('The ' . $attribute . ' must be in consecutive years (e.g., 2025-2026).');
                     }
-
-                    $currentYear = (int) date('Y');
-                    $currentMonth = (int) date('m');
-
-                    // Determine the current academic year based on the month
-                    // Assuming academic year starts around September (month 9)
-                    $academicCurrentYearStart = ($currentMonth >= 9) ? $currentYear : $currentYear - 1;
-                    $academicCurrentYearEnd = $academicCurrentYearStart + 1;
-
-                    if ($startYear < $academicCurrentYearStart) {
-                        $fail('The ' . $attribute . ' cannot be in a past academic year.');
-                    }
-
-                    // Allow current and next academic year
-                    if ($startYear > $academicCurrentYearStart + 1) {
-                        $fail('The ' . $attribute . ' cannot be more than one academic year in the future.');
-                    }
                 },
             ],
             'description' => ['sometimes', 'nullable', 'string', 'max:500'],
