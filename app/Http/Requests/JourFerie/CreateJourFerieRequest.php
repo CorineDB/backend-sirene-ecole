@@ -15,11 +15,12 @@ use OpenApi\Annotations as OA;
  *     schema="CreateJourFerieRequest",
  *     title="Create Public Holiday Request",
  *     description="Request body for creating a new public holiday entry",
- *     required={"intitule_journee", "date", "pays_id", "annee_scolaire"},
+ *     required={"intitule_journee", "date", "calendrier_id"},
  *     @OA\Property(
- *         property="annee_scolaire",
+ *         property="calendrier_id",
  *         type="string",
- *         description="Academic year (e.g., '2025-2026') - used to resolve calendrier_id"
+ *         format="uuid",
+ *         description="ID of the school calendar this holiday belongs to"
  *     ),
  *     @OA\Property(
  *         property="ecole_id",
@@ -27,12 +28,6 @@ use OpenApi\Annotations as OA;
  *         format="uuid",
  *         nullable=true,
  *         description="ID of the school this holiday belongs to (if specific to a school)"
- *     ),
- *     @OA\Property(
- *         property="pays_id",
- *         type="string",
- *         format="uuid",
- *         description="ID of the country this holiday belongs to"
  *     ),
  *     @OA\Property(
  *         property="intitule_journee",
@@ -117,9 +112,8 @@ class CreateJourFerieRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'annee_scolaire' => ['required', 'string', 'regex:/^\d{4}-\d{4}$/', 'exists:calendriers_scolaires,annee_scolaire'],
+            'calendrier_id' => ['required', 'string', 'exists:calendriers_scolaires,id'],
             'ecole_id' => ['nullable', 'string', 'exists:ecoles,id'],
-            'pays_id' => ['required', 'string', 'exists:pays,id'],
             'intitule_journee' => ['required', 'string'],
             'date' => ['required', 'date'],
             'recurrent' => ['boolean'],
@@ -138,36 +132,26 @@ class CreateJourFerieRequest extends FormRequest
                 return;
             }
 
-            // 1. Résoudre le calendrier
-            $calendrier = CalendrierScolaire::where('pays_id', $this->pays_id)
-                ->where('annee_scolaire', $this->annee_scolaire)
-                ->first();
-
+            $calendrier = CalendrierScolaire::find($this->calendrier_id);
             if (!$calendrier) {
-                $validator->errors()->add(
-                    'annee_scolaire',
-                    "Aucun calendrier scolaire trouvé pour l'année {$this->annee_scolaire} et le pays spécifié."
-                );
                 return;
             }
 
-            $this->merge(['calendrier_id' => $calendrier->id]);
-
-            // 2. Vérifier que l'école appartient au pays (via site -> ville -> pays)
+            // 1. Vérifier que l'école appartient au pays du calendrier (via site -> ville -> pays)
             if ($this->ecole_id) {
                 $ecole = Ecole::with('sitePrincipal.ville')->find($this->ecole_id);
                 if ($ecole && $ecole->sitePrincipal && $ecole->sitePrincipal->ville) {
-                    if ($ecole->sitePrincipal->ville->pays_id !== $this->pays_id) {
+                    if ($ecole->sitePrincipal->ville->pays_id !== $calendrier->pays_id) {
                         $validator->errors()->add(
                             'ecole_id',
-                            "L'école n'appartient pas au pays spécifié."
+                            "L'école n'appartient pas au pays du calendrier."
                         );
                         return;
                     }
                 }
             }
 
-            // 3. Vérifier que la date est dans la période de l'année scolaire
+            // 2. Vérifier que la date est dans la période de l'année scolaire
             if ($this->date) {
                 $date = Carbon::parse($this->date);
                 if ($date->lt($calendrier->date_rentree) || $date->gt($calendrier->date_fin_annee)) {
@@ -179,8 +163,8 @@ class CreateJourFerieRequest extends FormRequest
                 }
             }
 
-            // 4. Vérifier l'unicité (même date + calendrier + ecole)
-            $exists = JourFerie::where('calendrier_id', $calendrier->id)
+            // 3. Vérifier l'unicité (même date + calendrier + ecole)
+            $exists = JourFerie::where('calendrier_id', $this->calendrier_id)
                 ->where('date', $this->date)
                 ->where('ecole_id', $this->ecole_id)
                 ->exists();

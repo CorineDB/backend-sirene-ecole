@@ -16,10 +16,11 @@ use OpenApi\Annotations as OA;
  *     title="Update Public Holiday Request",
  *     description="Request body for updating an existing public holiday entry",
  *     @OA\Property(
- *         property="annee_scolaire",
+ *         property="calendrier_id",
  *         type="string",
+ *         format="uuid",
  *         nullable=true,
- *         description="Academic year (e.g., '2025-2026') - used with pays_id to resolve calendrier_id"
+ *         description="ID of the school calendar this holiday belongs to"
  *     ),
  *     @OA\Property(
  *         property="ecole_id",
@@ -27,13 +28,6 @@ use OpenApi\Annotations as OA;
  *         format="uuid",
  *         nullable=true,
  *         description="ID of the school this holiday belongs to (if specific to a school)"
- *     ),
- *     @OA\Property(
- *         property="pays_id",
- *         type="string",
- *         format="uuid",
- *         nullable=true,
- *         description="ID of the country this holiday belongs to"
  *     ),
  *     @OA\Property(
  *         property="intitule_journee",
@@ -120,9 +114,8 @@ class UpdateJourFerieRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'annee_scolaire' => ['sometimes', 'string', 'regex:/^\d{4}-\d{4}$/', 'exists:calendriers_scolaires,annee_scolaire'],
+            'calendrier_id' => ['sometimes', 'string', 'exists:calendriers_scolaires,id'],
             'ecole_id' => ['sometimes', 'nullable', 'string', 'exists:ecoles,id'],
-            'pays_id' => ['sometimes', 'string', 'exists:pays,id'],
             'intitule_journee' => ['sometimes', 'string'],
             'date' => ['sometimes', 'date'],
             'recurrent' => ['sometimes', 'boolean'],
@@ -143,46 +136,31 @@ class UpdateJourFerieRequest extends FormRequest
 
             $jourFerieId = $this->route('jour_fery') ?? $this->route('id');
             $jourFerie = $jourFerieId ? JourFerie::find($jourFerieId) : null;
-            $calendrier = null;
 
-            // 1. Résoudre le calendrier si annee_scolaire et pays_id fournis
-            if ($this->has('annee_scolaire') && $this->has('pays_id')) {
-                $calendrier = CalendrierScolaire::where('pays_id', $this->pays_id)
-                    ->where('annee_scolaire', $this->annee_scolaire)
-                    ->first();
+            // Déterminer le calendrier (nouveau ou existant)
+            $calendrierId = $this->calendrier_id ?? ($jourFerie ? $jourFerie->calendrier_id : null);
+            $calendrier = $calendrierId ? CalendrierScolaire::find($calendrierId) : null;
 
-                if (!$calendrier) {
-                    $validator->errors()->add(
-                        'annee_scolaire',
-                        "Aucun calendrier scolaire trouvé pour l'année {$this->annee_scolaire} et le pays spécifié."
-                    );
-                    return;
-                }
-
-                $this->merge(['calendrier_id' => $calendrier->id]);
-            } elseif ($jourFerie) {
-                $calendrier = $jourFerie->calendrier;
+            if (!$calendrier) {
+                return;
             }
 
-            // 2. Vérifier que l'école appartient au pays (via site -> ville -> pays)
+            // 1. Vérifier que l'école appartient au pays du calendrier (via site -> ville -> pays)
             if ($this->has('ecole_id') && $this->ecole_id) {
-                $paysId = $this->pays_id ?? ($jourFerie ? $jourFerie->pays_id : null);
-                if ($paysId) {
-                    $ecole = Ecole::with('sitePrincipal.ville')->find($this->ecole_id);
-                    if ($ecole && $ecole->sitePrincipal && $ecole->sitePrincipal->ville) {
-                        if ($ecole->sitePrincipal->ville->pays_id !== $paysId) {
-                            $validator->errors()->add(
-                                'ecole_id',
-                                "L'école n'appartient pas au pays spécifié."
-                            );
-                            return;
-                        }
+                $ecole = Ecole::with('sitePrincipal.ville')->find($this->ecole_id);
+                if ($ecole && $ecole->sitePrincipal && $ecole->sitePrincipal->ville) {
+                    if ($ecole->sitePrincipal->ville->pays_id !== $calendrier->pays_id) {
+                        $validator->errors()->add(
+                            'ecole_id',
+                            "L'école n'appartient pas au pays du calendrier."
+                        );
+                        return;
                     }
                 }
             }
 
-            // 3. Vérifier que la date est dans la période de l'année scolaire
-            if ($this->has('date') && $calendrier) {
+            // 2. Vérifier que la date est dans la période de l'année scolaire
+            if ($this->has('date')) {
                 $date = Carbon::parse($this->date);
                 if ($date->lt($calendrier->date_rentree) || $date->gt($calendrier->date_fin_annee)) {
                     $validator->errors()->add(
@@ -193,8 +171,8 @@ class UpdateJourFerieRequest extends FormRequest
                 }
             }
 
-            // 4. Vérifier l'unicité si date ou ecole_id changé
-            if (($this->has('date') || $this->has('ecole_id')) && $calendrier) {
+            // 3. Vérifier l'unicité si date ou ecole_id changé
+            if ($this->has('date') || $this->has('ecole_id')) {
                 $date = $this->date ?? ($jourFerie ? $jourFerie->date->format('Y-m-d') : null);
                 $ecoleId = $this->has('ecole_id') ? $this->ecole_id : ($jourFerie ? $jourFerie->ecole_id : null);
 
