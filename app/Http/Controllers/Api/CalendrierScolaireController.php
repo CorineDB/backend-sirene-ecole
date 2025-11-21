@@ -7,6 +7,7 @@ use App\Http\Requests\CalendrierScolaire\CreateCalendrierScolaireRequest;
 use App\Http\Requests\CalendrierScolaire\StoreMultipleJoursFeriesRequest;
 use App\Http\Requests\CalendrierScolaire\UpdateMultipleJoursFeriesRequest;
 use App\Http\Requests\CalendrierScolaire\UpdateCalendrierScolaireRequest;
+use App\Http\Requests\JoursFeriesFiltreRequest;
 use App\Services\Contracts\CalendrierScolaireServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -326,10 +327,10 @@ class CalendrierScolaireController extends Controller
      *     )
      * )
      */
-    public function getJoursFeries(string $id): JsonResponse
+    public function getJoursFeries(JoursFeriesFiltreRequest $request, string $id): JsonResponse
     {
         Gate::authorize('voir_calendrier_scolaire');
-        return $this->calendrierScolaireService->getJoursFeries($id);
+        return $this->calendrierScolaireService->getJoursFeries($id, $request->getFiltres());
     }
 
     /**

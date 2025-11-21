@@ -6,21 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 interface CalendrierScolaireServiceInterface extends BaseServiceInterface
 {
-    /**
-     * Create a new school calendar entry with its default holidays.
-     *
-     * @param array $data
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function create(array $data): \Illuminate\Http\JsonResponse;
 
     /**
      * Get all public holidays associated with a specific school calendar.
      *
      * @param string $calendrierScolaireId The ID of the school calendar.
+     * @param \App\Http\Requests\JoursFeriesFiltreRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getJoursFeries(string $calendrierScolaireId): \Illuminate\Http\JsonResponse;
+    public function getJoursFeries(string $calendrierScolaireId, array $filters = []): \Illuminate\Http\JsonResponse;
 
     /**
      * Calculate the number of school days for a given school calendar, excluding weekends, holidays, and vacation periods.
