@@ -383,5 +383,85 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
         }
     }
 
-    // Implement specific methods for CalendrierScolaireService here if needed
+    /**
+     * Update a school calendar entry.
+     *
+     * @param string $id
+     * @param array $data
+     * @return JsonResponse
+     */
+    public function update(string $id, array $data): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $calendrierScolaire = $this->repository->find($id);
+            if (!$calendrierScolaire) {
+                return $this->notFoundResponse('Calendrier scolaire non trouvé.');
+            }
+
+            // Extraire les jours fériés du payload
+            $joursFeriesData = $data['jours_feries_defaut'] ?? null;
+            unset($data['jours_feries_defaut']);
+
+            // Mettre à jour le calendrier scolaire
+            $this->repository->update($id, $data);
+
+            // Gérer les jours fériés si fournis
+            if ($joursFeriesData !== null) {
+                // Supprimer les anciens jours fériés liés à ce calendrier
+                \App\Models\JourFerie::where('calendrier_id', $id)->delete();
+
+                // Créer les nouveaux jours fériés
+                $createdJoursFeries = [];
+                foreach ($joursFeriesData as $jourFerieData) {
+                    $jourFerieData['calendrier_id'] = $id;
+                    $jourFerieData['pays_id'] = $data['pays_id'] ?? $calendrierScolaire->pays_id;
+                    $jourFerieData['intitule_journee'] = $jourFerieData['nom'] ?? $jourFerieData['intitule_journee'];
+                    $jourFerieData['est_national'] = $jourFerieData['est_national'] ?? true;
+                    $jourFerieData['actif'] = $jourFerieData['actif'] ?? true;
+                    $jourFerieData['date'] = $jourFerieData['date'];
+                    unset($jourFerieData['nom']);
+                    $created = $this->jourFerieRepository->create($jourFerieData);
+                    $createdJoursFeries[] = [
+                        'intitule_journee' => $created->intitule_journee,
+                        'date' => $created->date->format('Y-m-d'),
+                        'recurrent' => $created->recurrent ?? false,
+                        'est_national' => $created->est_national,
+                    ];
+                }
+
+                // Récupérer les jours fériés nationaux existants
+                $paysId = $data['pays_id'] ?? $calendrierScolaire->pays_id;
+                $joursFeriesNationaux = [];
+                if ($paysId) {
+                    $joursFeriesNationaux = \App\Models\JourFerie::where('pays_id', $paysId)
+                        ->where('est_national', true)
+                        ->where('actif', true)
+                        ->where('calendrier_id', '!=', $id)
+                        ->get(['intitule_journee', 'date', 'recurrent', 'est_national'])
+                        ->map(function ($item) {
+                            return [
+                                'intitule_journee' => $item->intitule_journee,
+                                'date' => $item->date->format('Y-m-d'),
+                                'recurrent' => $item->recurrent,
+                                'est_national' => $item->est_national,
+                            ];
+                        })
+                        ->toArray();
+                }
+
+                // Fusionner et mettre à jour
+                $allJoursFeries = array_merge($createdJoursFeries, $joursFeriesNationaux);
+                $calendrierScolaire->update(['jours_feries_defaut' => $allJoursFeries]);
+            }
+
+            DB::commit();
+            return $this->successResponse(null, $this->repository->find($id)->load('joursFeries'));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in " . get_class($this) . "::update - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
 }
