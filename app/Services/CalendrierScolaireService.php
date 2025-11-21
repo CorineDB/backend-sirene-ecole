@@ -139,16 +139,35 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
      * @param string $calendrierScolaireId The ID of the school calendar.
      * @return JsonResponse
      */
-    public function getJoursFeries(string $calendrierScolaireId): JsonResponse
+    public function getJoursFeries(string $calendrierScolaireId, array $filters = []): JsonResponse
     {
         try {
-            $calendrierScolaire = $this->repository->find($calendrierScolaireId, relations: ['joursFeries']);
+            $calendrierScolaire = $this->repository->find($calendrierScolaireId);
 
             if (!$calendrierScolaire) {
                 return $this->notFoundResponse('School calendar not found.');
             }
 
-            return $this->successResponse(null, $calendrierScolaire->joursFeries);
+            // Construire la requête avec filtres
+            $query = $calendrierScolaire->joursFeries();
+
+            if (isset($filters['est_national'])) {
+                $query->where('est_national', $filters['est_national']);
+            }
+
+            if (isset($filters['ecole_id'])) {
+                $query->where('ecole_id', $filters['ecole_id']);
+            }
+
+            if (isset($filters['date_debut'])) {
+                $query->where('date', '>=', $filters['date_debut']);
+            }
+
+            if (isset($filters['date_fin'])) {
+                $query->where('date', '<=', $filters['date_fin']);
+            }
+
+            return $this->successResponse(null, $query->get());
         } catch (\Exception $e) {
             Log::error("Error in " . get_class($this) . "::getJoursFeries - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
