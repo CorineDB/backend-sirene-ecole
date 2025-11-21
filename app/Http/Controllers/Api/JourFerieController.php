@@ -86,6 +86,13 @@ class JourFerieController extends Controller
 
         // Si des filtres sont présents, utiliser la méthode de filtrage
         if (!empty($filters)) {
+            // Convertir la chaîne "null" en véritable null
+            foreach ($filters as $key => $value) {
+                if ($value === 'null') {
+                    $filters[$key] = null;
+                }
+            }
+
             // Nettoyer les filtres vides
             $filters = array_filter($filters, function($value) {
                 return $value !== null && $value !== '';
@@ -96,7 +103,10 @@ class JourFerieController extends Controller
                 $filters['est_national'] = filter_var($filters['est_national'], FILTER_VALIDATE_BOOLEAN);
             }
 
-            return $this->jourFerieService->findAllBy($filters);
+            // Si après nettoyage il reste des filtres, les utiliser
+            if (!empty($filters)) {
+                return $this->jourFerieService->findAllBy($filters);
+            }
         }
 
         return $this->jourFerieService->getAll($perPage);
