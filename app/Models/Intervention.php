@@ -34,6 +34,9 @@ class Intervention extends Model
         'note_ecole',
         'commentaire_ecole',
         'observations',
+        'instructions',
+        'lieu_rdv',
+        'heure_rdv',
     ];
 
     protected $casts = [
@@ -45,6 +48,7 @@ class Intervention extends Model
         'date_fin' => 'datetime',
         'old_statut' => StatutIntervention::class,
         'note_ecole' => 'integer',
+        'heure_rdv' => 'datetime:H:i',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
