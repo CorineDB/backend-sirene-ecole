@@ -165,6 +165,7 @@ Route::prefix('calendrier-scolaire')->middleware('auth:api')->group(function () 
 Route::prefix('jours-feries')->middleware('auth:api')->group(function () {
     Route::get('/', [JourFerieController::class, 'index']);
     Route::post('/', [JourFerieController::class, 'store']);
+    Route::post('bulk', [JourFerieController::class, 'storeBulk']);
     Route::get('{id}', [JourFerieController::class, 'show']);
     Route::put('{id}', [JourFerieController::class, 'update']);
     Route::delete('{id}', [JourFerieController::class, 'destroy']);

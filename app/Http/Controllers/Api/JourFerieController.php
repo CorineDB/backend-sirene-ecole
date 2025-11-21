@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\JourFerie\BulkCreateJourFerieRequest;
 use App\Http\Requests\JourFerie\CreateJourFerieRequest;
 use App\Http\Requests\JourFerie\UpdateJourFerieRequest;
 use App\Services\Contracts\JourFerieServiceInterface;
@@ -132,6 +133,36 @@ class JourFerieController extends Controller
     {
         Gate::authorize('creer_jour_ferie');
         return $this->jourFerieService->create($request->all());
+    }
+
+    /**
+     * Store multiple public holidays at once.
+     *
+     * @OA\Post(
+     *     path="/api/jours-feries/bulk",
+     *     summary="Create multiple public holidays at once",
+     *     tags={"Jours Fériés"},
+     *     security={ {"passport": {}} },
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="jours_feries", type="array", @OA\Items(ref="#/components/schemas/CreateJourFerieRequest"))
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Public holidays created successfully"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error"
+     *     )
+     * )
+     */
+    public function storeBulk(BulkCreateJourFerieRequest $request): JsonResponse
+    {
+        Gate::authorize('creer_jour_ferie');
+        return $this->jourFerieService->createBulk($request->jours_feries);
     }
 
     /**

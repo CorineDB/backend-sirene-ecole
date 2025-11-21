@@ -58,6 +58,38 @@ class JourFerieService extends BaseService implements JourFerieServiceInterface
     }
 
     /**
+     * Create multiple JourFerie entries at once.
+     *
+     * @param array $items Array of jour ferie data
+     * @return JsonResponse
+     */
+    public function createBulk(array $items): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $created = [];
+            foreach ($items as $data) {
+                // Récupérer pays_id depuis le calendrier
+                if (isset($data['calendrier_id']) && !isset($data['pays_id'])) {
+                    $calendrier = CalendrierScolaire::find($data['calendrier_id']);
+                    if ($calendrier) {
+                        $data['pays_id'] = $calendrier->pays_id;
+                    }
+                }
+                $created[] = $this->repository->create($data);
+            }
+
+            DB::commit();
+            return $this->createdResponse($created);
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in " . get_class($this) . "::createBulk - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Get all public holidays.
      *
      * @return JsonResponse
