@@ -109,10 +109,21 @@ class CreateJourFerieRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $data = [];
+
+        // Auto-assigner ecole_id si l'utilisateur est une école et n'a pas fourni ecole_id
+        if ($this->user() && $this->user()->user_account_type_type === Ecole::class) {
+            if (!$this->has('ecole_id') && !$this->route('ecole')) {
+                $data['ecole_id'] = $this->user()->user_account_type_id;
+            }
+        }
+
         if ($this->has('date')) {
-            $this->merge([
-                'date' => $this->parseDate($this->date),
-            ]);
+            $data['date'] = $this->parseDate($this->date);
+        }
+
+        if (!empty($data)) {
+            $this->merge($data);
         }
     }
 
