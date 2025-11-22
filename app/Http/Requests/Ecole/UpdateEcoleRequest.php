@@ -110,8 +110,12 @@ class UpdateEcoleRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Vérifier que l'utilisateur connecté est bien de type ECOLE
-        return $this->user() && $this->user()->type === 'ECOLE';
+        // Les admins et utilisateurs avec la permission modifier_ecole peuvent modifier
+        return $this->user() && (
+            $this->user()->type === 'ECOLE' ||
+            $this->user()->isAdmin() ||
+            $this->user()->role?->permissions->pluck('slug')->contains('modifier_ecole')
+        );
     }
 
     /**
@@ -119,7 +123,8 @@ class UpdateEcoleRequest extends FormRequest
      */
     public function rules(): array
     {
-        $ecoleId = $this->user()->user_account_type_id;
+        // Pour les admins, récupérer l'ID depuis la route, sinon depuis le user
+        $ecoleId = $this->route('id') ?? $this->user()->user_account_type_id;
 
         return [
             'nom' => ['sometimes', 'string', 'max:255'],
