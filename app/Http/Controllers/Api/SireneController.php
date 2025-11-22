@@ -560,13 +560,13 @@ class SireneController extends Controller
     }
 
     /**
-     * Obtenir la programmation cryptée pour la sirène authentifiée
+     * Obtenir les programmations actives cryptées pour la sirène authentifiée
      * Endpoint public utilisé par les modules ESP8266 pour récupérer les programmations
      * La sirène est identifiée via le token dans le header X-Sirene-Token
      *
      * @OA\Get(
-     *     path="/api/sirenes/programmation",
-     *     summary="Get encrypted programmation for authenticated sirene (Token-based auth)",
+     *     path="/api/sirenes/programmations-actives",
+     *     summary="Get active encrypted programmation for authenticated sirene (Token-based auth)",
      *     tags={"Sirenes"},
      *     @OA\Parameter(
      *         name="X-Sirene-Token",

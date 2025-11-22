@@ -48,7 +48,7 @@ Le système d'authentification des sirènes ESP8266 utilise un **token crypté**
 
 2. **Routes publiques Sirène** :
    - `GET /api/sirenes/config/{numeroSerie}` → Sans authentification (init)
-   - `GET /api/sirenes/programmation` → Avec authentification (token identifie la sirène)
+   - `GET /api/sirenes/programmations-actives` → Avec authentification (token identifie la sirène)
 
 ---
 
@@ -123,7 +123,7 @@ curl -X GET "http://localhost:8000/api/sirenes/config/SRN12345" \
 
 **Endpoint** :
 ```http
-GET /api/sirenes/programmation
+GET /api/sirenes/programmations-actives
 ```
 
 **Headers** :
@@ -134,7 +134,7 @@ X-Sirene-Token: {votre_token_crypte}
 
 **Exemple cURL** :
 ```bash
-curl -X GET "http://localhost:8000/api/sirenes/programmation" \
+curl -X GET "http://localhost:8000/api/sirenes/programmations-actives" \
   -H "Accept: application/json" \
   -H "X-Sirene-Token: a1b2c3d4e5f6g7h8i9j0..."
 ```
@@ -345,9 +345,9 @@ bool getProgrammation(String token) {
   WiFiClient client;
 
   // Construire l'URL - Pas besoin du numéro de série, le token identifie la sirène
-  String url = String(API_BASE_URL) + "/programmation";
+  String url = String(API_BASE_URL) + "/programmations-actives";
 
-  Serial.println("🔄 Récupération de la programmation...");
+  Serial.println("🔄 Récupération des programmations actives...");
   Serial.println("URL: " + url);
 
   http.begin(client, url);
@@ -515,11 +515,11 @@ curl -X GET "http://localhost:8000/api/sirenes/SRN12345/config" \
   -v
 ```
 
-### Test 2 : Programmation (Avec Token)
+### Test 2 : Programmations Actives (Avec Token)
 
 ```bash
 # Remplacer TOKEN_ICI par le token reçu de l'étape 1
-curl -X GET "http://localhost:8000/api/sirenes/programmation" \
+curl -X GET "http://localhost:8000/api/sirenes/programmations-actives" \
   -H "Accept: application/json" \
   -H "X-Sirene-Token: TOKEN_ICI" \
   -v
@@ -527,20 +527,20 @@ curl -X GET "http://localhost:8000/api/sirenes/programmation" \
 
 **Note** : Pas besoin du numéro de série dans l'URL, le token identifie automatiquement la sirène.
 
-### Test 3 : Programmation (Sans Token - Doit échouer)
+### Test 3 : Programmations Actives (Sans Token - Doit échouer)
 
 ```bash
-curl -X GET "http://localhost:8000/api/sirenes/programmation" \
+curl -X GET "http://localhost:8000/api/sirenes/programmations-actives" \
   -H "Accept: application/json" \
   -v
 ```
 
 Devrait retourner une erreur 401 : "Token d'authentification requis. Veuillez fournir le header X-Sirene-Token."
 
-### Test 4 : Programmation (Token Invalide - Doit échouer)
+### Test 4 : Programmations Actives (Token Invalide - Doit échouer)
 
 ```bash
-curl -X GET "http://localhost:8000/api/sirenes/programmation" \
+curl -X GET "http://localhost:8000/api/sirenes/programmations-actives" \
   -H "Accept: application/json" \
   -H "X-Sirene-Token: TOKEN_INVALIDE" \
   -v
@@ -588,7 +588,7 @@ ESP8266                 Backend (Laravel)              Base de Données
    │                            │                              │
    │  Stocke token EEPROM       │                              │
    │                            │                              │
-   │  2. GET /programmation     │                              │
+   │  2. GET /programmations-actives │                         │
    │     X-Sirene-Token: xxx    │                              │
    ├───────────────────────────>│                              │
    │                            │  Middleware vérifie token     │
@@ -612,7 +612,7 @@ ESP8266                 Backend (Laravel)              Base de Données
 
 1. **Premier Démarrage** : L'ESP8266 appelle d'abord `/config/{numeroSerie}` pour obtenir son token
 2. **Token Persistant** : Le token est stocké dans l'EEPROM et réutilisé
-3. **Identification Automatique** : Le token identifie la sirène, pas besoin du numéro de série dans l'URL `/programmation`
+3. **Identification Automatique** : Le token identifie la sirène, pas besoin du numéro de série dans l'URL `/programmations-actives`
 4. **Sécurité Renforcée** : Impossible pour une sirène d'accéder aux données d'une autre sirène
 5. **Gestion d'Erreur** : Si le token expire, redemander la config
 6. **Mise à Jour** : Vérifier périodiquement les nouvelles programmations avec le même token

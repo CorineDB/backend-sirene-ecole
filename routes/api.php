@@ -111,7 +111,7 @@ Route::prefix('sirenes')->group(function () {
 
     // getProgrammation nécessite le token dans le header X-Sirene-Token
     // La sirène est identifiée via le token (pas besoin du numéro de série dans l'URL)
-    Route::get('programmation', [SireneController::class, 'getProgrammation'])
+    Route::get('programmations-actives', [SireneController::class, 'getProgrammation'])
         ->middleware('auth.esp8266');
 
     // Protected - Admin/Technicien
