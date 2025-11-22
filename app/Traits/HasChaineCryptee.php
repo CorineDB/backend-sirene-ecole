@@ -47,7 +47,7 @@ trait HasChaineCryptee
 
     /**
      * Générer la chaîne cryptée pour le module ESP8266
-     * Format Python: VERSION|DUREE|NB_HORAIRES|H:M:MASK|...|NB_CONGES|DEBUT:FIN|...|NB_FERIES|Y:M:D|...|CHECKSUM
+     * Format Python: VERSION|NB_HORAIRES|H:M:MASK:DUREE|...|NB_CONGES|DEBUT:FIN|...|NB_FERIES|Y:M:D|...|CHECKSUM
      *
      * @return string
      */
@@ -55,11 +55,10 @@ trait HasChaineCryptee
     {
         $parts = [];
 
-        // 1. Version et durée
+        // 1. Version (suppression de la durée globale, maintenant par horaire)
         $parts[] = $this->PROGRAMMATION_VERSION;
-        $parts[] = $this->DUREE_SONNERIE;
 
-        // 2. Horaires de sonnerie
+        // 2. Horaires de sonnerie (avec durée individuelle)
         $horaires = $this->horaires_sonneries ?? [];
         $parts[] = count($horaires);
 
@@ -67,11 +66,12 @@ trait HasChaineCryptee
             $heure = $horaire['heure'] ?? 0;
             $minute = $horaire['minute'] ?? 0;
             $jours = $horaire['jours'] ?? [];
+            $duree = $horaire['duree_sonnerie'] ?? $this->DUREE_SONNERIE; // Fallback sur valeur par défaut
 
             // Convertir le tableau de jours en masque binaire
             $mask = $this->joursVersIntMasque($jours);
 
-            $parts[] = "{$heure}:{$minute}:{$mask}";
+            $parts[] = "{$heure}:{$minute}:{$mask}:{$duree}";
         }
 
         // 3. Périodes de congés (vacances)
@@ -220,17 +220,24 @@ trait HasChaineCryptee
             $index = 0;
 
             $version = (int) ($parts[$index++] ?? 1);
-            $duree = (int) ($parts[$index++] ?? 3);
             $nb_horaires = (int) ($parts[$index++] ?? 0);
 
             $horaires = [];
             for ($i = 0; $i < $nb_horaires; $i++) {
                 if (!isset($parts[$index])) break;
-                [$h, $m, $mask] = explode(':', $parts[$index++]);
+
+                // Format: H:M:MASK:DUREE (nouvelle version avec durée par horaire)
+                $horaireData = explode(':', $parts[$index++]);
+                $h = (int) ($horaireData[0] ?? 0);
+                $m = (int) ($horaireData[1] ?? 0);
+                $mask = (int) ($horaireData[2] ?? 0);
+                $duree = isset($horaireData[3]) ? (int) $horaireData[3] : 3; // Fallback sur 3s
+
                 $horaires[] = [
-                    'heure' => (int) $h,
-                    'minute' => (int) $m,
-                    'jours' => $this->intMasqueVersJours((int) $mask),
+                    'heure' => $h,
+                    'minute' => $m,
+                    'jours' => $this->intMasqueVersJours($mask),
+                    'duree_sonnerie' => $duree,
                 ];
             }
 
@@ -259,7 +266,6 @@ trait HasChaineCryptee
 
             return [
                 'version' => $version,
-                'duree' => $duree,
                 'horaires' => $horaires,
                 'conges' => $conges,
                 'feries' => $feries,

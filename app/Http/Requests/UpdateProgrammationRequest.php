@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\DTO\HoraireSonnerieDTO;
 use App\Models\Ecole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use OpenApi\Annotations as OA;
 
 /**
@@ -26,6 +28,8 @@ use OpenApi\Annotations as OA;
  *             required={"heure", "minute", "jours"},
  *             @OA\Property(property="heure", type="integer", minimum=0, maximum=23, description="Heure (0-23)"),
  *             @OA\Property(property="minute", type="integer", minimum=0, maximum=59, description="Minute (0-59)"),
+ *             @OA\Property(property="duree_sonnerie", type="integer", minimum=1, maximum=30, nullable=true, description="Durée de la sonnerie en secondes (défaut: 3s)"),
+ *             @OA\Property(property="description", type="string", maxLength=255, nullable=true, description="Description de l'horaire (ex: 'Début des cours', 'Récréation')"),
  *             @OA\Property(
  *                 property="jours",
  *                 type="array",
@@ -87,6 +91,75 @@ class UpdateProgrammationRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation using HoraireSonnerieDTO
+     */
+    protected function prepareForValidation(): void
+    {
+        $horaires = $this->input('horaires_sonneries');
+
+        // Si horaires_sonneries n'est pas présent dans la requête, ne rien faire
+        if ($horaires === null || !is_array($horaires)) {
+            return;
+        }
+
+        $normalizedHoraires = [];
+        $signatures = [];
+
+        foreach ($horaires as $index => $horaireData) {
+            try {
+                // Valider et normaliser avec le DTO
+                $dto = new HoraireSonnerieDTO($horaireData);
+
+                // Vérifier les doublons avec la signature du DTO
+                $signature = $dto->getSignature();
+                if (in_array($signature, $signatures)) {
+                    throw ValidationException::withMessages([
+                        "horaires_sonneries.{$index}" => "Horaire en double détecté: {$dto->getFormattedTime()} pour les jours " . implode(', ', $dto->getJoursNoms())
+                    ]);
+                }
+                $signatures[] = $signature;
+
+                // Normaliser les données avec le DTO
+                $normalizedHoraires[] = $dto->toArray();
+
+            } catch (\InvalidArgumentException $e) {
+                // Convertir l'exception du DTO en ValidationException Laravel
+                throw ValidationException::withMessages([
+                    "horaires_sonneries.{$index}" => $e->getMessage()
+                ]);
+            }
+        }
+
+        // Vérifier que les horaires sont triés chronologiquement
+        $sorted = $normalizedHoraires;
+        usort($sorted, function ($a, $b) {
+            $timeA = $a['heure'] * 60 + $a['minute'];
+            $timeB = $b['heure'] * 60 + $b['minute'];
+            return $timeA - $timeB;
+        });
+
+        $isSorted = true;
+        foreach ($normalizedHoraires as $idx => $horaire) {
+            if ($horaire['heure'] !== $sorted[$idx]['heure'] ||
+                $horaire['minute'] !== $sorted[$idx]['minute']) {
+                $isSorted = false;
+                break;
+            }
+        }
+
+        if (!$isSorted) {
+            throw ValidationException::withMessages([
+                'horaires_sonneries' => 'Les horaires de sonnerie doivent être triés dans l\'ordre chronologique.'
+            ]);
+        }
+
+        // Remplacer les données par les données normalisées
+        $this->merge([
+            'horaires_sonneries' => $normalizedHoraires
+        ]);
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
@@ -108,65 +181,14 @@ class UpdateProgrammationRequest extends FormRequest
             'calendrier_id' => ['sometimes', 'nullable', 'exists:calendriers_scolaires,id'],
 
             // Horaires de sonnerie au format ESP8266 (CRITIQUES)
-            // Format: [{"heure": 8, "minute": 0, "jours": [1,2,3,4,5]}, ...]
-            'horaires_sonneries' => [
-                'sometimes',
-                'required',
-                'array',
-                'min:1',
-                function ($attribute, $value, $fail) {
-                    // Vérifier qu'il n'y a pas de doublons
-                    $signatures = [];
-                    foreach ($value as $horaire) {
-                        if (!isset($horaire['heure']) || !isset($horaire['minute']) || !isset($horaire['jours'])) {
-                            continue;
-                        }
-                        $signature = sprintf('%02d:%02d:%s',
-                            $horaire['heure'],
-                            $horaire['minute'],
-                            implode(',', $horaire['jours'])
-                        );
-                        if (in_array($signature, $signatures)) {
-                            $fail('Les horaires de sonnerie ne doivent pas contenir de doublons.');
-                            return;
-                        }
-                        $signatures[] = $signature;
-                    }
-
-                    // Vérifier que les horaires sont triés par heure puis minute
-                    $sorted = $value;
-                    usort($sorted, function ($a, $b) {
-                        $timeA = ($a['heure'] ?? 0) * 60 + ($a['minute'] ?? 0);
-                        $timeB = ($b['heure'] ?? 0) * 60 + ($b['minute'] ?? 0);
-                        return $timeA - $timeB;
-                    });
-
-                    // Comparer en JSON car les tableaux peuvent avoir des ordres différents pour 'jours'
-                    $valueJson = json_encode(array_map(function($h) {
-                        return ['heure' => $h['heure'] ?? 0, 'minute' => $h['minute'] ?? 0];
-                    }, $value));
-                    $sortedJson = json_encode(array_map(function($h) {
-                        return ['heure' => $h['heure'] ?? 0, 'minute' => $h['minute'] ?? 0];
-                    }, $sorted));
-
-                    if ($valueJson !== $sortedJson) {
-                        $fail('Les horaires de sonnerie doivent être triés dans l\'ordre chronologique.');
-                    }
-                },
-            ],
+            // Format: [{"heure": 8, "minute": 0, "jours": [1,2,3,4,5], "duree_sonnerie": 3, "description": "Début cours"}, ...]
+            // Note: La validation stricte est effectuée par le HoraireSonnerieDTO dans prepareForValidation()
+            'horaires_sonneries' => ['sometimes', 'required', 'array', 'min:1'],
             'horaires_sonneries.*.heure' => ['required_with:horaires_sonneries', 'integer', 'min:0', 'max:23'],
             'horaires_sonneries.*.minute' => ['required_with:horaires_sonneries', 'integer', 'min:0', 'max:59'],
-            'horaires_sonneries.*.jours' => [
-                'required_with:horaires_sonneries',
-                'array',
-                'min:1',
-                function ($attribute, $value, $fail) {
-                    // Vérifier qu'il n'y a pas de doublons dans les jours
-                    if (count($value) !== count(array_unique($value))) {
-                        $fail('Les jours ne doivent pas contenir de doublons.');
-                    }
-                },
-            ],
+            'horaires_sonneries.*.duree_sonnerie' => ['nullable', 'integer', 'min:1', 'max:30'],
+            'horaires_sonneries.*.description' => ['nullable', 'string', 'max:255'],
+            'horaires_sonneries.*.jours' => ['required_with:horaires_sonneries', 'array', 'min:1'],
             'horaires_sonneries.*.jours.*' => ['required_with:horaires_sonneries.*.jours', 'integer', 'min:0', 'max:6'],
 
             // Gestion des jours fériés
