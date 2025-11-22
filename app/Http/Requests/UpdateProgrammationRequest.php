@@ -226,9 +226,54 @@ class UpdateProgrammationRequest extends FormRequest
 
             // Informations de base
             'nom_programmation' => ['sometimes', 'required', 'string', 'max:255'],
-            'date_debut' => ['sometimes', 'required', 'date', 'before_or_equal:date_fin'],
-            'date_fin' => ['sometimes', 'required', 'date', 'after_or_equal:date_debut'],
-            'actif' => ['sometimes', 'boolean'],
+            'date_debut' => [
+                'sometimes',
+                'required',
+                'date',
+                'before_or_equal:date_fin',
+                function ($attribute, $value, $fail) {
+                    // Vérifier les chevauchements uniquement si actif=true (ou si actif n'est pas modifié et était déjà true)
+                    $programmation = $this->route('programmation');
+                    $actif = $this->input('actif', $programmation ? $programmation->actif : false);
+
+                    if ($actif === true) {
+                        $dateFin = $this->input('date_fin', $programmation ? $programmation->date_fin->format('Y-m-d') : null);
+                        $this->validateDateOverlap($value, $dateFin, $fail);
+                    }
+                },
+            ],
+            'date_fin' => [
+                'sometimes',
+                'required',
+                'date',
+                'after_or_equal:date_debut',
+                function ($attribute, $value, $fail) {
+                    // Vérifier les chevauchements si date_fin est modifiée
+                    $programmation = $this->route('programmation');
+                    $actif = $this->input('actif', $programmation ? $programmation->actif : false);
+
+                    if ($actif === true && $this->has('date_fin')) {
+                        $dateDebut = $this->input('date_debut', $programmation ? $programmation->date_debut->format('Y-m-d') : null);
+                        $this->validateDateOverlap($dateDebut, $value, $fail);
+                    }
+                },
+            ],
+            'actif' => [
+                'sometimes',
+                'boolean',
+                function ($attribute, $value, $fail) {
+                    // Vérifier les chevauchements si on active une programmation
+                    if ($value === true) {
+                        $programmation = $this->route('programmation');
+                        $dateDebut = $this->input('date_debut', $programmation ? $programmation->date_debut->format('Y-m-d') : null);
+                        $dateFin = $this->input('date_fin', $programmation ? $programmation->date_fin->format('Y-m-d') : null);
+
+                        if ($dateDebut && $dateFin) {
+                            $this->validateDateOverlap($dateDebut, $dateFin, $fail);
+                        }
+                    }
+                },
+            ],
 
             // Calendrier scolaire (optionnel)
             'calendrier_id' => ['sometimes', 'nullable', 'exists:calendriers_scolaires,id'],
@@ -259,6 +304,55 @@ class UpdateProgrammationRequest extends FormRequest
             // Abonnement (optionnel, ne peut être modifié que par admin)
             'abonnement_id' => ['sometimes', 'nullable', 'exists:abonnements,id'],
         ];
+    }
+
+    /**
+     * Validate that date ranges don't overlap with other active programmations for the same sirene
+     *
+     * @param string $dateDebut
+     * @param string $dateFin
+     * @param \Closure $fail
+     * @return void
+     */
+    protected function validateDateOverlap(string $dateDebut, ?string $dateFin, \Closure $fail): void
+    {
+        if (!$dateFin) {
+            return; // Si date_fin n'est pas encore validée, on skip
+        }
+
+        $sirene = $this->route('sirene');
+        $programmationEnCours = $this->route('programmation');
+
+        if (!$sirene || !$programmationEnCours) {
+            return;
+        }
+
+        // Récupérer toutes les programmations actives pour cette sirène SAUF celle en cours de modification
+        $programmationsActives = \App\Models\Programmation::where('sirene_id', $sirene->id)
+            ->where('actif', true)
+            ->where('id', '!=', $programmationEnCours->id) // Exclure la programmation en cours
+            ->whereNull('deleted_at')
+            ->get(['id', 'nom_programmation', 'date_debut', 'date_fin']);
+
+        // Vérifier les chevauchements
+        foreach ($programmationsActives as $prog) {
+            // Deux périodes se chevauchent si :
+            // date_debut_A <= date_fin_B ET date_fin_A >= date_debut_B
+            $overlap = $dateDebut <= $prog->date_fin->format('Y-m-d') &&
+                       $dateFin >= $prog->date_debut->format('Y-m-d');
+
+            if ($overlap) {
+                $fail(sprintf(
+                    'Cette période (%s au %s) chevauche une programmation active existante "%s" (%s au %s). Une seule programmation active par période est autorisée.',
+                    $dateDebut,
+                    $dateFin,
+                    $prog->nom_programmation,
+                    $prog->date_debut->format('Y-m-d'),
+                    $prog->date_fin->format('Y-m-d')
+                ));
+                return;
+            }
+        }
     }
 
     /**
