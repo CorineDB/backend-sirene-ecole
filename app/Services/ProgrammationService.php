@@ -50,6 +50,44 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
     }
 
     /**
+     * Get paginated programmations for a sirene
+     *
+     * @param string $sireneId
+     * @param int $perPage Number of items per page (default: 15)
+     * @return JsonResponse
+     */
+    public function getPaginatedBySireneId(string $sireneId, int $perPage = 15): JsonResponse
+    {
+        try {
+            $programmations = $this->repository->getPaginatedBySireneId($sireneId, $perPage);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Programmations paginées récupérées avec succès.',
+                'data' => $programmations->items(),
+                'pagination' => [
+                    'current_page' => $programmations->currentPage(),
+                    'per_page' => $programmations->perPage(),
+                    'total' => $programmations->total(),
+                    'last_page' => $programmations->lastPage(),
+                    'from' => $programmations->firstItem(),
+                    'to' => $programmations->lastItem(),
+                    'has_more_pages' => $programmations->hasMorePages(),
+                ],
+                'links' => [
+                    'first' => $programmations->url(1),
+                    'last' => $programmations->url($programmations->lastPage()),
+                    'prev' => $programmations->previousPageUrl(),
+                    'next' => $programmations->nextPageUrl(),
+                ],
+            ]);
+        } catch (Exception $e) {
+            Log::error("Error in " . get_class($this) . "::getPaginatedBySireneId - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Get effective programmations for a sirene on a specific date, considering holidays.
      *
      * @param string $sireneId
