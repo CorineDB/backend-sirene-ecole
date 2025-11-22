@@ -109,21 +109,7 @@ class UpdateJourFerieRequest extends FormRequest
 
         // Pour les admins
         if ($user->isAdmin()) {
-            // Si un ecole_id est associé, vérifier l'abonnement actif
-            if ($ecoleId) {
-                $ecole = Ecole::find($ecoleId);
-
-                if (!$ecole) {
-                    return false;
-                }
-
-                // Vérifier que l'école a un abonnement actif
-                if (!$ecole->hasActiveSubscription()) {
-                    return false;
-                }
-            }
-
-            return true; // Les admins peuvent modifier des jours fériés nationaux ou d'école
+            return true; // Les admins peuvent tout faire sans restriction d'abonnement
         }
 
         return false;

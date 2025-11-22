@@ -98,21 +98,7 @@ class CreateJourFerieRequest extends FormRequest
 
         // Pour les admins
         if ($user->isAdmin()) {
-            // Si un ecole_id est fourni, vérifier l'abonnement actif
-            if ($ecoleId) {
-                $ecole = Ecole::find($ecoleId);
-
-                if (!$ecole) {
-                    return false;
-                }
-
-                // Vérifier que l'école a un abonnement actif
-                if (!$ecole->hasActiveSubscription()) {
-                    return false;
-                }
-            }
-
-            return true; // Les admins peuvent créer des jours fériés nationaux ou pour une école
+            return true; // Les admins peuvent tout faire sans restriction d'abonnement
         }
 
         return false;
