@@ -76,6 +76,23 @@ Route::prefix('auth')->middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('changerMotDePasse', [AuthController::class, 'changerMotDePasse']);
     Route::get('me', [AuthController::class, 'me']);
+
+    // Temporary debug endpoint
+    Route::get('debug-permissions', function () {
+        $user = auth()->user();
+        $user->load('role.permissions');
+
+        $canViewProgrammations = Gate::allows('voir_les_programmations');
+
+        return response()->json([
+            'user_id' => $user->id,
+            'role' => $user->role->nom ?? 'No role',
+            'permissions_count' => $user->role->permissions->count() ?? 0,
+            'has_voir_programmations' => $user->role->permissions->contains('slug', 'voir_les_programmations'),
+            'gate_allows_voir_programmations' => $canViewProgrammations,
+            'all_permission_slugs' => $user->role->permissions->pluck('slug'),
+        ]);
+    });
 });
 
 // Ecole routes
