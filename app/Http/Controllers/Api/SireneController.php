@@ -375,19 +375,55 @@ class SireneController extends Controller
     }
 
     /**
-     * Obtenir les sirènes dont l'école a un abonnement actif
+     * Obtenir les sirènes dont l'école a un abonnement actif (avec pagination)
      * @OA\Get(
      *     path="/api/sirenes-avec-abonnement-actif",
-     *     summary="Get sirenes with active subscription",
+     *     summary="Get sirenes with active subscription (paginated)",
      *     tags={"Sirenes"},
      *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Numéro de la page",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         description="Nombre de sirènes par page (max: 100)",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=15)
+     *     ),
+     *     @OA\Parameter(
+     *         name="ecole_id",
+     *         in="query",
+     *         description="Filtrer par ID d'école",
+     *         required=false,
+     *         @OA\Schema(type="string", format="ulid")
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Successful operation",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Sirènes avec abonnement actif récupérées avec succès."),
-     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Sirene"))
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Sirene")),
+     *             @OA\Property(property="pagination", type="object",
+     *                 @OA\Property(property="current_page", type="integer", example=1),
+     *                 @OA\Property(property="per_page", type="integer", example=15),
+     *                 @OA\Property(property="total", type="integer", example=45),
+     *                 @OA\Property(property="last_page", type="integer", example=3),
+     *                 @OA\Property(property="from", type="integer", example=1),
+     *                 @OA\Property(property="to", type="integer", example=15),
+     *                 @OA\Property(property="has_more_pages", type="boolean", example=true)
+     *             ),
+     *             @OA\Property(property="links", type="object",
+     *                 @OA\Property(property="first", type="string", example="http://api.example.com/api/sirenes-avec-abonnement-actif?page=1"),
+     *                 @OA\Property(property="last", type="string", example="http://api.example.com/api/sirenes-avec-abonnement-actif?page=3"),
+     *                 @OA\Property(property="prev", type="string", nullable=true, example=null),
+     *                 @OA\Property(property="next", type="string", example="http://api.example.com/api/sirenes-avec-abonnement-actif?page=2")
+     *             )
      *         )
      *     ),
      *     @OA\Response(
@@ -406,10 +442,18 @@ class SireneController extends Controller
      *     )
      * )
      */
-    public function avecAbonnementActif(): JsonResponse
+    public function avecAbonnementActif(Request $request): JsonResponse
     {
         Gate::authorize('voir_les_sirenes');
-        return $this->sireneService->getSirenesAvecAbonnementActif(['modeleSirene', 'ecole', 'site']);
+
+        $perPage = min((int) $request->query('per_page', 15), 100); // Max 100 items per page
+        $ecoleId = $request->query('ecole_id');
+
+        return $this->sireneService->getSirenesAvecAbonnementActif(
+            ['modeleSirene', 'ecole', 'site'],
+            $perPage,
+            $ecoleId
+        );
     }
 
     /**

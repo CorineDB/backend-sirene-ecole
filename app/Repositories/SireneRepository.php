@@ -44,18 +44,26 @@ class SireneRepository extends BaseRepository implements SireneRepositoryInterfa
      * Récupérer toutes les sirènes dont l'école a un abonnement actif
      *
      * @param array $relations
-     * @return Collection
+     * @param int $perPage
+     * @param string|null $ecoleId
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getSirenesAvecAbonnementActif(array $relations = []): Collection
+    public function getSirenesAvecAbonnementActif(array $relations = [], int $perPage = 15, ?string $ecoleId = null)
     {
-        return $this->model->with($relations)
+        $query = $this->model->with($relations)
             ->whereHas('ecole', function ($query) {
                 $query->whereHas('abonnements', function ($subQuery) {
                     $subQuery->where('statut', \App\Enums\StatutAbonnement::ACTIF->value)
                         ->where('date_debut', '<=', now())
                         ->where('date_fin', '>=', now());
                 });
-            })
-            ->get();
+            });
+
+        // Filtre optionnel par ecole_id
+        if ($ecoleId) {
+            $query->where('ecole_id', $ecoleId);
+        }
+
+        return $query->paginate($perPage);
     }
 }

@@ -41,11 +41,31 @@ class SireneService extends BaseService implements SireneServiceInterface
         }
     }
 
-    public function getSirenesAvecAbonnementActif(array $relations = []): JsonResponse
+    public function getSirenesAvecAbonnementActif(array $relations = [], int $perPage = 15, ?string $ecoleId = null): JsonResponse
     {
         try {
-            $sirenes = $this->repository->getSirenesAvecAbonnementActif($relations);
-            return $this->successResponse('Sirènes avec abonnement actif récupérées avec succès.', $sirenes);
+            $sirenes = $this->repository->getSirenesAvecAbonnementActif($relations, $perPage, $ecoleId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sirènes avec abonnement actif récupérées avec succès.',
+                'data' => $sirenes->items(),
+                'pagination' => [
+                    'current_page' => $sirenes->currentPage(),
+                    'per_page' => $sirenes->perPage(),
+                    'total' => $sirenes->total(),
+                    'last_page' => $sirenes->lastPage(),
+                    'from' => $sirenes->firstItem(),
+                    'to' => $sirenes->lastItem(),
+                    'has_more_pages' => $sirenes->hasMorePages(),
+                ],
+                'links' => [
+                    'first' => $sirenes->url(1),
+                    'last' => $sirenes->url($sirenes->lastPage()),
+                    'prev' => $sirenes->previousPageUrl(),
+                    'next' => $sirenes->nextPageUrl(),
+                ],
+            ]);
         } catch (Exception $e) {
             Log::error("Error in " . get_class($this) . "::getSirenesAvecAbonnementActif - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
