@@ -25,7 +25,14 @@ class AppServiceProvider extends ServiceProvider
         try {
             Permission::all()->each(function ($permission) {
                 Gate::define($permission->slug, function ($user) use ($permission) {
-                    return $user->role->permissions->contains('id', $permission->id);
+                    // Charger la relation role.permissions si elle n'est pas déjà chargée
+                    if (!$user->relationLoaded('role')) {
+                        $user->load('role.permissions');
+                    } elseif ($user->role && !$user->role->relationLoaded('permissions')) {
+                        $user->role->load('permissions');
+                    }
+
+                    return $user->role && $user->role->permissions->contains('id', $permission->id);
                 });
             });
         } catch (\Exception $e) {
