@@ -32,6 +32,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
+
+        // Register ESP8266 authentication middleware alias
+        $middleware->alias([
+            'auth.esp8266' => \App\Http\Middleware\AuthenticateEsp8266::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // This ensures default logging continues to work.

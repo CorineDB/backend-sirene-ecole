@@ -55,10 +55,13 @@ class SireneService extends BaseService implements SireneServiceInterface
         }
     }
 
-    public function getProgrammationByNumeroSerie(string $numeroSerie, ?string $tokenCrypte = null): JsonResponse
+    public function getProgrammationByNumeroSerie(string $numeroSerie): JsonResponse
     {
         try {
-            // Rechercher la sirène par numéro de série avec abonnement et token actif
+            // Note: L'authentification est déjà gérée par le middleware AuthenticateEsp8266
+            // On peut récupérer la sirène depuis request() si elle a été injectée par le middleware
+
+            // Rechercher la sirène par numéro de série avec programmations actives
             $sirene = $this->repository->model
                 ->where('numero_serie', $numeroSerie)
                 ->with([
@@ -67,66 +70,12 @@ class SireneService extends BaseService implements SireneServiceInterface
                             ->where('date_debut', '<=', now())
                             ->where('date_fin', '>=', now())
                             ->orderBy('created_at', 'desc');
-                    },
-                    'abonnements' => function ($query) {
-                        $query->where('statut', \App\Enums\StatutAbonnement::ACTIF->value)
-                            ->where('date_debut', '<=', now())
-                            ->where('date_fin', '>=', now())
-                            ->with(['tokenActif']);
                     }
                 ])
                 ->first();
 
             if (!$sirene) {
                 return $this->notFoundResponse('Sirène non trouvée pour ce numéro de série.');
-            }
-
-            // Vérifier l'authentification par token crypté si fourni
-            if ($tokenCrypte) {
-                $abonnementActif = $sirene->abonnements->first();
-
-                if (!$abonnementActif) {
-                    Log::warning("Tentative d'accès sans abonnement actif", [
-                        'numero_serie' => $numeroSerie,
-                    ]);
-                    return $this->errorResponse('Aucun abonnement actif pour cette sirène.', 401);
-                }
-
-                $tokenActif = $abonnementActif->tokenActif;
-
-                if (!$tokenActif) {
-                    Log::warning("Tentative d'accès sans token actif", [
-                        'numero_serie' => $numeroSerie,
-                        'abonnement_id' => $abonnementActif->id,
-                    ]);
-                    return $this->errorResponse('Aucun token actif trouvé.', 401);
-                }
-
-                // Vérifier que le token correspond
-                $tokenHash = hash('sha256', $tokenCrypte);
-                if ($tokenHash !== $tokenActif->token_hash) {
-                    Log::warning("Token crypté invalide", [
-                        'numero_serie' => $numeroSerie,
-                        'token_hash_fourni' => $tokenHash,
-                        'token_hash_attendu' => $tokenActif->token_hash,
-                    ]);
-                    return $this->errorResponse('Token d\'authentification invalide.', 401);
-                }
-
-                // Vérifier que le token n'est pas expiré
-                if ($tokenActif->date_expiration < now()) {
-                    Log::warning("Token expiré", [
-                        'numero_serie' => $numeroSerie,
-                        'date_expiration' => $tokenActif->date_expiration->toIso8601String(),
-                    ]);
-                    return $this->errorResponse('Token expiré.', 401);
-                }
-
-                Log::info("Authentification ESP8266 réussie", [
-                    'numero_serie' => $numeroSerie,
-                    'abonnement_id' => $abonnementActif->id,
-                    'token_id' => $tokenActif->id,
-                ]);
             }
 
             // Vérifier qu'il y a une programmation active
@@ -138,8 +87,11 @@ class SireneService extends BaseService implements SireneServiceInterface
             // Retourner les données de programmation
             return $this->successResponse(null, [
                 'chaine_cryptee' => $programmation->chaine_cryptee,
+                'chaine_programmee' => $programmation->chaine_programmee,
                 'version' => '01',
                 'date_generation' => $programmation->updated_at->format('Y-m-d H:i:s'),
+                'date_debut' => $programmation->date_debut->format('Y-m-d'),
+                'date_fin' => $programmation->date_fin->format('Y-m-d'),
             ]);
 
         } catch (Exception $e) {

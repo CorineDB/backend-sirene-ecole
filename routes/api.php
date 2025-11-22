@@ -106,8 +106,12 @@ Route::prefix('ecoles')->group(function () {
 // Sirene routes
 Route::prefix('sirenes')->group(function () {
     // Public: Configuration et programmation ESP8266
+    // getConfig ne nécessite pas d'authentification (premier appel au démarrage)
     Route::get('config/{numeroSerie}', [SireneController::class, 'getConfig']);
-    Route::get('{numeroSerie}/programmation', [SireneController::class, 'getProgrammation']);
+
+    // getProgrammation nécessite le token ESP8266 dans le header X-ESP8266-Token
+    Route::get('{numeroSerie}/programmation', [SireneController::class, 'getProgrammation'])
+        ->middleware('auth.esp8266');
 
     // Protected - Admin/Technicien
     Route::middleware('auth:api')->group(function () {

@@ -575,10 +575,10 @@ class SireneController extends Controller
      *         @OA\Schema(type="string")
      *     ),
      *     @OA\Parameter(
-     *         name="X-Sirene-Token",
+     *         name="X-ESP8266-Token",
      *         in="header",
      *         required=true,
-     *         description="Token crypté d'authentification de la sirène (obtenu via /api/sirenes/config/{numeroSerie})",
+     *         description="Token crypté d'authentification de la sirène ESP8266 (obtenu via /api/sirenes/config/{numeroSerie})",
      *         @OA\Schema(type="string")
      *     ),
      *     @OA\Response(
@@ -588,8 +588,11 @@ class SireneController extends Controller
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="data", type="object",
      *                 @OA\Property(property="chaine_cryptee", type="string", description="Base64 encrypted programmation string"),
+     *                 @OA\Property(property="chaine_programmee", type="string", description="Human readable programmation string"),
      *                 @OA\Property(property="version", type="string", example="01", description="Programmation version"),
-     *                 @OA\Property(property="date_generation", type="string", format="date-time", example="2025-11-19 15:30:00", description="Generation timestamp")
+     *                 @OA\Property(property="date_generation", type="string", format="date-time", example="2025-11-19 15:30:00", description="Generation timestamp"),
+     *                 @OA\Property(property="date_debut", type="string", format="date", example="2024-09-01", description="Start date"),
+     *                 @OA\Property(property="date_fin", type="string", format="date", example="2024-12-20", description="End date")
      *             )
      *         )
      *     ),
@@ -619,11 +622,10 @@ class SireneController extends Controller
      *     )
      * )
      */
-    public function getProgrammation(Request $request, string $numeroSerie): JsonResponse
+    public function getProgrammation(string $numeroSerie): JsonResponse
     {
-        // Récupérer le token crypté depuis le header
-        $tokenCrypte = $request->header('X-Sirene-Token');
-
-        return $this->sireneService->getProgrammationByNumeroSerie($numeroSerie, $tokenCrypte);
+        // L'authentification est gérée par le middleware AuthenticateEsp8266
+        // Le token est lu depuis le header X-ESP8266-Token
+        return $this->sireneService->getProgrammationByNumeroSerie($numeroSerie);
     }
 }
