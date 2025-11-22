@@ -7,6 +7,7 @@ use App\Repositories\Contracts\JourFerieRepositoryInterface;
 use App\Services\Contracts\CalendrierScolaireServiceInterface;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Exception;
@@ -19,6 +20,47 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
     {
         parent::__construct($repository);
         $this->jourFerieRepository = $jourFerieRepository;
+    }
+
+    /**
+     * Override getById() pour vérifier l'accès si école
+     */
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Si admin, accès complet
+            if ($user && $user->isAdmin()) {
+                return parent::getById($id, $columns, $relations);
+            }
+
+            // Si école, vérifier l'accès au calendrier
+            $query = $this->repository->getModel()->where('id', $id);
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            if ($user && $user->isEcole()) {
+                $ecole = $user->getEcole();
+                if ($ecole && isset($ecole->pays_id)) {
+                    $query->where('pays_id', $ecole->pays_id);
+                }
+            }
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->first($columns);
+
+            if (!$data) {
+                return $this->notFoundResponse('Calendrier non trouvé ou accès non autorisé.');
+            }
+
+            return $this->successResponse(null, $data);
+        } catch (Exception $e) {
+            Log::error("Error in CalendrierScolaireService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     public function create(array $data): JsonResponse
