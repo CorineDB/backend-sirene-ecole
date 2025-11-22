@@ -10,5 +10,5 @@ interface SireneServiceInterface extends BaseServiceInterface
     public function getSirenesDisponibles(array $relations = []): JsonResponse;
     public function getSirenesAvecAbonnementActif(array $relations = [], int $perPage = 15, ?string $ecoleId = null): JsonResponse;
     public function affecterSireneASite(string $sireneId, string $siteId, ?string $ecoleId = null): JsonResponse;
-    public function getProgrammationByNumeroSerie(string $numeroSerie, ?string $tokenCrypte = null): JsonResponse;
+    public function getProgrammationForSirene(\App\Models\Sirene $sirene): JsonResponse;
 }
