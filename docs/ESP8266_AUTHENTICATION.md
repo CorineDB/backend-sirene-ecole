@@ -17,7 +17,7 @@ Le système d'authentification des sirènes ESP8266 utilise un **token crypté**
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ 1. INITIALISATION (Sans authentification)                   │
-│    ESP8266 démarre et appelle /config/{numeroSerie}         │
+│    ESP8266 démarre et appelle /config-sirene/{numeroSerie}  │
 │    → Récupère son token crypté + programmations             │
 └──────────────────────┬──────────────────────────────────────┘
                        │
@@ -47,7 +47,7 @@ Le système d'authentification des sirènes ESP8266 utilise un **token crypté**
    - Injecte la sirène authentifiée dans la requête
 
 2. **Routes publiques Sirène** :
-   - `GET /api/sirenes/config/{numeroSerie}` → Sans authentification (init)
+   - `GET /api/config-sirene/{numeroSerie}` → Sans authentification (init)
    - `GET /api/sirenes/programmations-actives` → Avec authentification (token identifie la sirène)
 
 ---
@@ -58,7 +58,7 @@ Le système d'authentification des sirènes ESP8266 utilise un **token crypté**
 
 **Endpoint** :
 ```http
-GET /api/sirenes/config/{numeroSerie}
+GET /api/config-sirene/{numeroSerie}
 ```
 
 **Headers** :
@@ -68,7 +68,7 @@ Accept: application/json
 
 **Exemple cURL** :
 ```bash
-curl -X GET "http://localhost:8000/api/sirenes/config/SRN12345" \
+curl -X GET "http://localhost:8000/api/config-sirene/SRN12345" \
   -H "Accept: application/json"
 ```
 
@@ -210,7 +210,7 @@ const char* WIFI_SSID = "VOTRE_WIFI";
 const char* WIFI_PASSWORD = "VOTRE_PASSWORD_WIFI";
 
 // API Configuration
-const char* API_BASE_URL = "http://votre-domaine.com/api/sirenes";
+const char* API_BASE_URL = "http://votre-domaine.com/api";
 const char* NUMERO_SERIE = "SRN12345";  // Unique pour chaque sirène
 
 // EEPROM addresses
@@ -279,7 +279,7 @@ String getInitialConfiguration() {
   WiFiClient client;
 
   // Construire l'URL
-  String url = String(API_BASE_URL) + "/config/" + String(NUMERO_SERIE);
+  String url = String(API_BASE_URL) + "/config-sirene/" + String(NUMERO_SERIE);
 
   Serial.println("🔄 Récupération de la configuration...");
   Serial.println("URL: " + url);
@@ -345,7 +345,7 @@ bool getProgrammation(String token) {
   WiFiClient client;
 
   // Construire l'URL - Pas besoin du numéro de série, le token identifie la sirène
-  String url = String(API_BASE_URL) + "/programmations-actives";
+  String url = String(API_BASE_URL) + "/sirenes/programmations-actives";
 
   Serial.println("🔄 Récupération des programmations actives...");
   Serial.println("URL: " + url);
@@ -510,7 +510,7 @@ void loop() {
 
 ```bash
 # Récupérer la configuration et le token
-curl -X GET "http://localhost:8000/api/sirenes/SRN12345/config" \
+curl -X GET "http://localhost:8000/api/config-sirene/SRN12345" \
   -H "Accept: application/json" \
   -v
 ```
@@ -578,7 +578,7 @@ Devrait retourner une erreur 401 : "Token d'authentification invalide."
 ```
 ESP8266                 Backend (Laravel)              Base de Données
    │                            │                              │
-   │  1. GET /config/SRN12345   │                              │
+   │  1. GET /config-sirene/SRN12345 │                         │
    ├───────────────────────────>│                              │
    │                            │  Recherche sirène + abonnement
    │                            ├─────────────────────────────>│
@@ -610,7 +610,7 @@ ESP8266                 Backend (Laravel)              Base de Données
 
 ## 📝 Notes Importantes
 
-1. **Premier Démarrage** : L'ESP8266 appelle d'abord `/config/{numeroSerie}` pour obtenir son token
+1. **Premier Démarrage** : L'ESP8266 appelle d'abord `/config-sirene/{numeroSerie}` pour obtenir son token
 2. **Token Persistant** : Le token est stocké dans l'EEPROM et réutilisé
 3. **Identification Automatique** : Le token identifie la sirène, pas besoin du numéro de série dans l'URL `/programmations-actives`
 4. **Sécurité Renforcée** : Impossible pour une sirène d'accéder aux données d'une autre sirène

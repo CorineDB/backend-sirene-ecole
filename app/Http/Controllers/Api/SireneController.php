@@ -419,7 +419,7 @@ class SireneController extends Controller
      * Endpoint public utilisé par les modules ESP8266 au démarrage
      *
      * @OA\Get(
-     *     path="/api/sirenes/config/{numeroSerie}",
+     *     path="/api/config-sirene/{numeroSerie}",
      *     summary="Get ESP8266 configuration by serial number (Public endpoint)",
      *     tags={"Sirenes"},
      *     @OA\Parameter(
@@ -572,7 +572,7 @@ class SireneController extends Controller
      *         name="X-Sirene-Token",
      *         in="header",
      *         required=true,
-     *         description="Token crypté d'authentification de la sirène (obtenu via /api/sirenes/config/{numeroSerie})",
+     *         description="Token crypté d'authentification de la sirène (obtenu via /api/config-sirene/{numeroSerie})",
      *         @OA\Schema(type="string")
      *     ),
      *     @OA\Response(
