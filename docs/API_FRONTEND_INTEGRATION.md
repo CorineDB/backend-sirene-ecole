@@ -212,6 +212,15 @@ function ProgrammationsList({ sireneId }) {
 
 **Endpoint:** `POST /api/sirenes/{sirene_id}/programmations`
 
+#### Champs auto-assignés par le système
+
+Les champs suivants sont **automatiquement assignés** et ne doivent **PAS** être fournis dans le payload:
+- `ecole_id` - Déduit de la sirène
+- `site_id` - Déduit de la sirène
+- `abonnement_id` - Automatiquement assigné à l'abonnement actif de l'école
+- `cree_par` - Utilisateur authentifié
+- `chaine_programmee` / `chaine_cryptee` - Générées automatiquement
+
 #### Corps de la requête (Request body)
 
 ```json
@@ -526,12 +535,14 @@ interface PaginatedResponse<T> {
 
 ## Notes importantes
 
-1. **Pagination automatique**: Par défaut, la liste des programmations est paginée (15 items/page)
-2. **Tri automatique**: Les horaires et exceptions sont automatiquement triés
-3. **Validation stricte**: Les DTOs garantissent la cohérence des données
-4. **Relations chargées**: Les relations (ecole, site, sirene, etc.) sont incluses automatiquement
-5. **Permissions**: Vérifier que l'utilisateur a les permissions nécessaires
-6. **ULID**: Les IDs sont au format ULID (26 caractères)
+1. **Champs auto-assignés**: Les champs `ecole_id`, `site_id`, `abonnement_id`, `cree_par`, `chaine_programmee` et `chaine_cryptee` sont automatiquement assignés par le système et ne doivent PAS être fournis dans le payload
+2. **Abonnement actif requis**: Une programmation ne peut être créée que si l'école a un abonnement actif. Le système vérifie automatiquement cela et assigne l'abonnement actif
+3. **Pagination automatique**: Par défaut, la liste des programmations est paginée (15 items/page)
+4. **Tri automatique**: Les horaires et exceptions sont automatiquement triés chronologiquement
+5. **Validation stricte**: Les DTOs garantissent la cohérence des données
+6. **Relations chargées**: Les relations (ecole, site, sirene, abonnement, etc.) sont incluses automatiquement
+7. **Permissions**: Vérifier que l'utilisateur a les permissions nécessaires (`creer_programmation`, `modifier_programmation`, etc.)
+8. **ULID**: Les IDs sont au format ULID (26 caractères)
 
 ---
 
