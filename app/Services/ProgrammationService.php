@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\DTO\HoraireSonnerieDTO;
 use App\Models\Programmation;
 use App\Services\Contracts\ProgrammationServiceInterface;
 use App\Repositories\Contracts\ProgrammationRepositoryInterface;
@@ -151,13 +152,29 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
 
             DB::commit();
 
-            // 8. Logging
+            // 8. Logging enrichi avec le DTO
+            $horairesFormatted = collect($programmation->horaires_sonneries ?? [])->map(function ($horaire) {
+                try {
+                    $dto = new HoraireSonnerieDTO($horaire);
+                    return [
+                        'time' => $dto->getFormattedTime(),
+                        'jours' => $dto->getJoursNoms(),
+                        'duree' => $dto->getDureeSonnerie() . 's',
+                        'description' => $dto->getDescription(),
+                        'signature' => $dto->getSignature(),
+                    ];
+                } catch (\Exception $e) {
+                    return $horaire; // Fallback si DTO échoue
+                }
+            })->toArray();
+
             Log::info("Programmation créée avec succès", [
                 'programmation_id' => $programmation->id,
                 'nom' => $programmation->nom_programmation,
                 'sirene_id' => $programmation->sirene_id,
                 'ecole_id' => $programmation->ecole_id,
-                'horaires' => $programmation->horaires_sonneries,
+                'horaires_formattes' => $horairesFormatted,
+                'nb_horaires' => count($horairesFormatted),
             ]);
 
             return $this->createdResponse($programmation, 'Programmation créée avec succès.');
@@ -233,11 +250,27 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
 
             DB::commit();
 
-            // 7. Logging
+            // 7. Logging enrichi avec le DTO
+            $horairesFormatted = collect($programmation->horaires_sonneries ?? [])->map(function ($horaire) {
+                try {
+                    $dto = new HoraireSonnerieDTO($horaire);
+                    return [
+                        'time' => $dto->getFormattedTime(),
+                        'jours' => $dto->getJoursNoms(),
+                        'duree' => $dto->getDureeSonnerie() . 's',
+                        'description' => $dto->getDescription(),
+                    ];
+                } catch (\Exception $e) {
+                    return $horaire; // Fallback si DTO échoue
+                }
+            })->toArray();
+
             Log::info("Programmation mise à jour avec succès", [
                 'programmation_id' => $programmation->id,
                 'nom' => $programmation->nom_programmation,
                 'chaines_regenerees' => $needsRegeneration,
+                'horaires_formattes' => $horairesFormatted,
+                'nb_horaires' => count($horairesFormatted),
             ]);
 
             return $this->successResponse('Programmation mise à jour avec succès.', $programmation);
