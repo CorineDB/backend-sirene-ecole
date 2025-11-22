@@ -2,6 +2,8 @@
 
 namespace App\DTO;
 
+use App\Contracts\HoraireSonnerieInterface;
+
 /**
  * Data Transfer Object pour un horaire de sonnerie
  * Schéma strict à respecter pour chaque horaire
@@ -12,7 +14,7 @@ namespace App\DTO;
  * @property int|null $duree_sonnerie Durée en secondes (1-30, défaut: 3)
  * @property string|null $description Description de l'horaire
  */
-class HoraireSonnerieDTO
+class HoraireSonnerieDTO implements HoraireSonnerieInterface
 {
     /**
      * Heure de la sonnerie (format 24h)
@@ -203,5 +205,70 @@ class HoraireSonnerieDTO
             $this->minute,
             implode(',', $this->jours)
         );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getHeure(): int
+    {
+        return $this->heure;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getMinute(): int
+    {
+        return $this->minute;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getJours(): array
+    {
+        return $this->jours;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getDureeSonnerie(): int
+    {
+        return $this->duree_sonnerie ?? 3;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isValid(): bool
+    {
+        try {
+            $this->validate($this->toArray());
+            return true;
+        } catch (\InvalidArgumentException $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Obtenir l'heure formatée (alias de toTimeString pour cohérence avec JourFerieExceptionDTO)
+     *
+     * @param string $format Format d'affichage (par défaut: "H:i")
+     * @return string
+     */
+    public function getFormattedTime(string $format = 'H:i'): string
+    {
+        // Pour compatibilité, on retourne toujours au format HH:MM
+        return $this->toTimeString();
     }
 }
