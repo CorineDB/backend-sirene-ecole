@@ -108,9 +108,11 @@ Route::get('sirenes-programmable', [SireneController::class, 'avecAbonnementActi
     ->middleware(['auth:api', 'can:voir_les_sirenes']);
 
 Route::prefix('sirenes')->group(function () {
-    // Public: Configuration et programmation ESP8266
-    Route::get('config/{numeroSerie}', [SireneController::class, 'getConfig']);
-    Route::get('{numeroSerie}/programmation', [SireneController::class, 'getProgrammation']);
+    // Public: Programmations actives pour les sirènes authentifiées
+    // getProgrammation nécessite le token dans le header X-Sirene-Token
+    // La sirène est identifiée via le token (pas besoin du numéro de série dans l'URL)
+    Route::get('programmations-actives', [SireneController::class, 'getProgrammation'])
+        ->middleware('auth.esp8266');
 
     // Protected - Admin/Technicien
     Route::middleware('auth:api')->group(function () {
@@ -129,6 +131,9 @@ Route::prefix('sirenes')->group(function () {
         Route::apiResource('{sirene}/programmations', ProgrammationController::class);
     });
 });
+
+// Public: Configuration initiale des sirènes ESP8266 (sans authentification)
+Route::get('config-sirene/{numeroSerie}', [SireneController::class, 'getConfig']);
 
 Route::prefix('modeles-sirene')->middleware('auth:api')->group(function () {
     Route::get('/', [ModeleSireneController::class, 'index'])->middleware('can:voir_les_modeles_sirene');
