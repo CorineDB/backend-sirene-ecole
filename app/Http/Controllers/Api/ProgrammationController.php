@@ -32,7 +32,7 @@ use OpenApi\Annotations as OA;
  *     @OA\Property(property="calendrier_id", type="string", format="ulid", nullable=true, description="ID du calendrier scolaire associé"),
  *     @OA\Property(property="nom_programmation", type="string", description="Nom de la programmation"),
  *     @OA\Property(property="horaires_sonneries", type="array", @OA\Items(type="string", format="time"), description="Horaires des sonneries"),
- *     @OA\Property(property="jour_semaine", type="array", @OA\Items(type="string"), description="Jours de la semaine concernés"),
+ *     @OA\Property(property="jour_semaine", type="array", @OA\Items(type="integer"), description="Jours de la semaine concernés (calculé dynamiquement à partir de horaires_sonneries, 0=Dimanche...6=Samedi, lecture seule)"),
  *     @OA\Property(property="jours_feries_inclus", type="boolean", description="Indique si les jours fériés sont inclus"),
  *     @OA\Property(property="jours_feries_exceptions", type="array", @OA\Items(type="string", format="date"), nullable=true, description="Exceptions pour les jours fériés"),
  *     @OA\Property(property="chaine_programmee", type="string", nullable=true, description="Chaîne de programmation générée"),
