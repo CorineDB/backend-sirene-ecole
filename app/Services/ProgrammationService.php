@@ -89,7 +89,7 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
                 }
 
                 // Further checks could include date_debut, date_fin, vacances, etc.
-                // For now, we focus on jours_feries_inclus, jours_feries_exceptions and jour_semaine
+                // For now, we focus on jours_feries_inclus and jours_feries_exceptions
 
                 return true;
             });
@@ -158,7 +158,6 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
                 'sirene_id' => $programmation->sirene_id,
                 'ecole_id' => $programmation->ecole_id,
                 'horaires' => $programmation->horaires_sonneries,
-                'jours' => $programmation->jour_semaine,
             ]);
 
             return $this->createdResponse($programmation, 'Programmation créée avec succès.');
@@ -193,9 +192,6 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
             $horairesDirty = isset($data['horaires_sonneries'])
                 && json_encode($data['horaires_sonneries']) !== json_encode($programmation->horaires_sonneries);
 
-            $joursSemaineDirty = isset($data['jour_semaine'])
-                && json_encode($data['jour_semaine']) !== json_encode($programmation->jour_semaine);
-
             $nomDirty = isset($data['nom_programmation'])
                 && $data['nom_programmation'] !== $programmation->nom_programmation;
 
@@ -205,7 +201,7 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
             $joursFeriesDirty = isset($data['jours_feries_inclus'])
                 && $data['jours_feries_inclus'] !== $programmation->jours_feries_inclus;
 
-            $needsRegeneration = $horairesDirty || $joursSemaineDirty || $nomDirty || $datesDirty || $joursFeriesDirty;
+            $needsRegeneration = $horairesDirty || $nomDirty || $datesDirty || $joursFeriesDirty;
 
             // 3. Mettre à jour la programmation
             $updated = $this->repository->update($id, $data);
@@ -225,7 +221,6 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
                     'programmation_id' => $programmation->id,
                     'raison' => [
                         'horaires_modifies' => $horairesDirty,
-                        'jours_modifies' => $joursSemaineDirty,
                         'nom_modifie' => $nomDirty,
                         'dates_modifiees' => $datesDirty,
                         'jours_feries_modifies' => $joursFeriesDirty,

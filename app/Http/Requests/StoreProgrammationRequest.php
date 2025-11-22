@@ -81,34 +81,6 @@ class StoreProgrammationRequest extends FormRequest
     }
 
     /**
-     * Prepare the data for validation.
-     */
-    protected function prepareForValidation(): void
-    {
-        // Extraire les jours uniques de horaires_sonneries pour remplir jour_semaine
-        if ($this->has('horaires_sonneries') && is_array($this->horaires_sonneries)) {
-            $joursUniques = [];
-
-            foreach ($this->horaires_sonneries as $horaire) {
-                if (isset($horaire['jours']) && is_array($horaire['jours'])) {
-                    foreach ($horaire['jours'] as $jour) {
-                        if (!in_array($jour, $joursUniques)) {
-                            $joursUniques[] = $jour;
-                        }
-                    }
-                }
-            }
-
-            // Trier les jours
-            sort($joursUniques);
-
-            $this->merge([
-                'jour_semaine' => $joursUniques,
-            ]);
-        }
-    }
-
-    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
