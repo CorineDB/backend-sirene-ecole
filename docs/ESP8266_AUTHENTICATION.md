@@ -1,10 +1,12 @@
-# Documentation - Authentification ESP8266 avec Token dans les Headers
+# Documentation - Authentification Sirène avec Token dans les Headers
 
 ## 🎯 Vue d'ensemble
 
-Le système d'authentification ESP8266 utilise un **token crypté** passé dans les **headers HTTP** pour sécuriser les communications entre les modules physiques et le backend.
+Le système d'authentification des sirènes ESP8266 utilise un **token crypté** passé dans les **headers HTTP** pour sécuriser les communications entre les modules physiques et le backend.
 
-**Header utilisé** : `X-ESP8266-Token`
+**Header utilisé** : `X-Sirene-Token`
+
+**Avantage** : Le token identifie automatiquement la sirène, plus besoin de spécifier le numéro de série dans l'URL.
 
 ---
 
@@ -27,8 +29,9 @@ Le système d'authentification ESP8266 utilise un **token crypté** passé dans 
 ┌──────────────────────▼──────────────────────────────────────┐
 │ 3. REQUÊTES AUTHENTIFIÉES                                   │
 │    Toutes les requêtes suivantes incluent le header:        │
-│    X-ESP8266-Token: {token_crypte}                          │
+│    X-Sirene-Token: {token_crypte}                           │
 │    → Middleware vérifie le token                            │
+│    → Middleware identifie automatiquement la sirène         │
 │    → Backend valide et autorise                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -36,14 +39,16 @@ Le système d'authentification ESP8266 utilise un **token crypté** passé dans 
 ### Composants
 
 1. **Middleware** : `AuthenticateEsp8266`
-   - Lit le token depuis le header `X-ESP8266-Token`
-   - Valide le token avec la base de données
+   - Lit le token depuis le header `X-Sirene-Token`
+   - Recherche le token dans la base de données
+   - Identifie automatiquement la sirène via le token
    - Vérifie l'abonnement actif
    - Vérifie la date d'expiration
+   - Injecte la sirène authentifiée dans la requête
 
-2. **Routes publiques ESP8266** :
-   - `GET /api/sirenes/config/{numeroSerie}` → Sans authentification
-   - `GET /api/sirenes/{numeroSerie}/programmation` → Avec authentification
+2. **Routes publiques Sirène** :
+   - `GET /api/sirenes/config/{numeroSerie}` → Sans authentification (init)
+   - `GET /api/sirenes/programmation` → Avec authentification (token identifie la sirène)
 
 ---
 
@@ -118,21 +123,23 @@ curl -X GET "http://localhost:8000/api/sirenes/config/SRN12345" \
 
 **Endpoint** :
 ```http
-GET /api/sirenes/{numeroSerie}/programmation
+GET /api/sirenes/programmation
 ```
 
 **Headers** :
 ```http
 Accept: application/json
-X-ESP8266-Token: {votre_token_crypte}
+X-Sirene-Token: {votre_token_crypte}
 ```
 
 **Exemple cURL** :
 ```bash
-curl -X GET "http://localhost:8000/api/sirenes/SRN12345/programmation" \
+curl -X GET "http://localhost:8000/api/sirenes/programmation" \
   -H "Accept: application/json" \
-  -H "X-ESP8266-Token: a1b2c3d4e5f6g7h8i9j0..."
+  -H "X-Sirene-Token: a1b2c3d4e5f6g7h8i9j0..."
 ```
+
+**Note** : Le token identifie automatiquement la sirène, pas besoin de spécifier le numéro de série dans l'URL.
 
 **Réponse Succès (200)** :
 ```json
@@ -153,7 +160,7 @@ curl -X GET "http://localhost:8000/api/sirenes/SRN12345/programmation" \
 ```json
 {
   "success": false,
-  "message": "Token d'authentification requis. Veuillez fournir le header X-ESP8266-Token."
+  "message": "Token d'authentification requis. Veuillez fournir le header X-Sirene-Token."
 }
 ```
 
@@ -337,15 +344,15 @@ bool getProgrammation(String token) {
   HTTPClient http;
   WiFiClient client;
 
-  // Construire l'URL
-  String url = String(API_BASE_URL) + "/" + String(NUMERO_SERIE) + "/programmation";
+  // Construire l'URL - Pas besoin du numéro de série, le token identifie la sirène
+  String url = String(API_BASE_URL) + "/programmation";
 
   Serial.println("🔄 Récupération de la programmation...");
   Serial.println("URL: " + url);
 
   http.begin(client, url);
   http.addHeader("Accept", "application/json");
-  http.addHeader("X-ESP8266-Token", token);  // 🔑 Header d'authentification
+  http.addHeader("X-Sirene-Token", token);  // 🔑 Header d'authentification (identifie la sirène)
 
   int httpCode = http.GET();
 
@@ -511,33 +518,35 @@ curl -X GET "http://localhost:8000/api/sirenes/SRN12345/config" \
 ### Test 2 : Programmation (Avec Token)
 
 ```bash
-# Remplacer TOKEN_ICI par le token reçu
-curl -X GET "http://localhost:8000/api/sirenes/SRN12345/programmation" \
+# Remplacer TOKEN_ICI par le token reçu de l'étape 1
+curl -X GET "http://localhost:8000/api/sirenes/programmation" \
   -H "Accept: application/json" \
-  -H "X-ESP8266-Token: TOKEN_ICI" \
+  -H "X-Sirene-Token: TOKEN_ICI" \
   -v
 ```
+
+**Note** : Pas besoin du numéro de série dans l'URL, le token identifie automatiquement la sirène.
 
 ### Test 3 : Programmation (Sans Token - Doit échouer)
 
 ```bash
-curl -X GET "http://localhost:8000/api/sirenes/SRN12345/programmation" \
+curl -X GET "http://localhost:8000/api/sirenes/programmation" \
   -H "Accept: application/json" \
   -v
 ```
 
-Devrait retourner une erreur 401.
+Devrait retourner une erreur 401 : "Token d'authentification requis. Veuillez fournir le header X-Sirene-Token."
 
 ### Test 4 : Programmation (Token Invalide - Doit échouer)
 
 ```bash
-curl -X GET "http://localhost:8000/api/sirenes/SRN12345/programmation" \
+curl -X GET "http://localhost:8000/api/sirenes/programmation" \
   -H "Accept: application/json" \
-  -H "X-ESP8266-Token: TOKEN_INVALIDE" \
+  -H "X-Sirene-Token: TOKEN_INVALIDE" \
   -v
 ```
 
-Devrait retourner une erreur 401.
+Devrait retourner une erreur 401 : "Token d'authentification invalide."
 
 ---
 
@@ -546,11 +555,13 @@ Devrait retourner une erreur 401.
 ### Points de Sécurité Implémentés
 
 1. ✅ **Token dans les Headers** : Plus sécurisé que dans l'URL
-2. ✅ **Validation par Hash SHA-256** : Le token est hashé avant comparaison
-3. ✅ **Vérification de l'Expiration** : Les tokens expirés sont rejetés
-4. ✅ **Vérification de l'Abonnement** : Seuls les abonnements actifs sont acceptés
-5. ✅ **Logging Complet** : Toutes les tentatives sont loggées
-6. ✅ **Middleware Dédié** : Séparation des responsabilités
+2. ✅ **Identification Automatique** : Le token identifie la sirène, impossible d'usurper l'identité d'une autre sirène
+3. ✅ **Validation par Hash SHA-256** : Le token est hashé avant comparaison
+4. ✅ **Vérification de l'Expiration** : Les tokens expirés sont rejetés
+5. ✅ **Vérification de l'Abonnement** : Seuls les abonnements actifs sont acceptés
+6. ✅ **Logging Complet** : Toutes les tentatives sont loggées avec l'IP
+7. ✅ **Middleware Dédié** : Séparation des responsabilités
+8. ✅ **Pas de Numéro de Série dans l'URL** : Empêche les tentatives d'accès non autorisé
 
 ### Recommandations Production
 
@@ -577,13 +588,15 @@ ESP8266                 Backend (Laravel)              Base de Données
    │                            │                              │
    │  Stocke token EEPROM       │                              │
    │                            │                              │
-   │  2. GET /SRN12345/prog     │                              │
-   │     X-ESP8266-Token: xxx   │                              │
+   │  2. GET /programmation     │                              │
+   │     X-Sirene-Token: xxx    │                              │
    ├───────────────────────────>│                              │
    │                            │  Middleware vérifie token     │
    │                            ├─────────────────────────────>│
-   │                            │  Token valide?                │
+   │                            │  Hash token + recherche       │
+   │                            │  Token → Abonnement → Sirène  │
    │                            │<─────────────────────────────┤
+   │                            │  Token valide + Sirène OK     │
    │                            │  Récupère programmation       │
    │                            ├─────────────────────────────>│
    │  chaine_cryptee + data     │<─────────────────────────────┤
@@ -597,11 +610,13 @@ ESP8266                 Backend (Laravel)              Base de Données
 
 ## 📝 Notes Importantes
 
-1. **Premier Démarrage** : L'ESP8266 appelle d'abord `/config` pour obtenir son token
+1. **Premier Démarrage** : L'ESP8266 appelle d'abord `/config/{numeroSerie}` pour obtenir son token
 2. **Token Persistant** : Le token est stocké dans l'EEPROM et réutilisé
-3. **Gestion d'Erreur** : Si le token expire, redemander la config
-4. **Mise à Jour** : Vérifier périodiquement les nouvelles programmations
-5. **Fallback** : Si pas de connexion, utiliser la programmation en mémoire
+3. **Identification Automatique** : Le token identifie la sirène, pas besoin du numéro de série dans l'URL `/programmation`
+4. **Sécurité Renforcée** : Impossible pour une sirène d'accéder aux données d'une autre sirène
+5. **Gestion d'Erreur** : Si le token expire, redemander la config
+6. **Mise à Jour** : Vérifier périodiquement les nouvelles programmations avec le même token
+7. **Fallback** : Si pas de connexion, utiliser la programmation en mémoire
 
 ---
 

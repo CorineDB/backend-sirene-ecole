@@ -18,93 +18,41 @@ class AuthenticateEsp8266
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Récupérer le token depuis le header X-ESP8266-Token
-        $tokenCrypte = $request->header('X-ESP8266-Token');
+        // Récupérer le token depuis le header X-Sirene-Token
+        $tokenCrypte = $request->header('X-Sirene-Token');
 
-        // Si aucun token fourni, on laisse passer (mode non sécurisé)
+        // Si aucun token fourni, retourner une erreur
         if (!$tokenCrypte) {
-            Log::warning('ESP8266 request without token', [
+            Log::warning('Sirene request without token', [
                 'ip' => $request->ip(),
                 'path' => $request->path(),
             ]);
 
-            // Vous pouvez forcer l'authentification en décommentant cette ligne :
-            // return response()->json([
-            //     'success' => false,
-            //     'message' => 'Token d\'authentification requis. Veuillez fournir le header X-ESP8266-Token.'
-            // ], 401);
-
-            // Pour l'instant, on laisse passer sans token
-            return $next($request);
-        }
-
-        // Récupérer le numéro de série depuis la route
-        $numeroSerie = $request->route('numeroSerie');
-
-        if (!$numeroSerie) {
             return response()->json([
                 'success' => false,
-                'message' => 'Numéro de série manquant.'
-            ], 400);
+                'message' => 'Token d\'authentification requis. Veuillez fournir le header X-Sirene-Token.'
+            ], 401);
         }
 
-        // Rechercher la sirène avec son abonnement actif
-        $sirene = Sirene::where('numero_serie', $numeroSerie)
+        // Hash du token pour recherche en base de données
+        $tokenHash = hash('sha256', $tokenCrypte);
+
+        // Rechercher le token actif avec son abonnement et sa sirène
+        $tokenActif = \App\Models\AbonnementToken::where('token_hash', $tokenHash)
+            ->where('actif', true)
             ->with([
-                'abonnements' => function ($query) {
+                'abonnement' => function ($query) {
                     $query->where('statut', StatutAbonnement::ACTIF->value)
                         ->where('date_debut', '<=', now())
                         ->where('date_fin', '>=', now())
-                        ->with(['tokenActif']);
+                        ->with(['sirene']);
                 }
             ])
             ->first();
 
-        if (!$sirene) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Sirène non trouvée pour ce numéro de série.'
-            ], 404);
-        }
-
-        // Vérifier l'abonnement actif
-        $abonnementActif = $sirene->abonnements->first();
-
-        if (!$abonnementActif) {
-            Log::warning('ESP8266 request without active subscription', [
-                'numero_serie' => $numeroSerie,
-                'ip' => $request->ip(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Aucun abonnement actif pour cette sirène.'
-            ], 401);
-        }
-
-        // Vérifier le token actif
-        $tokenActif = $abonnementActif->tokenActif;
-
         if (!$tokenActif) {
-            Log::warning('ESP8266 request without active token', [
-                'numero_serie' => $numeroSerie,
-                'abonnement_id' => $abonnementActif->id,
-                'ip' => $request->ip(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Aucun token actif trouvé pour cet abonnement.'
-            ], 401);
-        }
-
-        // Vérifier que le token correspond
-        $tokenHash = hash('sha256', $tokenCrypte);
-        if ($tokenHash !== $tokenActif->token_hash) {
-            Log::warning('ESP8266 invalid token', [
-                'numero_serie' => $numeroSerie,
-                'token_hash_fourni' => $tokenHash,
-                'token_hash_attendu' => $tokenActif->token_hash,
+            Log::warning('Sirene request with invalid token', [
+                'token_hash' => $tokenHash,
                 'ip' => $request->ip(),
             ]);
 
@@ -116,8 +64,8 @@ class AuthenticateEsp8266
 
         // Vérifier que le token n'est pas expiré
         if ($tokenActif->date_expiration < now()) {
-            Log::warning('ESP8266 expired token', [
-                'numero_serie' => $numeroSerie,
+            Log::warning('Sirene request with expired token', [
+                'token_id' => $tokenActif->id,
                 'date_expiration' => $tokenActif->date_expiration->toIso8601String(),
                 'ip' => $request->ip(),
             ]);
@@ -128,6 +76,37 @@ class AuthenticateEsp8266
             ], 401);
         }
 
+        // Vérifier l'abonnement actif
+        $abonnementActif = $tokenActif->abonnement;
+
+        if (!$abonnementActif) {
+            Log::warning('Sirene request without active subscription', [
+                'token_id' => $tokenActif->id,
+                'ip' => $request->ip(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Aucun abonnement actif associé à ce token.'
+            ], 401);
+        }
+
+        // Récupérer la sirène depuis l'abonnement
+        $sirene = $abonnementActif->sirene;
+
+        if (!$sirene) {
+            Log::warning('Sirene request without associated sirene', [
+                'abonnement_id' => $abonnementActif->id,
+                'token_id' => $tokenActif->id,
+                'ip' => $request->ip(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Aucune sirène associée à cet abonnement.'
+            ], 404);
+        }
+
         // Authentification réussie - Ajouter les infos au request pour utilisation ultérieure
         $request->merge([
             'authenticated_sirene' => $sirene,
@@ -135,8 +114,9 @@ class AuthenticateEsp8266
             'authenticated_token' => $tokenActif,
         ]);
 
-        Log::info('ESP8266 authenticated successfully', [
-            'numero_serie' => $numeroSerie,
+        Log::info('Sirene authenticated successfully', [
+            'sirene_id' => $sirene->id,
+            'numero_serie' => $sirene->numero_serie,
             'abonnement_id' => $abonnementActif->id,
             'token_id' => $tokenActif->id,
             'ip' => $request->ip(),

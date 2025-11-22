@@ -560,25 +560,19 @@ class SireneController extends Controller
     }
 
     /**
-     * Obtenir la programmation cryptée pour ESP8266
+     * Obtenir la programmation cryptée pour la sirène authentifiée
      * Endpoint public utilisé par les modules ESP8266 pour récupérer les programmations
+     * La sirène est identifiée via le token dans le header X-Sirene-Token
      *
      * @OA\Get(
-     *     path="/api/sirenes/{numeroSerie}/programmation",
-     *     summary="Get encrypted programmation by serial number (Public endpoint with token auth)",
+     *     path="/api/sirenes/programmation",
+     *     summary="Get encrypted programmation for authenticated sirene (Token-based auth)",
      *     tags={"Sirenes"},
      *     @OA\Parameter(
-     *         name="numeroSerie",
-     *         in="path",
-     *         required=true,
-     *         description="Serial number of the sirene",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="X-ESP8266-Token",
+     *         name="X-Sirene-Token",
      *         in="header",
      *         required=true,
-     *         description="Token crypté d'authentification de la sirène ESP8266 (obtenu via /api/sirenes/config/{numeroSerie})",
+     *         description="Token crypté d'authentification de la sirène (obtenu via /api/sirenes/config/{numeroSerie})",
      *         @OA\Schema(type="string")
      *     ),
      *     @OA\Response(
@@ -606,7 +600,7 @@ class SireneController extends Controller
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="Sirene not found or no active programmation",
+     *         description="No active programmation found",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string")
@@ -622,10 +616,12 @@ class SireneController extends Controller
      *     )
      * )
      */
-    public function getProgrammation(string $numeroSerie): JsonResponse
+    public function getProgrammation(Request $request): JsonResponse
     {
         // L'authentification est gérée par le middleware AuthenticateEsp8266
-        // Le token est lu depuis le header X-ESP8266-Token
-        return $this->sireneService->getProgrammationByNumeroSerie($numeroSerie);
+        // La sirène a été identifiée via le token et ajoutée au request
+        $sirene = $request->get('authenticated_sirene');
+
+        return $this->sireneService->getProgrammationForSirene($sirene);
     }
 }

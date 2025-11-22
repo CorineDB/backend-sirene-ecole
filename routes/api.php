@@ -109,8 +109,9 @@ Route::prefix('sirenes')->group(function () {
     // getConfig ne nécessite pas d'authentification (premier appel au démarrage)
     Route::get('config/{numeroSerie}', [SireneController::class, 'getConfig']);
 
-    // getProgrammation nécessite le token ESP8266 dans le header X-ESP8266-Token
-    Route::get('{numeroSerie}/programmation', [SireneController::class, 'getProgrammation'])
+    // getProgrammation nécessite le token dans le header X-Sirene-Token
+    // La sirène est identifiée via le token (pas besoin du numéro de série dans l'URL)
+    Route::get('programmation', [SireneController::class, 'getProgrammation'])
         ->middleware('auth.esp8266');
 
     // Protected - Admin/Technicien

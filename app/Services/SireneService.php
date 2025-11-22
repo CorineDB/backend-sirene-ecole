@@ -55,28 +55,21 @@ class SireneService extends BaseService implements SireneServiceInterface
         }
     }
 
-    public function getProgrammationByNumeroSerie(string $numeroSerie): JsonResponse
+    public function getProgrammationForSirene(\App\Models\Sirene $sirene): JsonResponse
     {
         try {
             // Note: L'authentification est déjà gérée par le middleware AuthenticateEsp8266
-            // On peut récupérer la sirène depuis request() si elle a été injectée par le middleware
+            // La sirène a déjà été validée et fournie par le middleware
 
-            // Rechercher la sirène par numéro de série avec programmations actives
-            $sirene = $this->repository->model
-                ->where('numero_serie', $numeroSerie)
-                ->with([
-                    'programmations' => function ($query) {
-                        $query->where('actif', true)
-                            ->where('date_debut', '<=', now())
-                            ->where('date_fin', '>=', now())
-                            ->orderBy('created_at', 'desc');
-                    }
-                ])
-                ->first();
-
-            if (!$sirene) {
-                return $this->notFoundResponse('Sirène non trouvée pour ce numéro de série.');
-            }
+            // Charger les programmations actives pour cette sirène
+            $sirene->load([
+                'programmations' => function ($query) {
+                    $query->where('actif', true)
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now())
+                        ->orderBy('created_at', 'desc');
+                }
+            ]);
 
             // Vérifier qu'il y a une programmation active
             $programmation = $sirene->programmations->first();
@@ -95,8 +88,9 @@ class SireneService extends BaseService implements SireneServiceInterface
             ]);
 
         } catch (Exception $e) {
-            Log::error("Error in " . get_class($this) . "::getProgrammationByNumeroSerie - " . $e->getMessage(), [
-                'numero_serie' => $numeroSerie,
+            Log::error("Error in " . get_class($this) . "::getProgrammationForSirene - " . $e->getMessage(), [
+                'sirene_id' => $sirene->id ?? null,
+                'numero_serie' => $sirene->numero_serie ?? null,
                 'trace' => $e->getTraceAsString(),
             ]);
             return $this->errorResponse('Erreur lors de la récupération de la programmation.', 500);
