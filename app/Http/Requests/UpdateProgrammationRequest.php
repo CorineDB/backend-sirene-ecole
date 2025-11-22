@@ -51,18 +51,39 @@ class UpdateProgrammationRequest extends FormRequest
     {
         $user = $this->user();
 
-        // Seules les écoles peuvent modifier des programmations
-        if (!$user || $user->user_account_type_type !== Ecole::class) {
+        if (!$user) {
             return false;
         }
 
-        // Vérifier que la sirène appartient à l'école connectée
         $sirene = $this->route('sirene');
-        if (!$sirene) {
+        $programmation = $this->route('programmation');
+
+        if (!$sirene || !$programmation) {
             return false;
         }
 
-        return $sirene->ecole_id === $user->user_account_type_id;
+        // Vérifier que la programmation appartient bien à la sirène
+        if ($programmation->sirene_id !== $sirene->id) {
+            return false;
+        }
+
+        // Vérifier que la sirène a un abonnement actif
+        $ecole = $sirene->ecole;
+        if (!$ecole || !$ecole->hasActiveSubscription()) {
+            return false;
+        }
+
+        // Les admins peuvent modifier des programmations pour n'importe quelle sirène
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Les écoles peuvent modifier des programmations uniquement pour leurs propres sirènes
+        if ($user->user_account_type_type === Ecole::class) {
+            return $sirene->ecole_id === $user->user_account_type_id;
+        }
+
+        return false;
     }
 
     /**

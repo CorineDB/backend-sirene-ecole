@@ -67,7 +67,41 @@ class CreateJourFerieRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+
+        if (!$user) {
+            return false;
+        }
+
+        $ecoleId = $this->input('ecole_id') ?? $this->route('ecole');
+
+        // Si l'utilisateur est une école, ecole_id doit être obligatoirement fourni
+        if ($user->user_account_type_type === Ecole::class) {
+            if (!$ecoleId) {
+                return false; // Les écoles ne peuvent pas créer de jours fériés nationaux
+            }
+
+            $ecole = Ecole::find($ecoleId);
+
+            if (!$ecole) {
+                return false;
+            }
+
+            // Vérifier que l'école a un abonnement actif
+            if (!$ecole->hasActiveSubscription()) {
+                return false;
+            }
+
+            // Les écoles peuvent créer des jours fériés uniquement pour elles-mêmes
+            return $ecole->id === $user->user_account_type_id;
+        }
+
+        // Pour les admins
+        if ($user->isAdmin()) {
+            return true; // Les admins peuvent tout faire sans restriction d'abonnement
+        }
+
+        return false;
     }
 
     /**

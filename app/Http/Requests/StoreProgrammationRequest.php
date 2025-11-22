@@ -52,18 +52,32 @@ class StoreProgrammationRequest extends FormRequest
     {
         $user = $this->user();
 
-        // Seules les écoles peuvent créer des programmations
-        if (!$user || $user->user_account_type_type !== Ecole::class) {
+        if (!$user) {
             return false;
         }
 
-        // Vérifier que la sirène appartient à l'école connectée
         $sirene = $this->route('sirene');
         if (!$sirene) {
             return false;
         }
 
-        return $sirene->ecole_id === $user->user_account_type_id;
+        // Vérifier que la sirène a un abonnement actif
+        $ecole = $sirene->ecole;
+        if (!$ecole || !$ecole->hasActiveSubscription()) {
+            return false;
+        }
+
+        // Les admins peuvent créer des programmations pour n'importe quelle sirène
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Les écoles peuvent créer des programmations uniquement pour leurs propres sirènes
+        if ($user->user_account_type_type === Ecole::class) {
+            return $sirene->ecole_id === $user->user_account_type_id;
+        }
+
+        return false;
     }
 
     /**
