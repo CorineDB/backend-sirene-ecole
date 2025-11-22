@@ -16,6 +16,7 @@ use App\Repositories\Contracts\MissionTechnicienRepositoryInterface;
 use App\Repositories\Contracts\RapportInterventionRepositoryInterface;
 use App\Repositories\Contracts\OrdreMissionRepositoryInterface;
 use App\Services\Contracts\InterventionServiceInterface;
+use App\Traits\FiltersByEcole;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,6 +24,8 @@ use Exception;
 
 class InterventionService extends BaseService implements InterventionServiceInterface
 {
+    use FiltersByEcole;
+
     protected MissionTechnicienRepositoryInterface $missionRepository;
     protected RapportInterventionRepositoryInterface $rapportRepository;
     protected OrdreMissionRepositoryInterface $ordreMissionRepository;
@@ -37,6 +40,57 @@ class InterventionService extends BaseService implements InterventionServiceInte
         $this->missionRepository = $missionRepository;
         $this->rapportRepository = $rapportRepository;
         $this->ordreMissionRepository = $ordreMissionRepository;
+    }
+
+    /**
+     * Surcharge de getAll pour filtrer par école si nécessaire
+     */
+    public function getAll(int $perPage = 15, array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query();
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilterForInterventions($query);
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->orderBy('created_at', 'desc')->paginate($perPage);
+            return $this->successResponse('Données récupérées avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::getAll - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Surcharge de getById pour vérifier l'accès si école
+     */
+    public function getById(string $id, array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query()->where('id', $id);
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilterForInterventions($query);
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->first();
+
+            if (!$data) {
+                return $this->errorResponse('Intervention non trouvée ou accès non autorisé.', 404);
+            }
+
+            return $this->successResponse('Donnée récupérée avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     public function soumettreCandidatureMission(string $ordreMissionId, string $technicienId): JsonResponse

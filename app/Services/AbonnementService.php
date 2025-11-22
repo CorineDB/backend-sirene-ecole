@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\StatutAbonnement;
 use App\Repositories\Contracts\AbonnementRepositoryInterface;
 use App\Services\Contracts\AbonnementServiceInterface;
+use App\Traits\FiltersByEcole;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -14,9 +15,62 @@ use Exception;
 
 class AbonnementService extends BaseService implements AbonnementServiceInterface
 {
+    use FiltersByEcole;
+
     public function __construct(AbonnementRepositoryInterface $abonnementRepository)
     {
         parent::__construct($abonnementRepository);
+    }
+
+    /**
+     * Surcharge de getAll pour filtrer par école si nécessaire
+     */
+    public function getAll(int $perPage = 15, array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query();
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilterForAbonnements($query);
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->paginate($perPage);
+            return $this->successResponse('Données récupérées avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in AbonnementService::getAll - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Surcharge de getById pour vérifier l'accès si école
+     */
+    public function getById(string $id, array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query()->where('id', $id);
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilterForAbonnements($query);
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->first();
+
+            if (!$data) {
+                return $this->errorResponse('Abonnement non trouvé ou accès non autorisé.', 404);
+            }
+
+            return $this->successResponse('Donnée récupérée avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in AbonnementService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     // ========== 1. GESTION DU CYCLE DE VIE ==========
