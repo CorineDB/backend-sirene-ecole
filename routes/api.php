@@ -104,6 +104,9 @@ Route::prefix('ecoles')->group(function () {
 });
 
 // Sirene routes
+Route::get('sirenes-programmable', [SireneController::class, 'avecAbonnementActif'])
+    ->middleware(['auth:api', 'can:voir_les_sirenes']);
+
 Route::prefix('sirenes')->group(function () {
     // Public: Configuration et programmation ESP8266
     Route::get('config/{numeroSerie}', [SireneController::class, 'getConfig']);

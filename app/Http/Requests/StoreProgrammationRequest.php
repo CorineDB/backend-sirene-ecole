@@ -219,10 +219,8 @@ class StoreProgrammationRequest extends FormRequest
                 'date',
                 'before_or_equal:date_fin',
                 function ($attribute, $value, $fail) {
-                    // Vérifier les chevauchements uniquement si actif=true
-                    if ($this->input('actif', true) === true) {
-                        $this->validateDateOverlap($value, $this->input('date_fin'), $fail);
-                    }
+                    // Vérifier les chevauchements (toutes les programmations sont actives)
+                    $this->validateDateOverlap($value, $this->input('date_fin'), $fail);
                 },
             ],
             'date_fin' => ['required', 'date', 'after_or_equal:date_debut'],
@@ -302,7 +300,7 @@ class StoreProgrammationRequest extends FormRequest
     }
 
     /**
-     * Validate that date ranges don't overlap with other active programmations for the same sirene
+     * Validate that date ranges don't overlap with other programmations for the same sirene
      *
      * @param string $dateDebut
      * @param string $dateFin
@@ -320,14 +318,13 @@ class StoreProgrammationRequest extends FormRequest
             return;
         }
 
-        // Récupérer toutes les programmations actives pour cette sirène
-        $programmationsActives = \App\Models\Programmation::where('sirene_id', $sirene->id)
-            ->where('actif', true)
+        // Récupérer TOUTES les programmations pour cette sirène (toutes sont actives)
+        $programmationsExistantes = \App\Models\Programmation::where('sirene_id', $sirene->id)
             ->whereNull('deleted_at')
             ->get(['id', 'nom_programmation', 'date_debut', 'date_fin']);
 
         // Vérifier les chevauchements
-        foreach ($programmationsActives as $prog) {
+        foreach ($programmationsExistantes as $prog) {
             // Deux périodes se chevauchent si :
             // date_debut_A <= date_fin_B ET date_fin_A >= date_debut_B
             $overlap = $dateDebut <= $prog->date_fin->format('Y-m-d') &&
@@ -335,7 +332,7 @@ class StoreProgrammationRequest extends FormRequest
 
             if ($overlap) {
                 $fail(sprintf(
-                    'Cette période (%s au %s) chevauche une programmation active existante "%s" (%s au %s). Une seule programmation active par période est autorisée.',
+                    'Cette période (%s au %s) chevauche une programmation existante "%s" (%s au %s). Une seule programmation par période est autorisée.',
                     $dateDebut,
                     $dateFin,
                     $prog->nom_programmation,

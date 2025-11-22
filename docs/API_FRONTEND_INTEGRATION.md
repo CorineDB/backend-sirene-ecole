@@ -223,21 +223,19 @@ Les champs suivants sont **automatiquement assignés** et ne doivent **PAS** êt
 
 #### Règles de chevauchement (Overlap)
 
-**IMPORTANT**: Une seule programmation active par période est autorisée pour une même sirène.
+**IMPORTANT**: Toutes les programmations sont actives. Une seule programmation par période est autorisée pour une même sirène.
 
-- ✅ **AUTORISÉ**: Plusieurs programmations actives avec des périodes qui ne se chevauchent PAS
+- ✅ **AUTORISÉ**: Plusieurs programmations avec des périodes qui **ne se chevauchent PAS**
   - Exemple: Programmation Trimestre 1 (01/09 - 31/12) et Programmation Trimestre 2 (01/01 - 31/03)
 
-- ❌ **INTERDIT**: Plusieurs programmations actives avec des périodes qui se chevauchent
+- ❌ **INTERDIT**: Plusieurs programmations avec des périodes qui **se chevauchent**
   - Exemple: Programme A (01/09 - 31/12) et Programme B (01/10 - 30/06) → **Erreur de validation**
 
-- ✅ **AUTORISÉ**: Plusieurs programmations pour la même sirène si au moins une est inactive (`actif=false`)
-  - Exemple: Programmation active (01/09 - 30/06) et Programmation archivée inactive (même période)
-
 **Comportement**:
+- Toutes les programmations sont considérées comme actives
 - Le système vérifie automatiquement les chevauchements lors de la création/modification
-- Si un chevauchement est détecté avec une programmation active, une erreur de validation est renvoyée
-- Pour désactiver une programmation et en créer une nouvelle sur la même période, il faut d'abord mettre `actif=false` sur l'ancienne
+- Si un chevauchement est détecté avec une programmation existante, une erreur de validation est renvoyée
+- Pour remplacer une programmation, il faut d'abord **supprimer** l'ancienne programmation, puis créer la nouvelle
 
 #### Corps de la requête (Request body)
 
@@ -459,7 +457,7 @@ Pas de corps de réponse.
 
 ### Erreur de chevauchement de dates (422)
 
-Lorsqu'une programmation active chevauche une autre programmation active existante :
+Lorsqu'une programmation chevauche une autre programmation existante :
 
 ```json
 {
@@ -467,13 +465,13 @@ Lorsqu'une programmation active chevauche une autre programmation active existan
   "message": "The given data was invalid.",
   "errors": {
     "date_debut": [
-      "Cette période (2025-10-01 au 2026-06-30) chevauche une programmation active existante \"Programmation Trimestre 1\" (2025-09-01 au 2025-12-31). Une seule programmation active par période est autorisée."
+      "Cette période (2025-10-01 au 2026-06-30) chevauche une programmation existante \"Programmation Trimestre 1\" (2025-09-01 au 2025-12-31). Une seule programmation par période est autorisée."
     ]
   }
 }
 ```
 
-**Solution**: Désactiver la programmation existante (`actif=false`) ou ajuster les dates pour qu'elles ne se chevauchent pas.
+**Solution**: Supprimer la programmation existante ou ajuster les dates pour qu'elles ne se chevauchent pas.
 
 ### Erreur d'autorisation (403)
 
@@ -573,13 +571,15 @@ interface PaginatedResponse<T> {
 
 1. **Champs auto-assignés**: Les champs `ecole_id`, `site_id`, `abonnement_id`, `cree_par`, `chaine_programmee` et `chaine_cryptee` sont automatiquement assignés par le système et ne doivent PAS être fournis dans le payload
 2. **Abonnement actif requis**: Une programmation ne peut être créée que si l'école a un abonnement actif. Le système vérifie automatiquement cela et assigne l'abonnement actif
-3. **Pas de chevauchement**: Une seule programmation active par période est autorisée pour une même sirène. Les programmations avec `actif=true` ne peuvent pas avoir des périodes qui se chevauchent
-4. **Pagination automatique**: Par défaut, la liste des programmations est paginée (15 items/page)
-5. **Tri automatique**: Les horaires et exceptions sont automatiquement triés chronologiquement
-6. **Validation stricte**: Les DTOs garantissent la cohérence des données
-7. **Relations chargées**: Les relations (ecole, site, sirene, abonnement, etc.) sont incluses automatiquement
-8. **Permissions**: Vérifier que l'utilisateur a les permissions nécessaires (`creer_programmation`, `modifier_programmation`, etc.)
-9. **ULID**: Les IDs sont au format ULID (26 caractères)
+3. **Toutes les programmations sont actives**: Le système considère toutes les programmations comme actives. Il n'y a pas de notion de programmation inactive
+4. **Pas de chevauchement**: Une seule programmation par période est autorisée pour une même sirène. Aucun chevauchement de dates n'est autorisé
+5. **Remplacement de programmation**: Pour remplacer une programmation, il faut d'abord supprimer l'ancienne (via DELETE), puis créer la nouvelle
+6. **Pagination automatique**: Par défaut, la liste des programmations est paginée (15 items/page)
+7. **Tri automatique**: Les horaires et exceptions sont automatiquement triés chronologiquement
+8. **Validation stricte**: Les DTOs garantissent la cohérence des données
+9. **Relations chargées**: Les relations (ecole, site, sirene, abonnement, etc.) sont incluses automatiquement
+10. **Permissions**: Vérifier que l'utilisateur a les permissions nécessaires (`creer_programmation`, `modifier_programmation`, etc.)
+11. **ULID**: Les IDs sont au format ULID (26 caractères)
 
 ---
 
