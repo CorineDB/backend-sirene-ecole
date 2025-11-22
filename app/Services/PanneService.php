@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Enums\StatutPanne;
+use App\Models\Panne;
 use App\Repositories\Contracts\OrdreMissionRepositoryInterface;
 use App\Repositories\Contracts\PanneRepositoryInterface;
 use App\Services\Contracts\PanneServiceInterface;
 use Exception;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -21,6 +23,45 @@ class PanneService extends BaseService implements PanneServiceInterface
     ) {
         parent::__construct($repository);
         $this->ordreMissionRepository = $ordreMissionRepository;
+    }
+
+    /**
+     * Override getById() pour filtrer selon le rôle de l'utilisateur
+     */
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Si l'utilisateur est admin, retourner la panne
+            if ($user && $user->isAdmin()) {
+                return parent::getById($id, $columns, $relations);
+            }
+
+            // Si l'utilisateur est une école, vérifier que la panne lui appartient
+            if ($user && $user->isEcole()) {
+                $ecole = $user->getEcole();
+
+                if ($ecole) {
+                    $panne = Panne::with($relations)
+                        ->whereHas('site', function ($query) use ($ecole) {
+                            $query->where('ecole_id', $ecole->id);
+                        })
+                        ->find($id, $columns);
+
+                    if (!$panne) {
+                        return $this->notFoundResponse('Panne non trouvée ou non accessible.');
+                    }
+
+                    return $this->successResponse(null, $panne);
+                }
+            }
+
+            return $this->notFoundResponse('Panne non accessible.');
+        } catch (Exception $e) {
+            Log::error("Error in PanneService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     public function validerPanne(string $panneId, array $ordreMissionData = []): JsonResponse

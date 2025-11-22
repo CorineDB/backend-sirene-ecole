@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Sirene;
 use App\Repositories\Contracts\SireneRepositoryInterface;
 use App\Services\Contracts\SireneServiceInterface;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -14,6 +16,43 @@ class SireneService extends BaseService implements SireneServiceInterface
     public function __construct(SireneRepositoryInterface $repository)
     {
         parent::__construct($repository);
+    }
+
+    /**
+     * Override getById() pour filtrer selon le rôle de l'utilisateur
+     */
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Si l'utilisateur est admin, retourner la sirène
+            if ($user && $user->isAdmin()) {
+                return parent::getById($id, $columns, $relations);
+            }
+
+            // Si l'utilisateur est une école, vérifier que la sirène lui appartient
+            if ($user && $user->isEcole()) {
+                $ecole = $user->getEcole();
+
+                if ($ecole) {
+                    $sirene = Sirene::with($relations)
+                        ->where('ecole_id', $ecole->id)
+                        ->find($id, $columns);
+
+                    if (!$sirene) {
+                        return $this->notFoundResponse('Sirène non trouvée ou non accessible.');
+                    }
+
+                    return $this->successResponse(null, $sirene);
+                }
+            }
+
+            return $this->notFoundResponse('Sirène non accessible.');
+        } catch (Exception $e) {
+            Log::error("Error in SireneService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     public function findByNumeroSerie(string $numeroSerie, array $relations = []): JsonResponse

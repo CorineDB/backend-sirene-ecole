@@ -122,4 +122,28 @@ class User extends Authenticatable
         }
         return null;
     }
+
+    /**
+     * Check if the user is an ecole.
+     *
+     * @return bool
+     */
+    public function isEcole(): bool
+    {
+        return $this->type === 'ecole' ||
+               ($this->role && $this->role->slug === 'ecole');
+    }
+
+    /**
+     * Get the ecole account if user is an ecole.
+     *
+     * @return \App\Models\Ecole|null
+     */
+    public function getEcole(): ?Ecole
+    {
+        if ($this->isEcole() && $this->user_account_type_type === 'App\\Models\\Ecole') {
+            return $this->userAccount;
+        }
+        return null;
+    }
 }
