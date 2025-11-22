@@ -99,12 +99,7 @@ class SireneService extends BaseService implements SireneServiceInterface
                             ->where('date_fin', '>=', now())
                             ->orderBy('created_at', 'desc');
                     },
-                    'abonnements' => function ($query) {
-                        $query->where('statut', \App\Enums\StatutAbonnement::ACTIF->value)
-                            ->where('date_debut', '<=', now())
-                            ->where('date_fin', '>=', now())
-                            ->with(['tokenActif']);
-                    }
+                    'abonnementActif.tokenActif'
                 ])
                 ->first();
 
@@ -114,7 +109,7 @@ class SireneService extends BaseService implements SireneServiceInterface
 
             // Vérifier l'authentification par token crypté si fourni
             if ($tokenCrypte) {
-                $abonnementActif = $sirene->abonnements->first();
+                $abonnementActif = $sirene->abonnementActif;
 
                 if (!$abonnementActif) {
                     Log::warning("Tentative d'accès sans abonnement actif", [
