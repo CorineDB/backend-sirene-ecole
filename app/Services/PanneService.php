@@ -8,6 +8,7 @@ use App\Repositories\Contracts\InterventionRepositoryInterface;
 use App\Repositories\Contracts\OrdreMissionRepositoryInterface;
 use App\Repositories\Contracts\PanneRepositoryInterface;
 use App\Services\Contracts\PanneServiceInterface;
+use App\Traits\FiltersByEcole;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Log;
 
 class PanneService extends BaseService implements PanneServiceInterface
 {
+    use FiltersByEcole;
+
     protected OrdreMissionRepositoryInterface $ordreMissionRepository;
     protected InterventionRepositoryInterface $interventionRepository;
 
@@ -29,41 +32,6 @@ class PanneService extends BaseService implements PanneServiceInterface
     }
 
     /**
-     * Vérifier si l'utilisateur connecté est une école
-     */
-    protected function isEcoleUser(): bool
-    {
-        $user = auth()->user();
-        return $user && $user->user_account_type_type === Ecole::class;
-    }
-
-    /**
-     * Récupérer l'ID de l'école de l'utilisateur connecté
-     */
-    protected function getEcoleId(): ?string
-    {
-        $user = auth()->user();
-        if ($this->isEcoleUser()) {
-            return $user->user_account_type_id;
-        }
-        return null;
-    }
-
-    /**
-     * Appliquer le filtre école si nécessaire
-     */
-    protected function applyEcoleFilter($query)
-    {
-        if ($this->isEcoleUser()) {
-            $ecoleId = $this->getEcoleId();
-            $query->whereHas('site', function ($q) use ($ecoleId) {
-                $q->where('ecole_id', $ecoleId);
-            });
-        }
-        return $query;
-    }
-
-    /**
      * Surcharge de getAll pour filtrer par école si nécessaire
      */
     public function getAll(int $perPage = 15, array $relations = []): JsonResponse
@@ -72,7 +40,7 @@ class PanneService extends BaseService implements PanneServiceInterface
             $query = $this->repository->query();
 
             // Appliquer le filtre école si l'utilisateur est une école
-            $query = $this->applyEcoleFilter($query);
+            $query = $this->applyEcoleFilterForPannes($query);
 
             if (!empty($relations)) {
                 $query->with($relations);
@@ -95,7 +63,7 @@ class PanneService extends BaseService implements PanneServiceInterface
             $query = $this->repository->query()->where('id', $id);
 
             // Appliquer le filtre école si l'utilisateur est une école
-            $query = $this->applyEcoleFilter($query);
+            $query = $this->applyEcoleFilterForPannes($query);
 
             if (!empty($relations)) {
                 $query->with($relations);
@@ -121,7 +89,7 @@ class PanneService extends BaseService implements PanneServiceInterface
 
             // Vérifier l'accès à la panne si école
             $query = $this->repository->query()->where('id', $panneId);
-            $query = $this->applyEcoleFilter($query);
+            $query = $this->applyEcoleFilterForPannes($query);
             $panneExists = $query->exists();
 
             if (!$panneExists) {
@@ -194,7 +162,7 @@ class PanneService extends BaseService implements PanneServiceInterface
 
             // Vérifier l'accès à la panne si école
             $query = $this->repository->query()->where('id', $panneId);
-            $query = $this->applyEcoleFilter($query);
+            $query = $this->applyEcoleFilterForPannes($query);
             $panneExists = $query->exists();
 
             if (!$panneExists) {
@@ -225,7 +193,7 @@ class PanneService extends BaseService implements PanneServiceInterface
 
             // Vérifier l'accès à la panne si école
             $query = $this->repository->query()->where('id', $panneId);
-            $query = $this->applyEcoleFilter($query);
+            $query = $this->applyEcoleFilterForPannes($query);
             $panne = $query->with(['ordreMission.interventions'])->first();
 
             if (!$panne) {
@@ -273,7 +241,7 @@ class PanneService extends BaseService implements PanneServiceInterface
         try {
             // Vérifier l'accès à la panne si école
             $query = $this->repository->query()->where('id', $panneId);
-            $query = $this->applyEcoleFilter($query);
+            $query = $this->applyEcoleFilterForPannes($query);
             $panneExists = $query->exists();
 
             if (!$panneExists) {
@@ -302,7 +270,7 @@ class PanneService extends BaseService implements PanneServiceInterface
                 ->with(['sirene', 'site', 'ordreMission', 'interventions']);
 
             // Appliquer le filtre école si l'utilisateur est une école
-            $query = $this->applyEcoleFilter($query);
+            $query = $this->applyEcoleFilterForPannes($query);
 
             $pannes = $query->get();
             return $this->successResponse('Pannes récupérées avec succès.', $pannes);
@@ -347,7 +315,7 @@ class PanneService extends BaseService implements PanneServiceInterface
         try {
             // Créer une fonction helper pour appliquer le filtre sur chaque query
             $applyFilter = function($query) {
-                return $this->applyEcoleFilter($query);
+                return $this->applyEcoleFilterForPannes($query);
             };
 
             $stats = [
