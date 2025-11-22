@@ -109,4 +109,133 @@ class PanneService extends BaseService implements PanneServiceInterface
             return $this->errorResponse($e->getMessage(), 500);
         }
     }
+
+    /**
+     * Assigner un technicien à une panne
+     */
+    public function assignerTechnicien(string $panneId, string $technicienId): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            // Récupérer la panne avec son ordre de mission et interventions
+            $panne = $this->repository->find($panneId, ['ordreMission.interventions']);
+
+            if (!$panne->ordreMission) {
+                return $this->errorResponse('Cette panne n\'a pas d\'ordre de mission associé.', 400);
+            }
+
+            // Récupérer l'intervention d'inspection (ou la première intervention disponible)
+            $intervention = $panne->ordreMission->interventions()->first();
+
+            if (!$intervention) {
+                return $this->errorResponse('Aucune intervention trouvée pour cette panne.', 404);
+            }
+
+            // Assigner le technicien à l'intervention via la table pivot
+            $intervention->techniciens()->syncWithoutDetaching([
+                $technicienId => [
+                    'date_assignation' => now(),
+                    'role' => 'principal'
+                ]
+            ]);
+
+            // Mettre à jour le statut de l'intervention si nécessaire
+            if ($intervention->statut === 'planifiee') {
+                $intervention->update(['statut' => 'assignee']);
+            }
+
+            DB::commit();
+            return $this->successResponse('Technicien assigné avec succès.', $intervention->load('techniciens'));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in PanneService::assignerTechnicien - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Mettre à jour le statut d'une panne
+     */
+    public function updateStatut(string $panneId, string $statut): JsonResponse
+    {
+        try {
+            $panne = $this->repository->update($panneId, [
+                'statut' => $statut,
+            ]);
+
+            return $this->successResponse('Statut mis à jour avec succès.', $panne);
+        } catch (Exception $e) {
+            Log::error("Error in PanneService::updateStatut - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Récupérer les pannes d'une sirène
+     */
+    public function getPannesBySirene(string $sireneId): JsonResponse
+    {
+        try {
+            $pannes = $this->repository->findBy(['sirene_id' => $sireneId], ['sirene', 'site', 'ordreMission', 'interventions']);
+            return $this->successResponse('Pannes récupérées avec succès.', $pannes);
+        } catch (Exception $e) {
+            Log::error("Error in PanneService::getPannesBySirene - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Récupérer les pannes d'une école
+     */
+    public function getPannesByEcole(string $ecoleId): JsonResponse
+    {
+        try {
+            // Récupérer tous les sites de l'école
+            $pannes = $this->repository->query()
+                ->whereHas('site', function ($query) use ($ecoleId) {
+                    $query->where('ecole_id', $ecoleId);
+                })
+                ->with(['sirene', 'site', 'ordreMission', 'interventions'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return $this->successResponse('Pannes de l\'école récupérées avec succès.', $pannes);
+        } catch (Exception $e) {
+            Log::error("Error in PanneService::getPannesByEcole - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Récupérer les statistiques des pannes
+     */
+    public function getStatistiques(): JsonResponse
+    {
+        try {
+            $stats = [
+                'total' => $this->repository->query()->count(),
+                'en_attente' => $this->repository->query()->where('statut', StatutPanne::EN_ATTENTE)->count(),
+                'validees' => $this->repository->query()->where('statut', StatutPanne::VALIDEE)->count(),
+                'en_cours' => $this->repository->query()->where('statut', StatutPanne::EN_COURS)->count(),
+                'resolues' => $this->repository->query()->where('statut', StatutPanne::RESOLUE)->count(),
+                'cloturees' => $this->repository->query()->where('statut', StatutPanne::CLOTUREE)->count(),
+                'par_priorite' => [
+                    'haute' => $this->repository->query()->where('priorite', 'haute')->count(),
+                    'moyenne' => $this->repository->query()->where('priorite', 'moyenne')->count(),
+                    'faible' => $this->repository->query()->where('priorite', 'faible')->count(),
+                ],
+                'recentes' => $this->repository->query()
+                    ->with(['sirene', 'site'])
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10)
+                    ->get(),
+            ];
+
+            return $this->successResponse('Statistiques récupérées avec succès.', $stats);
+        } catch (Exception $e) {
+            Log::error("Error in PanneService::getStatistiques - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
 }

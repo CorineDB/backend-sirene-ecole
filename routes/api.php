@@ -99,6 +99,9 @@ Route::prefix('ecoles')->group(function () {
         Route::post('{ecoleId}/abonnements/{abonnementId}', [PaiementController::class, 'traiter']);
         Route::post('{ecoleId}/jours-feries', [JourFerieController::class, 'storeForEcole']);
 
+        // School pannes
+        Route::get('{ecoleId}/pannes', [PanneController::class, 'pannesByEcole']);
+
         // School calendar with merged holidays
         Route::get('me/calendrier-scolaire/with-ecole-holidays', [EcoleController::class, 'getCalendrierScolaireWithJoursFeries'])->middleware('can:voir_ecole');
 
@@ -138,6 +141,7 @@ Route::prefix('sirenes')->group(function () {
         Route::delete('{id}', [SireneController::class, 'destroy'])->middleware('can:supprimer_sirene');
 
         Route::post('{id}/declarer-panne', [PanneController::class, 'declarer']);
+        Route::get('{sireneId}/pannes', [PanneController::class, 'pannesBySirene']);
 
         // Programmations for a sirene
         Route::apiResource('{sirene}/programmations', ProgrammationController::class);
@@ -284,9 +288,14 @@ Route::prefix('cinetpay')->group(function () {
 Route::prefix('pannes')->middleware('auth:api')->group(function () {
     Route::get('/', [PanneController::class, 'index']);
     Route::get('{id}', [PanneController::class, 'show']);
+    Route::put('{panneId}', [PanneController::class, 'update']);
     Route::put('{panneId}/valider', [PanneController::class, 'valider']);
     Route::put('{panneId}/cloturer', [PanneController::class, 'cloturer']);
+    Route::put('{panneId}/assigner/{technicienId}', [PanneController::class, 'assignerTechnicien']);
 });
+
+// Statistiques pannes
+Route::get('statistiques-pannes', [PanneController::class, 'statistiques'])->middleware('auth:api');
 
 // Ordre de mission routes
 Route::prefix('ordres-mission')->middleware('auth:api')->group(function () {
