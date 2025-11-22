@@ -178,7 +178,7 @@ class SireneController extends Controller
             'modeleSirene',
             'ecole',
             'site.ecolePrincipale',
-            'abonnements'
+            // 'abonnements' is automatically loaded with tokenActif in repository
         ]);
     }
 

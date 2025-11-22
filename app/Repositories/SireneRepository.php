@@ -6,6 +6,8 @@ use App\Enums\StatutSirene;
 use App\Models\Sirene;
 use App\Repositories\Contracts\SireneRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class SireneRepository extends BaseRepository implements SireneRepositoryInterface
 {
@@ -14,9 +16,52 @@ class SireneRepository extends BaseRepository implements SireneRepositoryInterfa
         parent::__construct($model);
     }
 
+    /**
+     * Override find to always load active abonnements with tokenActif
+     */
+    public function find(string $id, array $columns = ['*'], array $relations = []): ?Model
+    {
+        return $this->model->with($relations)
+            ->with([
+                'abonnements' => function ($query) {
+                    $query->where('statut', \App\Enums\StatutAbonnement::ACTIF->value)
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now())
+                        ->with(['tokenActif']);
+                }
+            ])
+            ->findOrFail($id, $columns);
+    }
+
+    /**
+     * Override paginate to always load active abonnements with tokenActif
+     */
+    public function paginate(int $perPage = 15, array $columns = ['*'], array $relations = []): LengthAwarePaginator
+    {
+        return $this->model->with($relations)
+            ->with([
+                'abonnements' => function ($query) {
+                    $query->where('statut', \App\Enums\StatutAbonnement::ACTIF->value)
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now())
+                        ->with(['tokenActif']);
+                }
+            ])
+            ->orderBy("created_at", "desc")
+            ->paginate($perPage);
+    }
+
     public function findByNumeroSerie(string $numeroSerie, array $relations = [])
     {
         return $this->model->with($relations)
+            ->with([
+                'abonnements' => function ($query) {
+                    $query->where('statut', \App\Enums\StatutAbonnement::ACTIF->value)
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now())
+                        ->with(['tokenActif']);
+                }
+            ])
             ->where('numero_serie', $numeroSerie)
             ->first();
     }
@@ -24,6 +69,14 @@ class SireneRepository extends BaseRepository implements SireneRepositoryInterfa
     public function getSirenesDisponibles(array $relations = []): Collection
     {
         return $this->model->with($relations)
+            ->with([
+                'abonnements' => function ($query) {
+                    $query->where('statut', \App\Enums\StatutAbonnement::ACTIF->value)
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now())
+                        ->with(['tokenActif']);
+                }
+            ])
             ->where('statut', StatutSirene::EN_STOCK->value)
             ->orWhere('old_statut', StatutSirene::EN_STOCK->value)
             ->whereNull('site_id')
