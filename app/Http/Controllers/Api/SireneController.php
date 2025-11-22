@@ -375,10 +375,10 @@ class SireneController extends Controller
     }
 
     /**
-     * Obtenir les sirènes dont l'école a un abonnement actif (avec pagination)
+     * Obtenir les sirènes programmables (avec abonnement actif et pagination)
      * @OA\Get(
-     *     path="/api/sirenes-avec-abonnement-actif",
-     *     summary="Get sirenes with active subscription (paginated)",
+     *     path="/api/sirenes-programmable",
+     *     summary="Get programmable sirenes (with active subscription, paginated)",
      *     tags={"Sirenes"},
      *     security={ {"passport": {}} },
      *     @OA\Parameter(
@@ -419,10 +419,10 @@ class SireneController extends Controller
      *                 @OA\Property(property="has_more_pages", type="boolean", example=true)
      *             ),
      *             @OA\Property(property="links", type="object",
-     *                 @OA\Property(property="first", type="string", example="http://api.example.com/api/sirenes-avec-abonnement-actif?page=1"),
-     *                 @OA\Property(property="last", type="string", example="http://api.example.com/api/sirenes-avec-abonnement-actif?page=3"),
+     *                 @OA\Property(property="first", type="string", example="http://api.example.com/api/sirenes-programmable?page=1"),
+     *                 @OA\Property(property="last", type="string", example="http://api.example.com/api/sirenes-programmable?page=3"),
      *                 @OA\Property(property="prev", type="string", nullable=true, example=null),
-     *                 @OA\Property(property="next", type="string", example="http://api.example.com/api/sirenes-avec-abonnement-actif?page=2")
+     *                 @OA\Property(property="next", type="string", example="http://api.example.com/api/sirenes-programmable?page=2")
      *             )
      *         )
      *     ),

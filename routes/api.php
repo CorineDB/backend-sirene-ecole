@@ -104,7 +104,7 @@ Route::prefix('ecoles')->group(function () {
 });
 
 // Sirene routes
-Route::get('sirenes-avec-abonnement-actif', [SireneController::class, 'avecAbonnementActif'])
+Route::get('sirenes-programmable', [SireneController::class, 'avecAbonnementActif'])
     ->middleware(['auth:api', 'can:voir_les_sirenes']);
 
 Route::prefix('sirenes')->group(function () {
