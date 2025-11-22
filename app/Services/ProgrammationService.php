@@ -176,6 +176,8 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
                         'date' => $dto->getFormattedDate('d/m/Y'),
                         'date_iso' => $dto->getDate(),
                         'action' => $dto->getActionLabel(),
+                        'est_national' => $dto->isNational() ? 'national' : ($dto->isLocal() ? 'local' : 'non spécifié'),
+                        'recurrent' => $dto->isRecurrent() ? 'récurrent' : ($dto->isExceptionnel() ? 'exceptionnel' : 'non spécifié'),
                         'description' => $dto->getDescription(),
                     ];
                 } catch (\Exception $e) {
@@ -289,6 +291,8 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
                         'date' => $dto->getFormattedDate('d/m/Y'),
                         'date_iso' => $dto->getDate(),
                         'action' => $dto->getActionLabel(),
+                        'est_national' => $dto->isNational() ? 'national' : ($dto->isLocal() ? 'local' : 'non spécifié'),
+                        'recurrent' => $dto->isRecurrent() ? 'récurrent' : ($dto->isExceptionnel() ? 'exceptionnel' : 'non spécifié'),
                         'description' => $dto->getDescription(),
                     ];
                 } catch (\Exception $e) {

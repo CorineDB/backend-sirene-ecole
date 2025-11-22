@@ -237,6 +237,8 @@ class StoreProgrammationRequest extends FormRequest
             'jours_feries_exceptions' => ['nullable', 'array'],
             'jours_feries_exceptions.*.date' => ['required', 'date_format:Y-m-d'],
             'jours_feries_exceptions.*.action' => ['required', 'string', Rule::in(['include', 'exclude'])],
+            'jours_feries_exceptions.*.est_national' => ['nullable', 'boolean'],
+            'jours_feries_exceptions.*.recurrent' => ['nullable', 'boolean'],
 
             // Validation de l'abonnement actif
             'abonnement_id' => [
