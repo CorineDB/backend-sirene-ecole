@@ -7,6 +7,7 @@ use App\Enums\StatutMission;
 use App\Enums\StatutOrdreMission;
 use App\Models\AvisIntervention;
 use App\Models\AvisRapport;
+use App\Models\Intervention;
 use App\Models\User;
 use App\Models\Ecole;
 use App\Notifications\AdminCandidatureSubmissionNotification;
@@ -17,6 +18,7 @@ use App\Repositories\Contracts\RapportInterventionRepositoryInterface;
 use App\Repositories\Contracts\OrdreMissionRepositoryInterface;
 use App\Services\Contracts\InterventionServiceInterface;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -37,6 +39,90 @@ class InterventionService extends BaseService implements InterventionServiceInte
         $this->missionRepository = $missionRepository;
         $this->rapportRepository = $rapportRepository;
         $this->ordreMissionRepository = $ordreMissionRepository;
+    }
+
+    /**
+     * Override getAll() pour filtrer selon le rôle de l'utilisateur
+     */
+    public function getAll(int $perPage = 15, array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Si l'utilisateur est admin, retourner toutes les interventions
+            if ($user && $user->isAdmin()) {
+                return parent::getAll($perPage, $relations);
+            }
+
+            // Si l'utilisateur est technicien, filtrer par ses interventions ou par zone
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+
+                if ($technicien) {
+                    // Filtrer les interventions qui sont assignées au technicien
+                    // OU dont la panne est dans un site de la ville du technicien
+                    $data = Intervention::with($relations)
+                        ->where(function ($query) use ($technicien) {
+                            $query->where('technicien_id', $technicien->id)
+                                  ->orWhereHas('panne.site', function ($q) use ($technicien) {
+                                      $q->where('ville_id', $technicien->ville_id);
+                                  });
+                        })
+                        ->orderBy('created_at', 'desc')
+                        ->paginate($perPage);
+
+                    return $this->successResponse(null, $data);
+                }
+            }
+
+            // Par défaut, retourner une liste vide si l'utilisateur n'est ni admin ni technicien
+            return $this->successResponse(null, []);
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::getAll - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Override getById() pour filtrer selon le rôle de l'utilisateur
+     */
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Si l'utilisateur est admin, retourner l'intervention
+            if ($user && $user->isAdmin()) {
+                return parent::getById($id, $columns, $relations);
+            }
+
+            // Si l'utilisateur est technicien, vérifier qu'il est concerné
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+
+                if ($technicien) {
+                    $intervention = Intervention::with($relations)
+                        ->where(function ($query) use ($technicien) {
+                            $query->where('technicien_id', $technicien->id)
+                                  ->orWhereHas('panne.site', function ($q) use ($technicien) {
+                                      $q->where('ville_id', $technicien->ville_id);
+                                  });
+                        })
+                        ->find($id, $columns);
+
+                    if (!$intervention) {
+                        return $this->notFoundResponse('Intervention non trouvée ou non accessible.');
+                    }
+
+                    return $this->successResponse(null, $intervention);
+                }
+            }
+
+            return $this->notFoundResponse('Intervention non accessible.');
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     public function soumettreCandidatureMission(string $ordreMissionId, string $technicienId): JsonResponse
@@ -435,6 +521,29 @@ class InterventionService extends BaseService implements InterventionServiceInte
     public function getAvisIntervention(string $interventionId): JsonResponse
     {
         try {
+            $user = Auth::user();
+
+            // Vérifier que l'utilisateur peut accéder à cette intervention
+            if ($user && !$user->isAdmin()) {
+                if ($user->isTechnicien()) {
+                    $technicien = $user->getTechnicien();
+                    if ($technicien) {
+                        $intervention = Intervention::where('id', $interventionId)
+                            ->where(function ($query) use ($technicien) {
+                                $query->where('technicien_id', $technicien->id)
+                                      ->orWhereHas('panne.site', function ($q) use ($technicien) {
+                                          $q->where('ville_id', $technicien->ville_id);
+                                      });
+                            })
+                            ->first();
+
+                        if (!$intervention) {
+                            return $this->notFoundResponse('Intervention non trouvée ou non accessible.');
+                        }
+                    }
+                }
+            }
+
             $avis = AvisIntervention::where('intervention_id', $interventionId)
                 ->with(['ecole', 'auteur'])
                 ->get();
@@ -449,6 +558,35 @@ class InterventionService extends BaseService implements InterventionServiceInte
     public function getAvisRapport(string $rapportId): JsonResponse
     {
         try {
+            $user = Auth::user();
+
+            // Vérifier que l'utilisateur peut accéder à ce rapport
+            if ($user && !$user->isAdmin()) {
+                if ($user->isTechnicien()) {
+                    $technicien = $user->getTechnicien();
+                    if ($technicien) {
+                        $rapport = $this->rapportRepository->find($rapportId, relations: ['intervention']);
+                        if (!$rapport) {
+                            return $this->notFoundResponse('Rapport non trouvé.');
+                        }
+
+                        // Vérifier que le rapport est lié à une intervention accessible
+                        $intervention = Intervention::where('id', $rapport->intervention_id)
+                            ->where(function ($query) use ($technicien) {
+                                $query->where('technicien_id', $technicien->id)
+                                      ->orWhereHas('panne.site', function ($q) use ($technicien) {
+                                          $q->where('ville_id', $technicien->ville_id);
+                                      });
+                            })
+                            ->first();
+
+                        if (!$intervention) {
+                            return $this->notFoundResponse('Rapport non accessible.');
+                        }
+                    }
+                }
+            }
+
             $avis = AvisRapport::where('rapport_intervention_id', $rapportId)
                 ->with(['admin'])
                 ->get();
