@@ -88,4 +88,14 @@ class User extends Authenticatable
     {
         return $this->morphMany(Notification::class, 'notifiable');
     }
+
+    /**
+     * Check if the user is an admin.
+     *
+     * @return bool
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role && $this->role->slug === 'admin';
+    }
 }

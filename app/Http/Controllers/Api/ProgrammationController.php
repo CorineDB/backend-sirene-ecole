@@ -74,8 +74,6 @@ class ProgrammationController extends Controller
      */
     public function index(Sirene $sirene, Request $request): JsonResponse
     {
-        Gate::authorize('voir_les_programmations');
-
         $date = $request->query('date');
 
         if ($date) {
@@ -98,24 +96,6 @@ class ProgrammationController extends Controller
      */
     public function store(StoreProgrammationRequest $request, Sirene $sirene): JsonResponse
     {
-        // DEBUG: Vérifier les permissions
-        $user = auth()->user();
-        $user->load('role.permissions');
-
-        $debugInfo = [
-            'user_id' => $user->id,
-            'role_name' => $user->role->nom ?? 'No role',
-            'role_id' => $user->role->id ?? null,
-            'permissions_count' => $user->role->permissions->count() ?? 0,
-            'has_creer_programmation' => $user->role->permissions->contains('slug', 'creer_programmation'),
-            'gate_allows' => Gate::allows('creer_programmation'),
-            'all_permissions' => $user->role->permissions->pluck('slug')->toArray(),
-        ];
-
-        throw new \Exception('DEBUG PERMISSIONS: ' . json_encode($debugInfo, JSON_PRETTY_PRINT));
-
-        Gate::authorize('creer_programmation');
-
         $data = array_merge($request->validated(), ['sirene_id' => $sirene->id]);
         return $this->programmationService->create($data);
     }
@@ -133,8 +113,6 @@ class ProgrammationController extends Controller
      */
     public function show(Sirene $sirene, Programmation $programmation): JsonResponse
     {
-        Gate::authorize('voir_programmation');
-
         return $this->programmationService->findBy([
             'sirene_id' => $sirene->id,
             'id' => $programmation->id,
@@ -156,8 +134,6 @@ class ProgrammationController extends Controller
      */
     public function update(UpdateProgrammationRequest $request, Sirene $sirene, Programmation $programmation): JsonResponse
     {
-        Gate::authorize('modifier_programmation');
-
         $data = array_merge($request->validated(), ['sirene_id' => $sirene->id]);
         return $this->programmationService->update($programmation->id, $data);
     }
@@ -175,8 +151,6 @@ class ProgrammationController extends Controller
      */
     public function destroy(Sirene $sirene, Programmation $programmation): JsonResponse
     {
-        Gate::authorize('supprimer_programmation');
-
         return $this->programmationService->delete($programmation->id);
     }
 }
