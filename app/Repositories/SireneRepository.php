@@ -39,4 +39,23 @@ class SireneRepository extends BaseRepository implements SireneRepositoryInterfa
             'date_installation' => now(),
         ]);
     }
+
+    /**
+     * Récupérer toutes les sirènes dont l'école a un abonnement actif
+     *
+     * @param array $relations
+     * @return Collection
+     */
+    public function getSirenesAvecAbonnementActif(array $relations = []): Collection
+    {
+        return $this->model->with($relations)
+            ->whereHas('ecole', function ($query) {
+                $query->whereHas('abonnements', function ($subQuery) {
+                    $subQuery->where('statut', \App\Enums\StatutAbonnement::ACTIF->value)
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now());
+                });
+            })
+            ->get();
+    }
 }

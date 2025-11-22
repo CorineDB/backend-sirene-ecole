@@ -375,6 +375,44 @@ class SireneController extends Controller
     }
 
     /**
+     * Obtenir les sirènes dont l'école a un abonnement actif
+     * @OA\Get(
+     *     path="/api/sirenes-avec-abonnement-actif",
+     *     summary="Get sirenes with active subscription",
+     *     tags={"Sirenes"},
+     *     security={ {"passport": {}} },
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Sirènes avec abonnement actif récupérées avec succès."),
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Sirene"))
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Unauthorized",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="This action is unauthorized.")
+     *         )
+     *     )
+     * )
+     */
+    public function avecAbonnementActif(): JsonResponse
+    {
+        Gate::authorize('voir_les_sirenes');
+        return $this->sireneService->getSirenesAvecAbonnementActif(['modeleSirene', 'ecole', 'site']);
+    }
+
+    /**
      * Supprimer une sirène
      * @OA\Delete(
      *     path="/api/sirenes/{id}",
