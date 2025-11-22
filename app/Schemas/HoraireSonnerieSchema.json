@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Horaire de Sonnerie",
+  "description": "Schéma strict pour un horaire de sonnerie ESP8266",
+  "type": "object",
+  "required": [
+    "heure",
+    "minute",
+    "jours"
+  ],
+  "properties": {
+    "heure": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 23,
+      "description": "Heure de la sonnerie au format 24h"
+    },
+    "minute": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 59,
+      "description": "Minute de la sonnerie"
+    },
+    "jours": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 6
+      },
+      "description": "Jours de la semaine (0=Dimanche, 1=Lundi, 2=Mardi, 3=Mercredi, 4=Jeudi, 5=Vendredi, 6=Samedi)"
+    },
+    "duree_sonnerie": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 30,
+      "default": 3,
+      "description": "Durée de la sonnerie en secondes"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Description de l'horaire (ex: 'Début des cours', 'Récréation')"
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "heure": 8,
+      "minute": 0,
+      "jours": [1, 2, 3, 4, 5],
+      "duree_sonnerie": 5,
+      "description": "Début des cours"
+    },
+    {
+      "heure": 10,
+      "minute": 15,
+      "jours": [1, 2, 3, 4, 5],
+      "duree_sonnerie": 3,
+      "description": "Récréation"
+    },
+    {
+      "heure": 12,
+      "minute": 0,
+      "jours": [1, 2, 3, 4, 5],
+      "description": "Pause déjeuner"
+    }
+  ]
+}
