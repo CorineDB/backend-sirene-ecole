@@ -15,37 +15,19 @@ use OpenApi\Annotations as OA;
  *         property="nom",
  *         type="string",
  *         description="Name of the school",
- *         maxLength=255,
+ *         maxLength=100,
  *         nullable=true
  *     ),
  *     @OA\Property(
  *         property="nom_complet",
  *         type="string",
  *         description="Full name of the school",
- *         maxLength=500,
  *         nullable=true
  *     ),
  *     @OA\Property(
- *         property="email",
+ *         property="reference",
  *         type="string",
- *         format="email",
- *         description="School's email address",
- *         maxLength=255,
- *         nullable=true
- *     ),
- *     @OA\Property(
- *         property="telephone",
- *         type="string",
- *         description="School's phone number",
- *         maxLength=20,
- *         nullable=true
- *     ),
- *     @OA\Property(
- *         property="email_contact",
- *         type="string",
- *         format="email",
- *         description="Contact email for the school",
- *         maxLength=255,
+ *         description="School reference code",
  *         nullable=true
  *     ),
  *     @OA\Property(
@@ -56,11 +38,21 @@ use OpenApi\Annotations as OA;
  *         nullable=true
  *     ),
  *     @OA\Property(
- *         property="adresse",
+ *         property="email_contact",
  *         type="string",
- *         description="Address of the school",
- *         maxLength=500,
+ *         format="email",
+ *         description="Contact email for the school",
+ *         maxLength=100,
  *         nullable=true
+ *     ),
+ *     @OA\Property(
+ *         property="types_etablissement",
+ *         type="array",
+ *         description="Array of establishment types",
+ *         nullable=true,
+ *         @OA\Items(
+ *             type="string"
+ *         )
  *     ),
  *     @OA\Property(
  *         property="responsable_nom",
@@ -81,24 +73,6 @@ use OpenApi\Annotations as OA;
  *         type="string",
  *         description="Phone number of the person in charge",
  *         maxLength=20,
- *         nullable=true
- *     ),
- *     @OA\Property(
- *         property="latitude",
- *         type="number",
- *         format="float",
- *         description="Latitude of the school",
- *         minimum=-90,
- *         maximum=90,
- *         nullable=true
- *     ),
- *     @OA\Property(
- *         property="longitude",
- *         type="number",
- *         format="float",
- *         description="Longitude of the school",
- *         minimum=-180,
- *         maximum=180,
  *         nullable=true
  *     )
  * )
@@ -127,19 +101,19 @@ class UpdateEcoleRequest extends FormRequest
         $ecoleId = $this->route('id') ?? $this->user()->user_account_type_id;
 
         return [
-            'nom' => ['sometimes', 'string', 'max:255'],
-            'nom_complet' => ['sometimes', 'nullable', 'string', 'max:500'],
-            'email' => ['sometimes', 'nullable', 'email', 'max:255', Rule::unique('ecoles', 'email')->ignore($ecoleId)],
-            'telephone' => ['sometimes', 'string', 'max:20', Rule::unique('ecoles', 'telephone')->ignore($ecoleId)],
-            'email_contact' => ['sometimes', 'nullable', 'email', 'max:255'],
-            'telephone_contact' => ['sometimes', 'nullable', 'string', 'max:20'],
-            'est_prive' => ['sometimes', 'boolean'],
-            'adresse' => ['sometimes', 'nullable', 'string', 'max:500'],
-            'responsable_nom' => ['sometimes', 'string', 'max:255'],
-            'responsable_prenom' => ['sometimes', 'string', 'max:255'],
-            'responsable_telephone' => ['sometimes', 'string', 'max:20'],
-            'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
-            'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
+            // Champs de la table ecoles (basés sur la migration)
+            'nom' => ['sometimes', 'string', 'max:100'],
+            'nom_complet' => ['sometimes', 'string'],
+            'reference' => ['sometimes', 'nullable', 'string'],
+            'telephone_contact' => ['sometimes', 'string', 'max:20', Rule::unique('ecoles', 'telephone_contact')->ignore($ecoleId)],
+            'email_contact' => ['sometimes', 'nullable', 'email', 'max:100', Rule::unique('ecoles', 'email_contact')->ignore($ecoleId)],
+            'types_etablissement' => ['sometimes', 'array'],
+            'types_etablissement.*' => ['string', Rule::in(\App\Enums\TypeEtablissement::values())],
+
+            // Informations du responsable
+            'responsable_nom' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'responsable_prenom' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'responsable_telephone' => ['sometimes', 'nullable', 'string', 'max:20'],
         ];
     }
 
@@ -149,16 +123,24 @@ class UpdateEcoleRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'nom.required' => 'Le nom de l\'école est requis.',
             'nom.string' => 'Le nom doit être une chaîne de caractères.',
-            'nom.max' => 'Le nom ne peut pas dépasser 255 caractères.',
-            'email.email' => 'L\'email doit être une adresse email valide.',
-            'email.unique' => 'Cet email est déjà utilisé.',
-            'telephone.string' => 'Le téléphone doit être une chaîne de caractères.',
-            'telephone.unique' => 'Ce numéro de téléphone est déjà utilisé.',
-            'latitude.numeric' => 'La latitude doit être un nombre.',
-            'latitude.between' => 'La latitude doit être entre -90 et 90.',
-            'longitude.numeric' => 'La longitude doit être un nombre.',
-            'longitude.between' => 'La longitude doit être entre -180 et 180.',
+            'nom.max' => 'Le nom ne peut pas dépasser 100 caractères.',
+            'nom_complet.string' => 'Le nom complet doit être une chaîne de caractères.',
+            'telephone_contact.string' => 'Le téléphone de contact doit être une chaîne de caractères.',
+            'telephone_contact.max' => 'Le téléphone de contact ne peut pas dépasser 20 caractères.',
+            'telephone_contact.unique' => 'Ce numéro de téléphone est déjà utilisé.',
+            'email_contact.email' => 'L\'email de contact doit être une adresse email valide.',
+            'email_contact.max' => 'L\'email de contact ne peut pas dépasser 100 caractères.',
+            'email_contact.unique' => 'Cet email est déjà utilisé.',
+            'types_etablissement.array' => 'Les types d\'établissement doivent être un tableau.',
+            'types_etablissement.*.in' => 'Type d\'établissement invalide.',
+            'responsable_nom.string' => 'Le nom du responsable doit être une chaîne de caractères.',
+            'responsable_nom.max' => 'Le nom du responsable ne peut pas dépasser 255 caractères.',
+            'responsable_prenom.string' => 'Le prénom du responsable doit être une chaîne de caractères.',
+            'responsable_prenom.max' => 'Le prénom du responsable ne peut pas dépasser 255 caractères.',
+            'responsable_telephone.string' => 'Le téléphone du responsable doit être une chaîne de caractères.',
+            'responsable_telephone.max' => 'Le téléphone du responsable ne peut pas dépasser 20 caractères.',
         ];
     }
 }
