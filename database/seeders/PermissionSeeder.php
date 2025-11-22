@@ -64,6 +64,7 @@ class PermissionSeeder extends Seeder
             // Fichier
             ['nom' => 'Voir les fichiers', 'slug' => 'voir_les_fichiers'],
             ['nom' => 'Voir un fichier', 'slug' => 'voir_fichier'],
+            ['nom' => 'Créer un fichier', 'slug' => 'creer_fichier'],
             ['nom' => 'Télécharger un fichier', 'slug' => 'telecharger_fichier'],
             ['nom' => 'Supprimer un fichier', 'slug' => 'supprimer_fichier'],
 
