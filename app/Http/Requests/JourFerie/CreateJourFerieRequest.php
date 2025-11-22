@@ -73,10 +73,14 @@ class CreateJourFerieRequest extends FormRequest
             return false;
         }
 
-        // Si un ecole_id est fourni, vérifier l'abonnement actif
         $ecoleId = $this->input('ecole_id') ?? $this->route('ecole');
 
-        if ($ecoleId) {
+        // Si l'utilisateur est une école, ecole_id doit être obligatoirement fourni
+        if ($user->user_account_type_type === Ecole::class) {
+            if (!$ecoleId) {
+                return false; // Les écoles ne peuvent pas créer de jours fériés nationaux
+            }
+
             $ecole = Ecole::find($ecoleId);
 
             if (!$ecole) {
@@ -88,21 +92,30 @@ class CreateJourFerieRequest extends FormRequest
                 return false;
             }
 
-            // Les admins peuvent créer des jours fériés pour n'importe quelle école
-            if ($user->isAdmin()) {
-                return true;
-            }
-
             // Les écoles peuvent créer des jours fériés uniquement pour elles-mêmes
-            if ($user->user_account_type_type === Ecole::class) {
-                return $ecole->id === $user->user_account_type_id;
-            }
-
-            return false;
+            return $ecole->id === $user->user_account_type_id;
         }
 
-        // Si pas d'ecole_id, seuls les admins peuvent créer (jours fériés nationaux)
-        return $user->isAdmin();
+        // Pour les admins
+        if ($user->isAdmin()) {
+            // Si un ecole_id est fourni, vérifier l'abonnement actif
+            if ($ecoleId) {
+                $ecole = Ecole::find($ecoleId);
+
+                if (!$ecole) {
+                    return false;
+                }
+
+                // Vérifier que l'école a un abonnement actif
+                if (!$ecole->hasActiveSubscription()) {
+                    return false;
+                }
+            }
+
+            return true; // Les admins peuvent créer des jours fériés nationaux ou pour une école
+        }
+
+        return false;
     }
 
     /**

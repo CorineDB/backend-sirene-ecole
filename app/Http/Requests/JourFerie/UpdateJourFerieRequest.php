@@ -83,10 +83,15 @@ class UpdateJourFerieRequest extends FormRequest
             return false;
         }
 
-        // Si un ecole_id est associé au jour férié, vérifier l'abonnement actif
         $ecoleId = $this->input('ecole_id') ?? $jourFerie->ecole_id;
 
-        if ($ecoleId) {
+        // Si l'utilisateur est une école
+        if ($user->user_account_type_type === Ecole::class) {
+            // Les écoles ne peuvent pas modifier de jours fériés nationaux
+            if (!$ecoleId) {
+                return false;
+            }
+
             $ecole = Ecole::find($ecoleId);
 
             if (!$ecole) {
@@ -98,21 +103,30 @@ class UpdateJourFerieRequest extends FormRequest
                 return false;
             }
 
-            // Les admins peuvent modifier des jours fériés pour n'importe quelle école
-            if ($user->isAdmin()) {
-                return true;
-            }
-
             // Les écoles peuvent modifier des jours fériés uniquement pour elles-mêmes
-            if ($user->user_account_type_type === Ecole::class) {
-                return $ecole->id === $user->user_account_type_id;
-            }
-
-            return false;
+            return $ecole->id === $user->user_account_type_id;
         }
 
-        // Si pas d'ecole_id, seuls les admins peuvent modifier (jours fériés nationaux)
-        return $user->isAdmin();
+        // Pour les admins
+        if ($user->isAdmin()) {
+            // Si un ecole_id est associé, vérifier l'abonnement actif
+            if ($ecoleId) {
+                $ecole = Ecole::find($ecoleId);
+
+                if (!$ecole) {
+                    return false;
+                }
+
+                // Vérifier que l'école a un abonnement actif
+                if (!$ecole->hasActiveSubscription()) {
+                    return false;
+                }
+            }
+
+            return true; // Les admins peuvent modifier des jours fériés nationaux ou d'école
+        }
+
+        return false;
     }
 
     /**
