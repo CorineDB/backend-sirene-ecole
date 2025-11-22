@@ -69,7 +69,50 @@ class UpdateJourFerieRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+
+        if (!$user) {
+            return false;
+        }
+
+        // Récupérer le jour férié à modifier
+        $jourFerieId = $this->route('jour_fery') ?? $this->route('id');
+        $jourFerie = $jourFerieId ? JourFerie::find($jourFerieId) : null;
+
+        if (!$jourFerie) {
+            return false;
+        }
+
+        // Si un ecole_id est associé au jour férié, vérifier l'abonnement actif
+        $ecoleId = $this->input('ecole_id') ?? $jourFerie->ecole_id;
+
+        if ($ecoleId) {
+            $ecole = Ecole::find($ecoleId);
+
+            if (!$ecole) {
+                return false;
+            }
+
+            // Vérifier que l'école a un abonnement actif
+            if (!$ecole->hasActiveSubscription()) {
+                return false;
+            }
+
+            // Les admins peuvent modifier des jours fériés pour n'importe quelle école
+            if ($user->isAdmin()) {
+                return true;
+            }
+
+            // Les écoles peuvent modifier des jours fériés uniquement pour elles-mêmes
+            if ($user->user_account_type_type === Ecole::class) {
+                return $ecole->id === $user->user_account_type_id;
+            }
+
+            return false;
+        }
+
+        // Si pas d'ecole_id, seuls les admins peuvent modifier (jours fériés nationaux)
+        return $user->isAdmin();
     }
 
     /**
