@@ -74,6 +74,8 @@ class ProgrammationController extends Controller
      */
     public function index(Sirene $sirene, Request $request): JsonResponse
     {
+        Gate::authorize('voir_les_programmations');
+
         $date = $request->query('date');
 
         if ($date) {
@@ -96,6 +98,8 @@ class ProgrammationController extends Controller
      */
     public function store(StoreProgrammationRequest $request, Sirene $sirene): JsonResponse
     {
+        Gate::authorize('creer_programmation');
+
         $data = array_merge($request->validated(), ['sirene_id' => $sirene->id]);
         return $this->programmationService->create($data);
     }
@@ -113,6 +117,8 @@ class ProgrammationController extends Controller
      */
     public function show(Sirene $sirene, Programmation $programmation): JsonResponse
     {
+        Gate::authorize('voir_programmation');
+
         return $this->programmationService->findBy([
             'sirene_id' => $sirene->id,
             'id' => $programmation->id,
@@ -134,6 +140,8 @@ class ProgrammationController extends Controller
      */
     public function update(UpdateProgrammationRequest $request, Sirene $sirene, Programmation $programmation): JsonResponse
     {
+        Gate::authorize('modifier_programmation');
+
         $data = array_merge($request->validated(), ['sirene_id' => $sirene->id]);
         return $this->programmationService->update($programmation->id, $data);
     }
@@ -151,6 +159,8 @@ class ProgrammationController extends Controller
      */
     public function destroy(Sirene $sirene, Programmation $programmation): JsonResponse
     {
+        Gate::authorize('supprimer_programmation');
+
         return $this->programmationService->delete($programmation->id);
     }
 }
