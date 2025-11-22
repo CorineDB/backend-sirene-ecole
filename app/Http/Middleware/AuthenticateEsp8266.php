@@ -38,7 +38,7 @@ class AuthenticateEsp8266
         $tokenHash = hash('sha256', $tokenCrypte);
 
         // Rechercher le token actif avec son abonnement et sa sirène
-        $tokenActif = \App\Models\AbonnementToken::where('token_hash', $tokenHash)
+        $tokenActif = \App\Models\TokenSirene::where('token_hash', $tokenHash)
             ->where('actif', true)
             ->with([
                 'abonnement' => function ($query) {
