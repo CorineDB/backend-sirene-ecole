@@ -15,7 +15,6 @@ class InterventionController extends Controller
 
     public function __construct(InterventionServiceInterface $interventionService)
     {
-        $this->middleware('auth:api');
         $this->interventionService = $interventionService;
     }
 
