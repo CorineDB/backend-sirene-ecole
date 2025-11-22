@@ -38,14 +38,14 @@ class Abonnement extends Model
     ];
 
     protected $casts = [
-        'date_debut' => 'date',
-        'date_fin' => 'date',
+        'date_debut' => 'date:Y-m-d',
+        'date_fin' => 'date:Y-m-d',
         'montant' => 'decimal:2',
         'statut' => StatutAbonnement::class,
         'auto_renouvellement' => 'boolean',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s',
+        'deleted_at' => 'datetime:Y-m-d H:i:s',
     ];
 
     /**

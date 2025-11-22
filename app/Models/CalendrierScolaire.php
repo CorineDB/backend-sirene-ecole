@@ -30,14 +30,14 @@ class CalendrierScolaire extends Model
     ];
 
     protected $casts = [
-        'date_rentree'          => 'date',
-        'date_fin_annee'        => 'date',
+        'date_rentree'          => 'date:Y-m-d',
+        'date_fin_annee'        => 'date:Y-m-d',
         'periodes_vacances'     => 'array',
         'jours_feries_defaut'   => 'array',
         'actif'                 => 'boolean',
-        'created_at'            => 'datetime',
-        'updated_at'            => 'datetime',
-        'deleted_at'            => 'datetime',
+        'created_at'            => 'datetime:Y-m-d H:i:s',
+        'updated_at'            => 'datetime:Y-m-d H:i:s',
+        'deleted_at'            => 'datetime:Y-m-d H:i:s',
     ];
 
     // Relations
