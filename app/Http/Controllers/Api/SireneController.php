@@ -554,12 +554,7 @@ class SireneController extends Controller
                 ->with([
                     'ecole',
                     'site',
-                    'abonnements' => function ($query) {
-                        $query->where('statut', \App\Enums\StatutAbonnement::ACTIF->value)
-                            ->where('date_debut', '<=', now())
-                            ->where('date_fin', '>=', now())
-                            ->with(['tokenActif']);
-                    },
+                    'abonnementActif.tokenActif',
                     'programmations' => function ($query) {
                         $query->where('actif', true)
                             ->where('date_debut', '<=', now())
@@ -576,7 +571,7 @@ class SireneController extends Controller
             }
 
             // 2. Vérifier qu'il existe un abonnement actif
-            $abonnementActif = $sirene->abonnements->first();
+            $abonnementActif = $sirene->abonnementActif;
 
             if (!$abonnementActif) {
                 return response()->json([
