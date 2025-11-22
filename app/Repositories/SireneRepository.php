@@ -51,6 +51,14 @@ class SireneRepository extends BaseRepository implements SireneRepositoryInterfa
     public function getSirenesAvecAbonnementActif(array $relations = [], int $perPage = 15, ?string $ecoleId = null)
     {
         $query = $this->model->with($relations)
+            ->with([
+                'abonnements' => function ($query) {
+                    $query->where('statut', \App\Enums\StatutAbonnement::ACTIF->value)
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now())
+                        ->with(['tokenActif']);
+                }
+            ])
             ->whereHas('ecole', function ($query) {
                 $query->whereHas('abonnements', function ($subQuery) {
                     $subQuery->where('statut', \App\Enums\StatutAbonnement::ACTIF->value)
