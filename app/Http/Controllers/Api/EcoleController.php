@@ -351,7 +351,38 @@ class EcoleController extends Controller implements HasMiddleware
      */
     public function updateById(UpdateEcoleRequest $request, string $id): JsonResponse
     {
+        $user = $request->user();
+
+        // Debug logging
+        \Log::info('UpdateById - User info', [
+            'user_id' => $user->id,
+            'user_type' => $user->user_account_type_type,
+            'user_account_id' => $user->user_account_type_id,
+            'role_id' => $user->role_id,
+            'target_ecole_id' => $id,
+            'has_role' => !is_null($user->role),
+            'role_slug' => $user->role?->slug,
+        ]);
+
+        if ($user->role) {
+            \Log::info('UpdateById - Role permissions', [
+                'permissions_count' => $user->role->permissions->count(),
+                'has_modifier_ecole' => $user->role->permissions->pluck('slug')->contains('modifier_ecole'),
+            ]);
+        }
+
         Gate::authorize('modifier_ecole');
+
+        // Si l'utilisateur est une école, il ne peut modifier que sa propre école
+        if ($user->user_account_type_type === \App\Models\Ecole::class) {
+            if ($user->user_account_type_id !== $id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vous ne pouvez modifier que votre propre école.',
+                ], 403);
+            }
+        }
+
         return $this->ecoleService->update($id, $request->validated());
     }
 
