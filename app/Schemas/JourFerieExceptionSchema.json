@@ -17,6 +17,18 @@
       "enum": ["include", "exclude"],
       "description": "Action à appliquer: 'include' pour inclure ce jour férié, 'exclude' pour l'exclure",
       "examples": ["include", "exclude"]
+    },
+    "est_national": {
+      "type": ["boolean", "null"],
+      "description": "Indique si c'est un jour férié national (true) ou local/régional (false). Null si non spécifié.",
+      "examples": [true, false, null],
+      "default": null
+    },
+    "recurrent": {
+      "type": ["boolean", "null"],
+      "description": "Indique si c'est un jour férié récurrent/annuel (true) ou exceptionnel/ponctuel (false). Null si non spécifié.",
+      "examples": [true, false, null],
+      "default": null
     }
   },
   "additionalProperties": false,
@@ -24,17 +36,44 @@
     {
       "date": "2025-12-25",
       "action": "include",
-      "description": "Inclure la sonnerie pour Noël"
+      "est_national": true,
+      "recurrent": true,
+      "description": "Inclure la sonnerie pour Noël (jour férié national récurrent)"
     },
     {
       "date": "2025-01-01",
       "action": "exclude",
-      "description": "Exclure la sonnerie pour le Jour de l'An"
+      "est_national": true,
+      "recurrent": true,
+      "description": "Exclure la sonnerie pour le Jour de l'An (jour férié national récurrent)"
     },
     {
       "date": "2025-07-14",
       "action": "include",
-      "description": "Inclure la sonnerie pour la Fête Nationale (événement spécial)"
+      "est_national": true,
+      "recurrent": true,
+      "description": "Inclure la sonnerie pour la Fête Nationale (jour férié national récurrent)"
+    },
+    {
+      "date": "2025-11-11",
+      "action": "exclude",
+      "est_national": true,
+      "recurrent": true,
+      "description": "Exclure la sonnerie pour l'Armistice (jour férié national récurrent)"
+    },
+    {
+      "date": "2025-05-08",
+      "action": "include",
+      "est_national": false,
+      "recurrent": true,
+      "description": "Inclure la sonnerie pour une fête locale récurrente"
+    },
+    {
+      "date": "2025-06-15",
+      "action": "exclude",
+      "est_national": false,
+      "recurrent": false,
+      "description": "Exclure la sonnerie pour un événement exceptionnel local"
     }
   ],
   "definitions": {

@@ -249,6 +249,8 @@ class UpdateProgrammationRequest extends FormRequest
             'jours_feries_exceptions' => ['sometimes', 'nullable', 'array'],
             'jours_feries_exceptions.*.date' => ['required', 'date_format:Y-m-d'],
             'jours_feries_exceptions.*.action' => ['required', 'string', Rule::in(['include', 'exclude'])],
+            'jours_feries_exceptions.*.est_national' => ['nullable', 'boolean'],
+            'jours_feries_exceptions.*.recurrent' => ['nullable', 'boolean'],
 
             // Champs générés (en lecture seule, générés automatiquement)
             'chaine_programmee' => ['sometimes', 'prohibited'],

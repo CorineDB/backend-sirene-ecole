@@ -15,6 +15,8 @@ class JourFerieExceptionDTO implements JourFerieExceptionInterface
 {
     public string $date;
     public string $action;
+    public ?bool $est_national;
+    public ?bool $recurrent;
 
     /**
      * @param array $data
@@ -26,6 +28,8 @@ class JourFerieExceptionDTO implements JourFerieExceptionInterface
 
         $this->date = $data['date'];
         $this->action = $data['action'];
+        $this->est_national = $data['est_national'] ?? null;
+        $this->recurrent = $data['recurrent'] ?? null;
     }
 
     /**
@@ -69,6 +73,16 @@ class JourFerieExceptionDTO implements JourFerieExceptionInterface
         if (!in_array($data['action'], ['include', 'exclude'], true)) {
             throw new \InvalidArgumentException('L\'action doit être "include" ou "exclude".');
         }
+
+        // Valider est_national (optionnel)
+        if (isset($data['est_national']) && !is_bool($data['est_national'])) {
+            throw new \InvalidArgumentException('Le champ "est_national" doit être un booléen (true ou false).');
+        }
+
+        // Valider recurrent (optionnel)
+        if (isset($data['recurrent']) && !is_bool($data['recurrent'])) {
+            throw new \InvalidArgumentException('Le champ "recurrent" doit être un booléen (true ou false).');
+        }
     }
 
     /**
@@ -111,6 +125,8 @@ class JourFerieExceptionDTO implements JourFerieExceptionInterface
         return [
             'date' => $this->date,
             'action' => $this->action,
+            'est_national' => $this->est_national,
+            'recurrent' => $this->recurrent,
         ];
     }
 
@@ -218,6 +234,86 @@ class JourFerieExceptionDTO implements JourFerieExceptionInterface
         $dateFormatted = $this->getFormattedDate('l d F Y');
         $action = $this->getActionLabel();
 
-        return "{$action} le {$dateFormatted}";
+        $description = "{$action} le {$dateFormatted}";
+
+        // Ajouter des détails supplémentaires si disponibles
+        $details = [];
+        if ($this->est_national === true) {
+            $details[] = 'jour férié national';
+        } elseif ($this->est_national === false) {
+            $details[] = 'jour férié local';
+        }
+
+        if ($this->recurrent === true) {
+            $details[] = 'récurrent';
+        } elseif ($this->recurrent === false) {
+            $details[] = 'exceptionnel';
+        }
+
+        if (!empty($details)) {
+            $description .= ' (' . implode(', ', $details) . ')';
+        }
+
+        return $description;
+    }
+
+    /**
+     * Vérifier si c'est un jour férié national
+     *
+     * @return bool|null null si non spécifié
+     */
+    public function getEstNational(): ?bool
+    {
+        return $this->est_national;
+    }
+
+    /**
+     * Vérifier si c'est un jour férié récurrent
+     *
+     * @return bool|null null si non spécifié
+     */
+    public function getRecurrent(): ?bool
+    {
+        return $this->recurrent;
+    }
+
+    /**
+     * Vérifier si c'est un jour férié national
+     *
+     * @return bool
+     */
+    public function isNational(): bool
+    {
+        return $this->est_national === true;
+    }
+
+    /**
+     * Vérifier si c'est un jour férié local/régional
+     *
+     * @return bool
+     */
+    public function isLocal(): bool
+    {
+        return $this->est_national === false;
+    }
+
+    /**
+     * Vérifier si c'est un jour férié récurrent (annuel)
+     *
+     * @return bool
+     */
+    public function isRecurrent(): bool
+    {
+        return $this->recurrent === true;
+    }
+
+    /**
+     * Vérifier si c'est un jour férié exceptionnel (non récurrent)
+     *
+     * @return bool
+     */
+    public function isExceptionnel(): bool
+    {
+        return $this->recurrent === false;
     }
 }
