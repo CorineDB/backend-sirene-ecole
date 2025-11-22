@@ -86,74 +86,21 @@ class SireneService extends BaseService implements SireneServiceInterface
         }
     }
 
-    public function getProgrammationByNumeroSerie(string $numeroSerie, ?string $tokenCrypte = null): JsonResponse
+    public function getProgrammationForSirene(\App\Models\Sirene $sirene): JsonResponse
     {
         try {
-            // Rechercher la sirène par numéro de série avec abonnement et token actif
-            $sirene = $this->repository->model
-                ->where('numero_serie', $numeroSerie)
-                ->with([
-                    'programmations' => function ($query) {
-                        $query->where('actif', true)
-                            ->where('date_debut', '<=', now())
-                            ->where('date_fin', '>=', now())
-                            ->orderBy('created_at', 'desc');
-                    },
-                    'abonnementActif.tokenActif'
-                ])
-                ->first();
+            // Note: L'authentification est déjà gérée par le middleware AuthenticateEsp8266
+            // La sirène a déjà été validée et fournie par le middleware
 
-            if (!$sirene) {
-                return $this->notFoundResponse('Sirène non trouvée pour ce numéro de série.');
-            }
-
-            // Vérifier l'authentification par token crypté si fourni
-            if ($tokenCrypte) {
-                $abonnementActif = $sirene->abonnementActif;
-
-                if (!$abonnementActif) {
-                    Log::warning("Tentative d'accès sans abonnement actif", [
-                        'numero_serie' => $numeroSerie,
-                    ]);
-                    return $this->errorResponse('Aucun abonnement actif pour cette sirène.', 401);
+            // Charger les programmations actives pour cette sirène
+            $sirene->load([
+                'programmations' => function ($query) {
+                    $query->where('actif', true)
+                        ->where('date_debut', '<=', now())
+                        ->where('date_fin', '>=', now())
+                        ->orderBy('created_at', 'desc');
                 }
-
-                $tokenActif = $abonnementActif->tokenActif;
-
-                if (!$tokenActif) {
-                    Log::warning("Tentative d'accès sans token actif", [
-                        'numero_serie' => $numeroSerie,
-                        'abonnement_id' => $abonnementActif->id,
-                    ]);
-                    return $this->errorResponse('Aucun token actif trouvé.', 401);
-                }
-
-                // Vérifier que le token correspond
-                $tokenHash = hash('sha256', $tokenCrypte);
-                if ($tokenHash !== $tokenActif->token_hash) {
-                    Log::warning("Token crypté invalide", [
-                        'numero_serie' => $numeroSerie,
-                        'token_hash_fourni' => $tokenHash,
-                        'token_hash_attendu' => $tokenActif->token_hash,
-                    ]);
-                    return $this->errorResponse('Token d\'authentification invalide.', 401);
-                }
-
-                // Vérifier que le token n'est pas expiré
-                if ($tokenActif->date_expiration < now()) {
-                    Log::warning("Token expiré", [
-                        'numero_serie' => $numeroSerie,
-                        'date_expiration' => $tokenActif->date_expiration->toIso8601String(),
-                    ]);
-                    return $this->errorResponse('Token expiré.', 401);
-                }
-
-                Log::info("Authentification ESP8266 réussie", [
-                    'numero_serie' => $numeroSerie,
-                    'abonnement_id' => $abonnementActif->id,
-                    'token_id' => $tokenActif->id,
-                ]);
-            }
+            ]);
 
             // Vérifier qu'il y a une programmation active
             $programmation = $sirene->programmations->first();
@@ -164,13 +111,17 @@ class SireneService extends BaseService implements SireneServiceInterface
             // Retourner les données de programmation
             return $this->successResponse(null, [
                 'chaine_cryptee' => $programmation->chaine_cryptee,
+                'chaine_programmee' => $programmation->chaine_programmee,
                 'version' => '01',
                 'date_generation' => $programmation->updated_at->format('Y-m-d H:i:s'),
+                'date_debut' => $programmation->date_debut->format('Y-m-d'),
+                'date_fin' => $programmation->date_fin->format('Y-m-d'),
             ]);
 
         } catch (Exception $e) {
-            Log::error("Error in " . get_class($this) . "::getProgrammationByNumeroSerie - " . $e->getMessage(), [
-                'numero_serie' => $numeroSerie,
+            Log::error("Error in " . get_class($this) . "::getProgrammationForSirene - " . $e->getMessage(), [
+                'sirene_id' => $sirene->id ?? null,
+                'numero_serie' => $sirene->numero_serie ?? null,
                 'trace' => $e->getTraceAsString(),
             ]);
             return $this->errorResponse('Erreur lors de la récupération de la programmation.', 500);
