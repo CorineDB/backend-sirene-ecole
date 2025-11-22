@@ -98,6 +98,22 @@ class ProgrammationController extends Controller
      */
     public function store(StoreProgrammationRequest $request, Sirene $sirene): JsonResponse
     {
+        // DEBUG: Vérifier les permissions
+        $user = auth()->user();
+        $user->load('role.permissions');
+
+        $debugInfo = [
+            'user_id' => $user->id,
+            'role_name' => $user->role->nom ?? 'No role',
+            'role_id' => $user->role->id ?? null,
+            'permissions_count' => $user->role->permissions->count() ?? 0,
+            'has_creer_programmation' => $user->role->permissions->contains('slug', 'creer_programmation'),
+            'gate_allows' => Gate::allows('creer_programmation'),
+            'all_permissions' => $user->role->permissions->pluck('slug')->toArray(),
+        ];
+
+        throw new \Exception('DEBUG PERMISSIONS: ' . json_encode($debugInfo, JSON_PRETTY_PRINT));
+
         Gate::authorize('creer_programmation');
 
         $data = array_merge($request->validated(), ['sirene_id' => $sirene->id]);
