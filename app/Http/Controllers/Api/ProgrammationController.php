@@ -32,7 +32,7 @@ use OpenApi\Annotations as OA;
  *     @OA\Property(property="calendrier_id", type="string", format="ulid", nullable=true, description="ID du calendrier scolaire associé"),
  *     @OA\Property(property="nom_programmation", type="string", description="Nom de la programmation"),
  *     @OA\Property(property="horaires_sonneries", type="array", @OA\Items(type="string", format="time"), description="Horaires des sonneries"),
- *     @OA\Property(property="jour_semaine", type="array", @OA\Items(type="string"), description="Jours de la semaine concernés"),
+ *     @OA\Property(property="jour_semaine", type="array", @OA\Items(type="integer"), description="Jours de la semaine concernés (calculé dynamiquement à partir de horaires_sonneries, 0=Dimanche...6=Samedi, lecture seule)"),
  *     @OA\Property(property="jours_feries_inclus", type="boolean", description="Indique si les jours fériés sont inclus"),
  *     @OA\Property(property="jours_feries_exceptions", type="array", @OA\Items(type="string", format="date"), nullable=true, description="Exceptions pour les jours fériés"),
  *     @OA\Property(property="chaine_programmee", type="string", nullable=true, description="Chaîne de programmation générée"),
@@ -66,10 +66,39 @@ class ProgrammationController extends Controller
      * @OA\Get(
      *     path="/api/sirenes/{sirene}/programmations",
      *     tags={"Programmations"},
-     *     summary="Lister les programmations d'une sirène",
-     *     @OA\Parameter(name="sirene", in="path", required=true, @OA\Schema(type="string")),
-     *     @OA\Parameter(name="date", in="query", @OA\Schema(type="string", format="date")),
-     *     @OA\Response(response=200, description="Success", @OA\JsonContent(type="array", @OA\Items(ref="#/components/schemas/Programmation")))
+     *     summary="Lister les programmations d'une sirène (paginé)",
+     *     @OA\Parameter(name="sirene", in="path", required=true, @OA\Schema(type="string"), description="ID de la sirène"),
+     *     @OA\Parameter(name="date", in="query", @OA\Schema(type="string", format="date"), description="Filtrer par date spécifique (retourne liste non paginée)"),
+     *     @OA\Parameter(name="page", in="query", @OA\Schema(type="integer", default=1), description="Numéro de la page"),
+     *     @OA\Parameter(name="per_page", in="query", @OA\Schema(type="integer", default=15, maximum=100), description="Nombre d'éléments par page (max: 100)"),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Success (paginé)",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Programmations paginées récupérées avec succès."),
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Programmation")),
+     *             @OA\Property(
+     *                 property="pagination",
+     *                 type="object",
+     *                 @OA\Property(property="current_page", type="integer", example=1),
+     *                 @OA\Property(property="per_page", type="integer", example=15),
+     *                 @OA\Property(property="total", type="integer", example=45),
+     *                 @OA\Property(property="last_page", type="integer", example=3),
+     *                 @OA\Property(property="from", type="integer", example=1),
+     *                 @OA\Property(property="to", type="integer", example=15),
+     *                 @OA\Property(property="has_more_pages", type="boolean", example=true)
+     *             ),
+     *             @OA\Property(
+     *                 property="links",
+     *                 type="object",
+     *                 @OA\Property(property="first", type="string", example="http://api.example.com/api/sirenes/01ABC/programmations?page=1"),
+     *                 @OA\Property(property="last", type="string", example="http://api.example.com/api/sirenes/01ABC/programmations?page=3"),
+     *                 @OA\Property(property="prev", type="string", nullable=true, example=null),
+     *                 @OA\Property(property="next", type="string", example="http://api.example.com/api/sirenes/01ABC/programmations?page=2")
+     *             )
+     *         )
+     *     )
      * )
      */
     public function index(Sirene $sirene, Request $request): JsonResponse
@@ -78,11 +107,15 @@ class ProgrammationController extends Controller
 
         $date = $request->query('date');
 
+        // Si une date est spécifiée, retourner les programmations effectives (non paginé)
         if ($date) {
             return $this->programmationService->getEffectiveProgrammationsForSirene($sirene->id, $date);
         }
 
-        return $this->programmationService->getBySireneId($sirene->id);
+        // Sinon, retourner les programmations paginées
+        $perPage = min((int) $request->query('per_page', 15), 100); // Max 100 items per page
+
+        return $this->programmationService->getPaginatedBySireneId($sirene->id, $perPage);
     }
 
     /**

@@ -104,6 +104,9 @@ Route::prefix('ecoles')->group(function () {
 });
 
 // Sirene routes
+Route::get('sirenes-programmable', [SireneController::class, 'avecAbonnementActif'])
+    ->middleware(['auth:api', 'can:voir_les_sirenes']);
+
 Route::prefix('sirenes')->group(function () {
     // Public: Programmations actives pour les sirènes authentifiées
     // getProgrammation nécessite le token dans le header X-Sirene-Token

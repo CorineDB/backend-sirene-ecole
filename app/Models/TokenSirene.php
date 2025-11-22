@@ -34,15 +34,15 @@ class TokenSirene extends Model
     ];
 
     protected $casts = [
-        'date_debut' => 'date',
-        'date_fin' => 'date',
+        'date_debut' => 'date:Y-m-d',
+        'date_fin' => 'date:Y-m-d',
         'actif' => 'boolean',
-        'date_generation' => 'datetime',
-        'date_expiration' => 'datetime',
-        'date_activation' => 'datetime',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'date_generation' => 'datetime:Y-m-d H:i:s',
+        'date_expiration' => 'datetime:Y-m-d H:i:s',
+        'date_activation' => 'datetime:Y-m-d H:i:s',
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s',
+        'deleted_at' => 'datetime:Y-m-d H:i:s',
     ];
 
     // Relations

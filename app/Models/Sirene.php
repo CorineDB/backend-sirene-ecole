@@ -40,14 +40,14 @@ class Sirene extends Model
     ];
 
     protected $casts = [
-        'date_fabrication' => 'date',
-        'date_installation' => 'date',
-        'date_fin' => 'date',
+        'date_fabrication' => 'date:Y-m-d',
+        'date_installation' => 'date:Y-m-d',
+        'date_fin' => 'date:Y-m-d',
         'old_statut' => StatutSirene::class,
         'statut' =>     StatutSirene::class,
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s',
+        'deleted_at' => 'datetime:Y-m-d H:i:s',
     ];
 
     protected $appends = ['modele'];

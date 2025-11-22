@@ -26,7 +26,6 @@ class Programmation extends Model
         'calendrier_id',
         'nom_programmation',
         'horaires_sonneries',
-        'jour_semaine',
         'jours_feries_inclus',
         'jours_feries_exceptions',
         'chaine_programmee',
@@ -39,16 +38,41 @@ class Programmation extends Model
 
     protected $casts = [
         'horaires_sonneries' => 'array',
-        'jour_semaine' => 'array',
         'jours_feries_inclus' => 'boolean',
         'jours_feries_exceptions' => 'array',
-        'date_debut' => 'date',
-        'date_fin' => 'date',
+        'date_debut' => 'date:Y-m-d',
+        'date_fin' => 'date:Y-m-d',
         'actif' => 'boolean',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s',
+        'deleted_at' => 'datetime:Y-m-d H:i:s',
     ];
+
+    // Accessors
+    /**
+     * Calculer dynamiquement les jours de la semaine à partir de horaires_sonneries
+     *
+     * @return array Tableau des jours uniques (0-6)
+     */
+    public function getJourSemaineAttribute(): array
+    {
+        $joursUniques = [];
+
+        if (is_array($this->horaires_sonneries)) {
+            foreach ($this->horaires_sonneries as $horaire) {
+                if (isset($horaire['jours']) && is_array($horaire['jours'])) {
+                    foreach ($horaire['jours'] as $jour) {
+                        if (!in_array($jour, $joursUniques)) {
+                            $joursUniques[] = $jour;
+                        }
+                    }
+                }
+            }
+        }
+
+        sort($joursUniques);
+        return $joursUniques;
+    }
 
     // Relations
     public function ecole(): BelongsTo

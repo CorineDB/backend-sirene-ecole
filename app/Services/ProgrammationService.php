@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\DTO\HoraireSonnerieDTO;
+use App\DTO\JourFerieExceptionDTO;
 use App\Models\Programmation;
 use App\Services\Contracts\ProgrammationServiceInterface;
 use App\Repositories\Contracts\ProgrammationRepositoryInterface;
@@ -48,6 +50,44 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
     }
 
     /**
+     * Get paginated programmations for a sirene
+     *
+     * @param string $sireneId
+     * @param int $perPage Number of items per page (default: 15)
+     * @return JsonResponse
+     */
+    public function getPaginatedBySireneId(string $sireneId, int $perPage = 15): JsonResponse
+    {
+        try {
+            $programmations = $this->repository->getPaginatedBySireneId($sireneId, $perPage);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Programmations paginées récupérées avec succès.',
+                'data' => $programmations->items(),
+                'pagination' => [
+                    'current_page' => $programmations->currentPage(),
+                    'per_page' => $programmations->perPage(),
+                    'total' => $programmations->total(),
+                    'last_page' => $programmations->lastPage(),
+                    'from' => $programmations->firstItem(),
+                    'to' => $programmations->lastItem(),
+                    'has_more_pages' => $programmations->hasMorePages(),
+                ],
+                'links' => [
+                    'first' => $programmations->url(1),
+                    'last' => $programmations->url($programmations->lastPage()),
+                    'prev' => $programmations->previousPageUrl(),
+                    'next' => $programmations->nextPageUrl(),
+                ],
+            ]);
+        } catch (Exception $e) {
+            Log::error("Error in " . get_class($this) . "::getPaginatedBySireneId - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Get effective programmations for a sirene on a specific date, considering holidays.
      *
      * @param string $sireneId
@@ -89,7 +129,7 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
                 }
 
                 // Further checks could include date_debut, date_fin, vacances, etc.
-                // For now, we focus on jours_feries_inclus, jours_feries_exceptions and jour_semaine
+                // For now, we focus on jours_feries_inclus and jours_feries_exceptions
 
                 return true;
             });
@@ -151,14 +191,47 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
 
             DB::commit();
 
-            // 8. Logging
+            // 8. Logging enrichi avec les DTOs
+            $horairesFormatted = collect($programmation->horaires_sonneries ?? [])->map(function ($horaire) {
+                try {
+                    $dto = new HoraireSonnerieDTO($horaire);
+                    return [
+                        'time' => $dto->getFormattedTime(),
+                        'jours' => $dto->getJoursNoms(),
+                        'duree' => $dto->getDureeSonnerie() . 's',
+                        'description' => $dto->getDescription(),
+                        'signature' => $dto->getSignature(),
+                    ];
+                } catch (\Exception $e) {
+                    return $horaire; // Fallback si DTO échoue
+                }
+            })->toArray();
+
+            $exceptionsFormatted = collect($programmation->jours_feries_exceptions ?? [])->map(function ($exception) {
+                try {
+                    $dto = new JourFerieExceptionDTO($exception);
+                    return [
+                        'date' => $dto->getFormattedDate('d/m/Y'),
+                        'date_iso' => $dto->getDate(),
+                        'action' => $dto->getActionLabel(),
+                        'est_national' => $dto->isNational() ? 'national' : ($dto->isLocal() ? 'local' : 'non spécifié'),
+                        'recurrent' => $dto->isRecurrent() ? 'récurrent' : ($dto->isExceptionnel() ? 'exceptionnel' : 'non spécifié'),
+                        'description' => $dto->getDescription(),
+                    ];
+                } catch (\Exception $e) {
+                    return $exception; // Fallback si DTO échoue
+                }
+            })->toArray();
+
             Log::info("Programmation créée avec succès", [
                 'programmation_id' => $programmation->id,
                 'nom' => $programmation->nom_programmation,
                 'sirene_id' => $programmation->sirene_id,
                 'ecole_id' => $programmation->ecole_id,
-                'horaires' => $programmation->horaires_sonneries,
-                'jours' => $programmation->jour_semaine,
+                'horaires_formattes' => $horairesFormatted,
+                'nb_horaires' => count($horairesFormatted),
+                'exceptions_jours_feries' => $exceptionsFormatted,
+                'nb_exceptions' => count($exceptionsFormatted),
             ]);
 
             return $this->createdResponse($programmation, 'Programmation créée avec succès.');
@@ -193,9 +266,6 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
             $horairesDirty = isset($data['horaires_sonneries'])
                 && json_encode($data['horaires_sonneries']) !== json_encode($programmation->horaires_sonneries);
 
-            $joursSemaineDirty = isset($data['jour_semaine'])
-                && json_encode($data['jour_semaine']) !== json_encode($programmation->jour_semaine);
-
             $nomDirty = isset($data['nom_programmation'])
                 && $data['nom_programmation'] !== $programmation->nom_programmation;
 
@@ -205,7 +275,7 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
             $joursFeriesDirty = isset($data['jours_feries_inclus'])
                 && $data['jours_feries_inclus'] !== $programmation->jours_feries_inclus;
 
-            $needsRegeneration = $horairesDirty || $joursSemaineDirty || $nomDirty || $datesDirty || $joursFeriesDirty;
+            $needsRegeneration = $horairesDirty || $nomDirty || $datesDirty || $joursFeriesDirty;
 
             // 3. Mettre à jour la programmation
             $updated = $this->repository->update($id, $data);
@@ -225,7 +295,6 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
                     'programmation_id' => $programmation->id,
                     'raison' => [
                         'horaires_modifies' => $horairesDirty,
-                        'jours_modifies' => $joursSemaineDirty,
                         'nom_modifie' => $nomDirty,
                         'dates_modifiees' => $datesDirty,
                         'jours_feries_modifies' => $joursFeriesDirty,
@@ -238,11 +307,45 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
 
             DB::commit();
 
-            // 7. Logging
+            // 7. Logging enrichi avec les DTOs
+            $horairesFormatted = collect($programmation->horaires_sonneries ?? [])->map(function ($horaire) {
+                try {
+                    $dto = new HoraireSonnerieDTO($horaire);
+                    return [
+                        'time' => $dto->getFormattedTime(),
+                        'jours' => $dto->getJoursNoms(),
+                        'duree' => $dto->getDureeSonnerie() . 's',
+                        'description' => $dto->getDescription(),
+                    ];
+                } catch (\Exception $e) {
+                    return $horaire; // Fallback si DTO échoue
+                }
+            })->toArray();
+
+            $exceptionsFormatted = collect($programmation->jours_feries_exceptions ?? [])->map(function ($exception) {
+                try {
+                    $dto = new JourFerieExceptionDTO($exception);
+                    return [
+                        'date' => $dto->getFormattedDate('d/m/Y'),
+                        'date_iso' => $dto->getDate(),
+                        'action' => $dto->getActionLabel(),
+                        'est_national' => $dto->isNational() ? 'national' : ($dto->isLocal() ? 'local' : 'non spécifié'),
+                        'recurrent' => $dto->isRecurrent() ? 'récurrent' : ($dto->isExceptionnel() ? 'exceptionnel' : 'non spécifié'),
+                        'description' => $dto->getDescription(),
+                    ];
+                } catch (\Exception $e) {
+                    return $exception; // Fallback si DTO échoue
+                }
+            })->toArray();
+
             Log::info("Programmation mise à jour avec succès", [
                 'programmation_id' => $programmation->id,
                 'nom' => $programmation->nom_programmation,
                 'chaines_regenerees' => $needsRegeneration,
+                'horaires_formattes' => $horairesFormatted,
+                'nb_horaires' => count($horairesFormatted),
+                'exceptions_jours_feries' => $exceptionsFormatted,
+                'nb_exceptions' => count($exceptionsFormatted),
             ]);
 
             return $this->successResponse('Programmation mise à jour avec succès.', $programmation);

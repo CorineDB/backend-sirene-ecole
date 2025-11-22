@@ -16,6 +16,15 @@ interface ProgrammationServiceInterface
     public function getBySireneId(string $sireneId): JsonResponse;
 
     /**
+     * Get paginated programmations for a sirene
+     *
+     * @param string $sireneId
+     * @param int $perPage
+     * @return JsonResponse
+     */
+    public function getPaginatedBySireneId(string $sireneId, int $perPage = 15): JsonResponse;
+
+    /**
      * Get effective programmations for a sirene on a specific date, considering holidays.
      *
      * @param string $sireneId

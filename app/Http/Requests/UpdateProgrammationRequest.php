@@ -2,9 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\DTO\HoraireSonnerieDTO;
+use App\DTO\JourFerieExceptionDTO;
 use App\Models\Ecole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use OpenApi\Annotations as OA;
 
 /**
@@ -26,6 +29,8 @@ use OpenApi\Annotations as OA;
  *             required={"heure", "minute", "jours"},
  *             @OA\Property(property="heure", type="integer", minimum=0, maximum=23, description="Heure (0-23)"),
  *             @OA\Property(property="minute", type="integer", minimum=0, maximum=59, description="Minute (0-59)"),
+ *             @OA\Property(property="duree_sonnerie", type="integer", minimum=1, maximum=30, nullable=true, description="Durée de la sonnerie en secondes (défaut: 3s)"),
+ *             @OA\Property(property="description", type="string", maxLength=255, nullable=true, description="Description de l'horaire (ex: 'Début des cours', 'Récréation')"),
  *             @OA\Property(
  *                 property="jours",
  *                 type="array",
@@ -87,6 +92,127 @@ class UpdateProgrammationRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation using DTOs
+     */
+    protected function prepareForValidation(): void
+    {
+        $mergeData = [];
+
+        // 1. Valider et normaliser les horaires_sonneries (si présents)
+        $horaires = $this->input('horaires_sonneries');
+
+        if ($horaires !== null && is_array($horaires)) {
+            $normalizedHoraires = [];
+            $signaturesHoraires = [];
+
+            foreach ($horaires as $index => $horaireData) {
+                try {
+                    // Valider et normaliser avec le DTO
+                    $dto = new HoraireSonnerieDTO($horaireData);
+
+                    // Vérifier les doublons avec la signature du DTO
+                    $signature = $dto->getSignature();
+                    if (in_array($signature, $signaturesHoraires)) {
+                        throw ValidationException::withMessages([
+                            "horaires_sonneries.{$index}" => "Horaire en double détecté: {$dto->getFormattedTime()} pour les jours " . implode(', ', $dto->getJoursNoms())
+                        ]);
+                    }
+                    $signaturesHoraires[] = $signature;
+
+                    // Normaliser les données avec le DTO
+                    $normalizedHoraires[] = $dto->toArray();
+
+                } catch (\InvalidArgumentException $e) {
+                    // Convertir l'exception du DTO en ValidationException Laravel
+                    throw ValidationException::withMessages([
+                        "horaires_sonneries.{$index}" => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Vérifier que les horaires sont triés chronologiquement
+            $sorted = $normalizedHoraires;
+            usort($sorted, function ($a, $b) {
+                $timeA = $a['heure'] * 60 + $a['minute'];
+                $timeB = $b['heure'] * 60 + $b['minute'];
+                return $timeA - $timeB;
+            });
+
+            $isSorted = true;
+            foreach ($normalizedHoraires as $idx => $horaire) {
+                if ($horaire['heure'] !== $sorted[$idx]['heure'] ||
+                    $horaire['minute'] !== $sorted[$idx]['minute']) {
+                    $isSorted = false;
+                    break;
+                }
+            }
+
+            if (!$isSorted) {
+                throw ValidationException::withMessages([
+                    'horaires_sonneries' => 'Les horaires de sonnerie doivent être triés dans l\'ordre chronologique.'
+                ]);
+            }
+
+            $mergeData['horaires_sonneries'] = $normalizedHoraires;
+        }
+
+        // 2. Valider et normaliser les jours_feries_exceptions (si présents)
+        $exceptions = $this->input('jours_feries_exceptions');
+
+        if ($exceptions !== null && is_array($exceptions)) {
+            $normalizedExceptions = [];
+            $signaturesExceptions = [];
+            $datesVues = [];
+
+            foreach ($exceptions as $index => $exceptionData) {
+                try {
+                    // Valider et normaliser avec le DTO
+                    $dto = new JourFerieExceptionDTO($exceptionData);
+
+                    // Vérifier les doublons de dates (peu importe l'action)
+                    $date = $dto->getDate();
+                    if (in_array($date, $datesVues)) {
+                        throw ValidationException::withMessages([
+                            "jours_feries_exceptions.{$index}" => "Exception en double pour la date {$dto->getFormattedDate('d/m/Y')}. Une seule exception par date est autorisée."
+                        ]);
+                    }
+                    $datesVues[] = $date;
+
+                    // Vérifier les doublons complets (date + action)
+                    $signature = $dto->getSignature();
+                    if (in_array($signature, $signaturesExceptions)) {
+                        throw ValidationException::withMessages([
+                            "jours_feries_exceptions.{$index}" => "Exception en double détecté: {$dto->getDescription()}"
+                        ]);
+                    }
+                    $signaturesExceptions[] = $signature;
+
+                    // Normaliser les données avec le DTO
+                    $normalizedExceptions[] = $dto->toArray();
+
+                } catch (\InvalidArgumentException $e) {
+                    // Convertir l'exception du DTO en ValidationException Laravel
+                    throw ValidationException::withMessages([
+                        "jours_feries_exceptions.{$index}" => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Trier les exceptions par date chronologique
+            usort($normalizedExceptions, function ($a, $b) {
+                return strcmp($a['date'], $b['date']);
+            });
+
+            $mergeData['jours_feries_exceptions'] = $normalizedExceptions;
+        }
+
+        // Fusionner toutes les données normalisées
+        if (!empty($mergeData)) {
+            $this->merge($mergeData);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
@@ -100,73 +226,44 @@ class UpdateProgrammationRequest extends FormRequest
 
             // Informations de base
             'nom_programmation' => ['sometimes', 'required', 'string', 'max:255'],
-            'date_debut' => ['sometimes', 'required', 'date', 'before_or_equal:date_fin'],
-            'date_fin' => ['sometimes', 'required', 'date', 'after_or_equal:date_debut'],
+            'date_debut' => [
+                'sometimes',
+                'required',
+                'date',
+                'before_or_equal:date_fin',
+                function ($attribute, $value, $fail) {
+                    // Vérifier les chevauchements (toutes les programmations sont actives)
+                    $programmation = $this->route('programmation');
+                    $dateFin = $this->input('date_fin', $programmation ? $programmation->date_fin->format('Y-m-d') : null);
+                    $this->validateDateOverlap($value, $dateFin, $fail);
+                },
+            ],
+            'date_fin' => [
+                'sometimes',
+                'required',
+                'date',
+                'after_or_equal:date_debut',
+                function ($attribute, $value, $fail) {
+                    // Vérifier les chevauchements (toutes les programmations sont actives)
+                    $programmation = $this->route('programmation');
+                    $dateDebut = $this->input('date_debut', $programmation ? $programmation->date_debut->format('Y-m-d') : null);
+                    $this->validateDateOverlap($dateDebut, $value, $fail);
+                },
+            ],
             'actif' => ['sometimes', 'boolean'],
 
             // Calendrier scolaire (optionnel)
             'calendrier_id' => ['sometimes', 'nullable', 'exists:calendriers_scolaires,id'],
 
             // Horaires de sonnerie au format ESP8266 (CRITIQUES)
-            // Format: [{"heure": 8, "minute": 0, "jours": [1,2,3,4,5]}, ...]
-            'horaires_sonneries' => [
-                'sometimes',
-                'required',
-                'array',
-                'min:1',
-                function ($attribute, $value, $fail) {
-                    // Vérifier qu'il n'y a pas de doublons
-                    $signatures = [];
-                    foreach ($value as $horaire) {
-                        if (!isset($horaire['heure']) || !isset($horaire['minute']) || !isset($horaire['jours'])) {
-                            continue;
-                        }
-                        $signature = sprintf('%02d:%02d:%s',
-                            $horaire['heure'],
-                            $horaire['minute'],
-                            implode(',', $horaire['jours'])
-                        );
-                        if (in_array($signature, $signatures)) {
-                            $fail('Les horaires de sonnerie ne doivent pas contenir de doublons.');
-                            return;
-                        }
-                        $signatures[] = $signature;
-                    }
-
-                    // Vérifier que les horaires sont triés par heure puis minute
-                    $sorted = $value;
-                    usort($sorted, function ($a, $b) {
-                        $timeA = ($a['heure'] ?? 0) * 60 + ($a['minute'] ?? 0);
-                        $timeB = ($b['heure'] ?? 0) * 60 + ($b['minute'] ?? 0);
-                        return $timeA - $timeB;
-                    });
-
-                    // Comparer en JSON car les tableaux peuvent avoir des ordres différents pour 'jours'
-                    $valueJson = json_encode(array_map(function($h) {
-                        return ['heure' => $h['heure'] ?? 0, 'minute' => $h['minute'] ?? 0];
-                    }, $value));
-                    $sortedJson = json_encode(array_map(function($h) {
-                        return ['heure' => $h['heure'] ?? 0, 'minute' => $h['minute'] ?? 0];
-                    }, $sorted));
-
-                    if ($valueJson !== $sortedJson) {
-                        $fail('Les horaires de sonnerie doivent être triés dans l\'ordre chronologique.');
-                    }
-                },
-            ],
+            // Format: [{"heure": 8, "minute": 0, "jours": [1,2,3,4,5], "duree_sonnerie": 3, "description": "Début cours"}, ...]
+            // Note: La validation stricte est effectuée par le HoraireSonnerieDTO dans prepareForValidation()
+            'horaires_sonneries' => ['sometimes', 'required', 'array', 'min:1'],
             'horaires_sonneries.*.heure' => ['required_with:horaires_sonneries', 'integer', 'min:0', 'max:23'],
             'horaires_sonneries.*.minute' => ['required_with:horaires_sonneries', 'integer', 'min:0', 'max:59'],
-            'horaires_sonneries.*.jours' => [
-                'required_with:horaires_sonneries',
-                'array',
-                'min:1',
-                function ($attribute, $value, $fail) {
-                    // Vérifier qu'il n'y a pas de doublons dans les jours
-                    if (count($value) !== count(array_unique($value))) {
-                        $fail('Les jours ne doivent pas contenir de doublons.');
-                    }
-                },
-            ],
+            'horaires_sonneries.*.duree_sonnerie' => ['nullable', 'integer', 'min:1', 'max:30'],
+            'horaires_sonneries.*.description' => ['nullable', 'string', 'max:255'],
+            'horaires_sonneries.*.jours' => ['required_with:horaires_sonneries', 'array', 'min:1'],
             'horaires_sonneries.*.jours.*' => ['required_with:horaires_sonneries.*.jours', 'integer', 'min:0', 'max:6'],
 
             // Gestion des jours fériés
@@ -174,6 +271,8 @@ class UpdateProgrammationRequest extends FormRequest
             'jours_feries_exceptions' => ['sometimes', 'nullable', 'array'],
             'jours_feries_exceptions.*.date' => ['required', 'date_format:Y-m-d'],
             'jours_feries_exceptions.*.action' => ['required', 'string', Rule::in(['include', 'exclude'])],
+            'jours_feries_exceptions.*.est_national' => ['nullable', 'boolean'],
+            'jours_feries_exceptions.*.recurrent' => ['nullable', 'boolean'],
 
             // Champs générés (en lecture seule, générés automatiquement)
             'chaine_programmee' => ['sometimes', 'prohibited'],
@@ -182,6 +281,54 @@ class UpdateProgrammationRequest extends FormRequest
             // Abonnement (optionnel, ne peut être modifié que par admin)
             'abonnement_id' => ['sometimes', 'nullable', 'exists:abonnements,id'],
         ];
+    }
+
+    /**
+     * Validate that date ranges don't overlap with other programmations for the same sirene
+     *
+     * @param string $dateDebut
+     * @param string $dateFin
+     * @param \Closure $fail
+     * @return void
+     */
+    protected function validateDateOverlap(string $dateDebut, ?string $dateFin, \Closure $fail): void
+    {
+        if (!$dateFin) {
+            return; // Si date_fin n'est pas encore validée, on skip
+        }
+
+        $sirene = $this->route('sirene');
+        $programmationEnCours = $this->route('programmation');
+
+        if (!$sirene || !$programmationEnCours) {
+            return;
+        }
+
+        // Récupérer TOUTES les programmations pour cette sirène SAUF celle en cours de modification (toutes sont actives)
+        $programmationsExistantes = \App\Models\Programmation::where('sirene_id', $sirene->id)
+            ->where('id', '!=', $programmationEnCours->id) // Exclure la programmation en cours
+            ->whereNull('deleted_at')
+            ->get(['id', 'nom_programmation', 'date_debut', 'date_fin']);
+
+        // Vérifier les chevauchements
+        foreach ($programmationsExistantes as $prog) {
+            // Deux périodes se chevauchent si :
+            // date_debut_A <= date_fin_B ET date_fin_A >= date_debut_B
+            $overlap = $dateDebut <= $prog->date_fin->format('Y-m-d') &&
+                       $dateFin >= $prog->date_debut->format('Y-m-d');
+
+            if ($overlap) {
+                $fail(sprintf(
+                    'Cette période (%s au %s) chevauche une programmation existante "%s" (%s au %s). Une seule programmation par période est autorisée.',
+                    $dateDebut,
+                    $dateFin,
+                    $prog->nom_programmation,
+                    $prog->date_debut->format('Y-m-d'),
+                    $prog->date_fin->format('Y-m-d')
+                ));
+                return;
+            }
+        }
     }
 
     /**
