@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\StatutPanne;
+use App\Models\Ecole;
 use App\Repositories\Contracts\InterventionRepositoryInterface;
 use App\Repositories\Contracts\OrdreMissionRepositoryInterface;
 use App\Repositories\Contracts\PanneRepositoryInterface;
@@ -27,10 +28,105 @@ class PanneService extends BaseService implements PanneServiceInterface
         $this->interventionRepository = $interventionRepository;
     }
 
+    /**
+     * Vérifier si l'utilisateur connecté est une école
+     */
+    protected function isEcoleUser(): bool
+    {
+        $user = auth()->user();
+        return $user && $user->user_account_type_type === Ecole::class;
+    }
+
+    /**
+     * Récupérer l'ID de l'école de l'utilisateur connecté
+     */
+    protected function getEcoleId(): ?string
+    {
+        $user = auth()->user();
+        if ($this->isEcoleUser()) {
+            return $user->user_account_type_id;
+        }
+        return null;
+    }
+
+    /**
+     * Appliquer le filtre école si nécessaire
+     */
+    protected function applyEcoleFilter($query)
+    {
+        if ($this->isEcoleUser()) {
+            $ecoleId = $this->getEcoleId();
+            $query->whereHas('site', function ($q) use ($ecoleId) {
+                $q->where('ecole_id', $ecoleId);
+            });
+        }
+        return $query;
+    }
+
+    /**
+     * Surcharge de getAll pour filtrer par école si nécessaire
+     */
+    public function getAll(int $perPage = 15, array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query();
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilter($query);
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->orderBy('created_at', 'desc')->paginate($perPage);
+            return $this->successResponse('Données récupérées avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in PanneService::getAll - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Surcharge de getById pour vérifier l'accès si école
+     */
+    public function getById(string $id, array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query()->where('id', $id);
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilter($query);
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->first();
+
+            if (!$data) {
+                return $this->errorResponse('Panne non trouvée ou accès non autorisé.', 404);
+            }
+
+            return $this->successResponse('Donnée récupérée avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in PanneService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
     public function validerPanne(string $panneId, array $ordreMissionData = []): JsonResponse
     {
         try {
             DB::beginTransaction();
+
+            // Vérifier l'accès à la panne si école
+            $query = $this->repository->query()->where('id', $panneId);
+            $query = $this->applyEcoleFilter($query);
+            $panneExists = $query->exists();
+
+            if (!$panneExists) {
+                return $this->errorResponse('Panne non trouvée ou accès non autorisé.', 404);
+            }
 
             $panne = $this->repository->update($panneId, [
                 'statut' => StatutPanne::VALIDEE,
@@ -96,6 +192,15 @@ class PanneService extends BaseService implements PanneServiceInterface
         try {
             DB::beginTransaction();
 
+            // Vérifier l'accès à la panne si école
+            $query = $this->repository->query()->where('id', $panneId);
+            $query = $this->applyEcoleFilter($query);
+            $panneExists = $query->exists();
+
+            if (!$panneExists) {
+                return $this->errorResponse('Panne non trouvée ou accès non autorisé.', 404);
+            }
+
             $panne = $this->repository->update($panneId, [
                 'statut' => StatutPanne::CLOTUREE,
                 'date_cloture' => now(),
@@ -118,8 +223,14 @@ class PanneService extends BaseService implements PanneServiceInterface
         try {
             DB::beginTransaction();
 
-            // Récupérer la panne avec son ordre de mission et interventions
-            $panne = $this->repository->find($panneId, ['ordreMission.interventions']);
+            // Vérifier l'accès à la panne si école
+            $query = $this->repository->query()->where('id', $panneId);
+            $query = $this->applyEcoleFilter($query);
+            $panne = $query->with(['ordreMission.interventions'])->first();
+
+            if (!$panne) {
+                return $this->errorResponse('Panne non trouvée ou accès non autorisé.', 404);
+            }
 
             if (!$panne->ordreMission) {
                 return $this->errorResponse('Cette panne n\'a pas d\'ordre de mission associé.', 400);
@@ -160,6 +271,15 @@ class PanneService extends BaseService implements PanneServiceInterface
     public function updateStatut(string $panneId, string $statut): JsonResponse
     {
         try {
+            // Vérifier l'accès à la panne si école
+            $query = $this->repository->query()->where('id', $panneId);
+            $query = $this->applyEcoleFilter($query);
+            $panneExists = $query->exists();
+
+            if (!$panneExists) {
+                return $this->errorResponse('Panne non trouvée ou accès non autorisé.', 404);
+            }
+
             $panne = $this->repository->update($panneId, [
                 'statut' => $statut,
             ]);
@@ -177,7 +297,14 @@ class PanneService extends BaseService implements PanneServiceInterface
     public function getPannesBySirene(string $sireneId): JsonResponse
     {
         try {
-            $pannes = $this->repository->findBy(['sirene_id' => $sireneId], ['sirene', 'site', 'ordreMission', 'interventions']);
+            $query = $this->repository->query()
+                ->where('sirene_id', $sireneId)
+                ->with(['sirene', 'site', 'ordreMission', 'interventions']);
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilter($query);
+
+            $pannes = $query->get();
             return $this->successResponse('Pannes récupérées avec succès.', $pannes);
         } catch (Exception $e) {
             Log::error("Error in PanneService::getPannesBySirene - " . $e->getMessage());
@@ -191,6 +318,11 @@ class PanneService extends BaseService implements PanneServiceInterface
     public function getPannesByEcole(string $ecoleId): JsonResponse
     {
         try {
+            // Si l'utilisateur est une école, forcer l'ID à celui de l'utilisateur connecté
+            if ($this->isEcoleUser()) {
+                $ecoleId = $this->getEcoleId();
+            }
+
             // Récupérer tous les sites de l'école
             $pannes = $this->repository->query()
                 ->whereHas('site', function ($query) use ($ecoleId) {
@@ -213,19 +345,24 @@ class PanneService extends BaseService implements PanneServiceInterface
     public function getStatistiques(): JsonResponse
     {
         try {
+            // Créer une fonction helper pour appliquer le filtre sur chaque query
+            $applyFilter = function($query) {
+                return $this->applyEcoleFilter($query);
+            };
+
             $stats = [
-                'total' => $this->repository->query()->count(),
-                'en_attente' => $this->repository->query()->where('statut', StatutPanne::EN_ATTENTE)->count(),
-                'validees' => $this->repository->query()->where('statut', StatutPanne::VALIDEE)->count(),
-                'en_cours' => $this->repository->query()->where('statut', StatutPanne::EN_COURS)->count(),
-                'resolues' => $this->repository->query()->where('statut', StatutPanne::RESOLUE)->count(),
-                'cloturees' => $this->repository->query()->where('statut', StatutPanne::CLOTUREE)->count(),
+                'total' => $applyFilter($this->repository->query())->count(),
+                'en_attente' => $applyFilter($this->repository->query()->where('statut', StatutPanne::EN_ATTENTE))->count(),
+                'validees' => $applyFilter($this->repository->query()->where('statut', StatutPanne::VALIDEE))->count(),
+                'en_cours' => $applyFilter($this->repository->query()->where('statut', StatutPanne::EN_COURS))->count(),
+                'resolues' => $applyFilter($this->repository->query()->where('statut', StatutPanne::RESOLUE))->count(),
+                'cloturees' => $applyFilter($this->repository->query()->where('statut', StatutPanne::CLOTUREE))->count(),
                 'par_priorite' => [
-                    'haute' => $this->repository->query()->where('priorite', 'haute')->count(),
-                    'moyenne' => $this->repository->query()->where('priorite', 'moyenne')->count(),
-                    'faible' => $this->repository->query()->where('priorite', 'faible')->count(),
+                    'haute' => $applyFilter($this->repository->query()->where('priorite', 'haute'))->count(),
+                    'moyenne' => $applyFilter($this->repository->query()->where('priorite', 'moyenne'))->count(),
+                    'faible' => $applyFilter($this->repository->query()->where('priorite', 'faible'))->count(),
                 ],
-                'recentes' => $this->repository->query()
+                'recentes' => $applyFilter($this->repository->query())
                     ->with(['sirene', 'site'])
                     ->orderBy('created_at', 'desc')
                     ->limit(10)
