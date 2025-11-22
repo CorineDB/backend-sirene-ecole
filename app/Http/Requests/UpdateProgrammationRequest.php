@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\DTO\HoraireSonnerieDTO;
+use App\DTO\JourFerieExceptionDTO;
 use App\Models\Ecole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -91,72 +92,124 @@ class UpdateProgrammationRequest extends FormRequest
     }
 
     /**
-     * Prepare the data for validation using HoraireSonnerieDTO
+     * Prepare the data for validation using DTOs
      */
     protected function prepareForValidation(): void
     {
+        $mergeData = [];
+
+        // 1. Valider et normaliser les horaires_sonneries (si présents)
         $horaires = $this->input('horaires_sonneries');
 
-        // Si horaires_sonneries n'est pas présent dans la requête, ne rien faire
-        if ($horaires === null || !is_array($horaires)) {
-            return;
-        }
+        if ($horaires !== null && is_array($horaires)) {
+            $normalizedHoraires = [];
+            $signaturesHoraires = [];
 
-        $normalizedHoraires = [];
-        $signatures = [];
+            foreach ($horaires as $index => $horaireData) {
+                try {
+                    // Valider et normaliser avec le DTO
+                    $dto = new HoraireSonnerieDTO($horaireData);
 
-        foreach ($horaires as $index => $horaireData) {
-            try {
-                // Valider et normaliser avec le DTO
-                $dto = new HoraireSonnerieDTO($horaireData);
+                    // Vérifier les doublons avec la signature du DTO
+                    $signature = $dto->getSignature();
+                    if (in_array($signature, $signaturesHoraires)) {
+                        throw ValidationException::withMessages([
+                            "horaires_sonneries.{$index}" => "Horaire en double détecté: {$dto->getFormattedTime()} pour les jours " . implode(', ', $dto->getJoursNoms())
+                        ]);
+                    }
+                    $signaturesHoraires[] = $signature;
 
-                // Vérifier les doublons avec la signature du DTO
-                $signature = $dto->getSignature();
-                if (in_array($signature, $signatures)) {
+                    // Normaliser les données avec le DTO
+                    $normalizedHoraires[] = $dto->toArray();
+
+                } catch (\InvalidArgumentException $e) {
+                    // Convertir l'exception du DTO en ValidationException Laravel
                     throw ValidationException::withMessages([
-                        "horaires_sonneries.{$index}" => "Horaire en double détecté: {$dto->getFormattedTime()} pour les jours " . implode(', ', $dto->getJoursNoms())
+                        "horaires_sonneries.{$index}" => $e->getMessage()
                     ]);
                 }
-                $signatures[] = $signature;
+            }
 
-                // Normaliser les données avec le DTO
-                $normalizedHoraires[] = $dto->toArray();
+            // Vérifier que les horaires sont triés chronologiquement
+            $sorted = $normalizedHoraires;
+            usort($sorted, function ($a, $b) {
+                $timeA = $a['heure'] * 60 + $a['minute'];
+                $timeB = $b['heure'] * 60 + $b['minute'];
+                return $timeA - $timeB;
+            });
 
-            } catch (\InvalidArgumentException $e) {
-                // Convertir l'exception du DTO en ValidationException Laravel
+            $isSorted = true;
+            foreach ($normalizedHoraires as $idx => $horaire) {
+                if ($horaire['heure'] !== $sorted[$idx]['heure'] ||
+                    $horaire['minute'] !== $sorted[$idx]['minute']) {
+                    $isSorted = false;
+                    break;
+                }
+            }
+
+            if (!$isSorted) {
                 throw ValidationException::withMessages([
-                    "horaires_sonneries.{$index}" => $e->getMessage()
+                    'horaires_sonneries' => 'Les horaires de sonnerie doivent être triés dans l\'ordre chronologique.'
                 ]);
             }
+
+            $mergeData['horaires_sonneries'] = $normalizedHoraires;
         }
 
-        // Vérifier que les horaires sont triés chronologiquement
-        $sorted = $normalizedHoraires;
-        usort($sorted, function ($a, $b) {
-            $timeA = $a['heure'] * 60 + $a['minute'];
-            $timeB = $b['heure'] * 60 + $b['minute'];
-            return $timeA - $timeB;
-        });
+        // 2. Valider et normaliser les jours_feries_exceptions (si présents)
+        $exceptions = $this->input('jours_feries_exceptions');
 
-        $isSorted = true;
-        foreach ($normalizedHoraires as $idx => $horaire) {
-            if ($horaire['heure'] !== $sorted[$idx]['heure'] ||
-                $horaire['minute'] !== $sorted[$idx]['minute']) {
-                $isSorted = false;
-                break;
+        if ($exceptions !== null && is_array($exceptions)) {
+            $normalizedExceptions = [];
+            $signaturesExceptions = [];
+            $datesVues = [];
+
+            foreach ($exceptions as $index => $exceptionData) {
+                try {
+                    // Valider et normaliser avec le DTO
+                    $dto = new JourFerieExceptionDTO($exceptionData);
+
+                    // Vérifier les doublons de dates (peu importe l'action)
+                    $date = $dto->getDate();
+                    if (in_array($date, $datesVues)) {
+                        throw ValidationException::withMessages([
+                            "jours_feries_exceptions.{$index}" => "Exception en double pour la date {$dto->getFormattedDate('d/m/Y')}. Une seule exception par date est autorisée."
+                        ]);
+                    }
+                    $datesVues[] = $date;
+
+                    // Vérifier les doublons complets (date + action)
+                    $signature = $dto->getSignature();
+                    if (in_array($signature, $signaturesExceptions)) {
+                        throw ValidationException::withMessages([
+                            "jours_feries_exceptions.{$index}" => "Exception en double détecté: {$dto->getDescription()}"
+                        ]);
+                    }
+                    $signaturesExceptions[] = $signature;
+
+                    // Normaliser les données avec le DTO
+                    $normalizedExceptions[] = $dto->toArray();
+
+                } catch (\InvalidArgumentException $e) {
+                    // Convertir l'exception du DTO en ValidationException Laravel
+                    throw ValidationException::withMessages([
+                        "jours_feries_exceptions.{$index}" => $e->getMessage()
+                    ]);
+                }
             }
+
+            // Trier les exceptions par date chronologique
+            usort($normalizedExceptions, function ($a, $b) {
+                return strcmp($a['date'], $b['date']);
+            });
+
+            $mergeData['jours_feries_exceptions'] = $normalizedExceptions;
         }
 
-        if (!$isSorted) {
-            throw ValidationException::withMessages([
-                'horaires_sonneries' => 'Les horaires de sonnerie doivent être triés dans l\'ordre chronologique.'
-            ]);
+        // Fusionner toutes les données normalisées
+        if (!empty($mergeData)) {
+            $this->merge($mergeData);
         }
-
-        // Remplacer les données par les données normalisées
-        $this->merge([
-            'horaires_sonneries' => $normalizedHoraires
-        ]);
     }
 
     /**

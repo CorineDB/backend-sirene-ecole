@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Exception de Jour Férié",
+  "description": "Schéma strict pour une exception de jour férié dans une programmation",
+  "type": "object",
+  "required": ["date", "action"],
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Date de l'exception au format YYYY-MM-DD",
+      "examples": ["2025-12-25", "2025-01-01", "2025-07-14"]
+    },
+    "action": {
+      "type": "string",
+      "enum": ["include", "exclude"],
+      "description": "Action à appliquer: 'include' pour inclure ce jour férié, 'exclude' pour l'exclure",
+      "examples": ["include", "exclude"]
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "date": "2025-12-25",
+      "action": "include",
+      "description": "Inclure la sonnerie pour Noël"
+    },
+    {
+      "date": "2025-01-01",
+      "action": "exclude",
+      "description": "Exclure la sonnerie pour le Jour de l'An"
+    },
+    {
+      "date": "2025-07-14",
+      "action": "include",
+      "description": "Inclure la sonnerie pour la Fête Nationale (événement spécial)"
+    }
+  ],
+  "definitions": {
+    "action_include": {
+      "const": "include",
+      "description": "Inclure: La sonnerie sera active même si c'est un jour férié"
+    },
+    "action_exclude": {
+      "const": "exclude",
+      "description": "Exclure: La sonnerie ne sera PAS active pour ce jour férié"
+    }
+  }
+}

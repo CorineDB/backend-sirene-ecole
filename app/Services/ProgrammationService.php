@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\DTO\HoraireSonnerieDTO;
+use App\DTO\JourFerieExceptionDTO;
 use App\Models\Programmation;
 use App\Services\Contracts\ProgrammationServiceInterface;
 use App\Repositories\Contracts\ProgrammationRepositoryInterface;
@@ -152,7 +153,7 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
 
             DB::commit();
 
-            // 8. Logging enrichi avec le DTO
+            // 8. Logging enrichi avec les DTOs
             $horairesFormatted = collect($programmation->horaires_sonneries ?? [])->map(function ($horaire) {
                 try {
                     $dto = new HoraireSonnerieDTO($horaire);
@@ -168,6 +169,20 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
                 }
             })->toArray();
 
+            $exceptionsFormatted = collect($programmation->jours_feries_exceptions ?? [])->map(function ($exception) {
+                try {
+                    $dto = new JourFerieExceptionDTO($exception);
+                    return [
+                        'date' => $dto->getFormattedDate('d/m/Y'),
+                        'date_iso' => $dto->getDate(),
+                        'action' => $dto->getActionLabel(),
+                        'description' => $dto->getDescription(),
+                    ];
+                } catch (\Exception $e) {
+                    return $exception; // Fallback si DTO échoue
+                }
+            })->toArray();
+
             Log::info("Programmation créée avec succès", [
                 'programmation_id' => $programmation->id,
                 'nom' => $programmation->nom_programmation,
@@ -175,6 +190,8 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
                 'ecole_id' => $programmation->ecole_id,
                 'horaires_formattes' => $horairesFormatted,
                 'nb_horaires' => count($horairesFormatted),
+                'exceptions_jours_feries' => $exceptionsFormatted,
+                'nb_exceptions' => count($exceptionsFormatted),
             ]);
 
             return $this->createdResponse($programmation, 'Programmation créée avec succès.');
@@ -250,7 +267,7 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
 
             DB::commit();
 
-            // 7. Logging enrichi avec le DTO
+            // 7. Logging enrichi avec les DTOs
             $horairesFormatted = collect($programmation->horaires_sonneries ?? [])->map(function ($horaire) {
                 try {
                     $dto = new HoraireSonnerieDTO($horaire);
@@ -265,12 +282,28 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
                 }
             })->toArray();
 
+            $exceptionsFormatted = collect($programmation->jours_feries_exceptions ?? [])->map(function ($exception) {
+                try {
+                    $dto = new JourFerieExceptionDTO($exception);
+                    return [
+                        'date' => $dto->getFormattedDate('d/m/Y'),
+                        'date_iso' => $dto->getDate(),
+                        'action' => $dto->getActionLabel(),
+                        'description' => $dto->getDescription(),
+                    ];
+                } catch (\Exception $e) {
+                    return $exception; // Fallback si DTO échoue
+                }
+            })->toArray();
+
             Log::info("Programmation mise à jour avec succès", [
                 'programmation_id' => $programmation->id,
                 'nom' => $programmation->nom_programmation,
                 'chaines_regenerees' => $needsRegeneration,
                 'horaires_formattes' => $horairesFormatted,
                 'nb_horaires' => count($horairesFormatted),
+                'exceptions_jours_feries' => $exceptionsFormatted,
+                'nb_exceptions' => count($exceptionsFormatted),
             ]);
 
             return $this->successResponse('Programmation mise à jour avec succès.', $programmation);
