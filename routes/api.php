@@ -282,6 +282,8 @@ Route::prefix('cinetpay')->group(function () {
 
 // Panne routes
 Route::prefix('pannes')->middleware('auth:api')->group(function () {
+    Route::get('/', [PanneController::class, 'index']);
+    Route::get('{id}', [PanneController::class, 'show']);
     Route::put('{panneId}/valider', [PanneController::class, 'valider']);
     Route::put('{panneId}/cloturer', [PanneController::class, 'cloturer']);
 });

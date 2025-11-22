@@ -16,7 +16,65 @@ class PanneController extends Controller
     public function __construct(PanneServiceInterface $panneService)
     {
         $this->panneService = $panneService;
-        $this->middleware('auth:api');
+    }
+
+    /**
+     * Liste de toutes les pannes
+     *
+     * @OA\Get(
+     *     path="/api/pannes",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Liste de toutes les pannes",
+     *     description="Récupère la liste paginée de toutes les pannes",
+     *     operationId="getAllPannes",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         required=false,
+     *         description="Nombre de résultats par page",
+     *         @OA\Schema(type="integer", default=15)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Liste des pannes récupérée avec succès"
+     *     )
+     * )
+     */
+    public function index(Request $request)
+    {
+        Gate::authorize('voir_les_pannes');
+        $perPage = $request->get('per_page', 15);
+        return $this->panneService->getAll($perPage, ['sirene', 'site', 'ordreMission']);
+    }
+
+    /**
+     * Détails d'une panne
+     *
+     * @OA\Get(
+     *     path="/api/pannes/{id}",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Détails d'une panne",
+     *     description="Récupère les détails complets d'une panne",
+     *     operationId="getPanneDetails",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID de la panne",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Détails de la panne récupérés avec succès"
+     *     )
+     * )
+     */
+    public function show(string $id)
+    {
+        Gate::authorize('voir_panne');
+        return $this->panneService->getById($id, ['sirene', 'site', 'ordreMission', 'interventions']);
     }
 
     /**
