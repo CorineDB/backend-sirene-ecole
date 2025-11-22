@@ -214,7 +214,17 @@ class StoreProgrammationRequest extends FormRequest
         return [
             // Informations de base
             'nom_programmation' => ['required', 'string', 'max:255'],
-            'date_debut' => ['required', 'date', 'before_or_equal:date_fin'],
+            'date_debut' => [
+                'required',
+                'date',
+                'before_or_equal:date_fin',
+                function ($attribute, $value, $fail) {
+                    // Vérifier les chevauchements uniquement si actif=true
+                    if ($this->input('actif', true) === true) {
+                        $this->validateDateOverlap($value, $this->input('date_fin'), $fail);
+                    }
+                },
+            ],
             'date_fin' => ['required', 'date', 'after_or_equal:date_debut'],
             'actif' => ['sometimes', 'boolean'],
 
@@ -289,6 +299,52 @@ class StoreProgrammationRequest extends FormRequest
                 },
             ],
         ];
+    }
+
+    /**
+     * Validate that date ranges don't overlap with other active programmations for the same sirene
+     *
+     * @param string $dateDebut
+     * @param string $dateFin
+     * @param \Closure $fail
+     * @return void
+     */
+    protected function validateDateOverlap(string $dateDebut, ?string $dateFin, \Closure $fail): void
+    {
+        if (!$dateFin) {
+            return; // Si date_fin n'est pas encore validée, on skip
+        }
+
+        $sirene = $this->route('sirene');
+        if (!$sirene) {
+            return;
+        }
+
+        // Récupérer toutes les programmations actives pour cette sirène
+        $programmationsActives = \App\Models\Programmation::where('sirene_id', $sirene->id)
+            ->where('actif', true)
+            ->whereNull('deleted_at')
+            ->get(['id', 'nom_programmation', 'date_debut', 'date_fin']);
+
+        // Vérifier les chevauchements
+        foreach ($programmationsActives as $prog) {
+            // Deux périodes se chevauchent si :
+            // date_debut_A <= date_fin_B ET date_fin_A >= date_debut_B
+            $overlap = $dateDebut <= $prog->date_fin->format('Y-m-d') &&
+                       $dateFin >= $prog->date_debut->format('Y-m-d');
+
+            if ($overlap) {
+                $fail(sprintf(
+                    'Cette période (%s au %s) chevauche une programmation active existante "%s" (%s au %s). Une seule programmation active par période est autorisée.',
+                    $dateDebut,
+                    $dateFin,
+                    $prog->nom_programmation,
+                    $prog->date_debut->format('Y-m-d'),
+                    $prog->date_fin->format('Y-m-d')
+                ));
+                return;
+            }
+        }
     }
 
     /**
