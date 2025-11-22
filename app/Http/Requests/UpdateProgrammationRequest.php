@@ -26,6 +26,8 @@ use OpenApi\Annotations as OA;
  *             required={"heure", "minute", "jours"},
  *             @OA\Property(property="heure", type="integer", minimum=0, maximum=23, description="Heure (0-23)"),
  *             @OA\Property(property="minute", type="integer", minimum=0, maximum=59, description="Minute (0-59)"),
+ *             @OA\Property(property="duree_sonnerie", type="integer", minimum=1, maximum=30, nullable=true, description="Durée de la sonnerie en secondes (défaut: 3s)"),
+ *             @OA\Property(property="description", type="string", maxLength=255, nullable=true, description="Description de l'horaire (ex: 'Début des cours', 'Récréation')"),
  *             @OA\Property(
  *                 property="jours",
  *                 type="array",
@@ -108,7 +110,7 @@ class UpdateProgrammationRequest extends FormRequest
             'calendrier_id' => ['sometimes', 'nullable', 'exists:calendriers_scolaires,id'],
 
             // Horaires de sonnerie au format ESP8266 (CRITIQUES)
-            // Format: [{"heure": 8, "minute": 0, "jours": [1,2,3,4,5]}, ...]
+            // Format: [{"heure": 8, "minute": 0, "jours": [1,2,3,4,5], "duree_sonnerie": 3, "description": "Début cours"}, ...]
             'horaires_sonneries' => [
                 'sometimes',
                 'required',
@@ -156,6 +158,8 @@ class UpdateProgrammationRequest extends FormRequest
             ],
             'horaires_sonneries.*.heure' => ['required_with:horaires_sonneries', 'integer', 'min:0', 'max:23'],
             'horaires_sonneries.*.minute' => ['required_with:horaires_sonneries', 'integer', 'min:0', 'max:59'],
+            'horaires_sonneries.*.duree_sonnerie' => ['nullable', 'integer', 'min:1', 'max:30'],
+            'horaires_sonneries.*.description' => ['nullable', 'string', 'max:255'],
             'horaires_sonneries.*.jours' => [
                 'required_with:horaires_sonneries',
                 'array',

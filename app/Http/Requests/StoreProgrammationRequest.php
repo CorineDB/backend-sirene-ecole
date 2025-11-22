@@ -27,6 +27,8 @@ use OpenApi\Annotations as OA;
  *             required={"heure", "minute", "jours"},
  *             @OA\Property(property="heure", type="integer", minimum=0, maximum=23, description="Heure (0-23)"),
  *             @OA\Property(property="minute", type="integer", minimum=0, maximum=59, description="Minute (0-59)"),
+ *             @OA\Property(property="duree_sonnerie", type="integer", minimum=1, maximum=30, nullable=true, description="Durée de la sonnerie en secondes (défaut: 3s)"),
+ *             @OA\Property(property="description", type="string", maxLength=255, nullable=true, description="Description de l'horaire (ex: 'Début des cours', 'Récréation')"),
  *             @OA\Property(
  *                 property="jours",
  *                 type="array",
@@ -96,7 +98,7 @@ class StoreProgrammationRequest extends FormRequest
             'calendrier_id' => ['nullable', 'exists:calendriers_scolaires,id'],
 
             // Horaires de sonnerie au format ESP8266 (CRITIQUES - requis)
-            // Format: [{"heure": 8, "minute": 0, "jours": [1,2,3,4,5]}, ...]
+            // Format: [{"heure": 8, "minute": 0, "jours": [1,2,3,4,5], "duree_sonnerie": 3, "description": "Début cours"}, ...]
             'horaires_sonneries' => [
                 'required',
                 'array',
@@ -143,6 +145,8 @@ class StoreProgrammationRequest extends FormRequest
             ],
             'horaires_sonneries.*.heure' => ['required', 'integer', 'min:0', 'max:23'],
             'horaires_sonneries.*.minute' => ['required', 'integer', 'min:0', 'max:59'],
+            'horaires_sonneries.*.duree_sonnerie' => ['nullable', 'integer', 'min:1', 'max:30'],
+            'horaires_sonneries.*.description' => ['nullable', 'string', 'max:255'],
             'horaires_sonneries.*.jours' => [
                 'required',
                 'array',
@@ -244,6 +248,11 @@ class StoreProgrammationRequest extends FormRequest
             'horaires_sonneries.*.minute.integer' => 'La minute doit être un nombre entier.',
             'horaires_sonneries.*.minute.min' => 'La minute doit être comprise entre 0 et 59.',
             'horaires_sonneries.*.minute.max' => 'La minute doit être comprise entre 0 et 59.',
+            'horaires_sonneries.*.duree_sonnerie.integer' => 'La durée de sonnerie doit être un nombre entier.',
+            'horaires_sonneries.*.duree_sonnerie.min' => 'La durée de sonnerie doit être d\'au moins 1 seconde.',
+            'horaires_sonneries.*.duree_sonnerie.max' => 'La durée de sonnerie ne peut pas dépasser 30 secondes.',
+            'horaires_sonneries.*.description.string' => 'La description doit être une chaîne de caractères.',
+            'horaires_sonneries.*.description.max' => 'La description ne peut pas dépasser 255 caractères.',
             'horaires_sonneries.*.jours.required' => 'Les jours sont obligatoires pour chaque horaire.',
             'horaires_sonneries.*.jours.array' => 'Les jours doivent être un tableau.',
             'horaires_sonneries.*.jours.min' => 'Au moins un jour est requis pour chaque horaire.',
