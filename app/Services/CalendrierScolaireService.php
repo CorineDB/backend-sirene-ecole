@@ -351,7 +351,7 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
      * @param array $filters Additional optional filters
      * @return \Illuminate\Http\JsonResponse
      */
-    public function findByCodeIsoAndAnneeScolaire(string $codeIso, string $anneeScolaire, array $filters = []): \Illuminate\Http\JsonResponse
+    public function findByCodeIsoAndAnneeScolaire(string $codeIso, ?string $anneeScolaire = null, array $filters = []): \Illuminate\Http\JsonResponse
     {
         try {
             // Récupérer le pays via code_iso
@@ -364,8 +364,12 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
             // Construire les critères de recherche avec pays_id
             $criteria = [
                 'pays_id' => $pays->id,
-                'annee_scolaire' => $anneeScolaire,
             ];
+
+            // Ajouter annee_scolaire seulement si fourni
+            if ($anneeScolaire) {
+                $criteria['annee_scolaire'] = $anneeScolaire;
+            }
 
             // Ajouter les filtres optionnels
             if (isset($filters['actif'])) {

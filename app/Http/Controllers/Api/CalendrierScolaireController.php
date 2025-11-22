@@ -79,8 +79,8 @@ class CalendrierScolaireController extends Controller
      *     @OA\Parameter(
      *         name="annee_scolaire",
      *         in="query",
-     *         description="Filter by school year (required, format: YYYY-YYYY)",
-     *         required=true,
+     *         description="Filter by school year (optional, format: YYYY-YYYY)",
+     *         required=false,
      *         @OA\Schema(type="string", example="2024-2025")
      *     ),
      *     @OA\Parameter(
@@ -107,7 +107,7 @@ class CalendrierScolaireController extends Controller
      *         description="Missing required parameters",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Les paramètres code_iso et annee_scolaire sont obligatoires.")
+     *             @OA\Property(property="message", type="string", example="Le paramètre code_iso est obligatoire.")
      *         )
      *     ),
      *     @OA\Response(
@@ -123,14 +123,14 @@ class CalendrierScolaireController extends Controller
     {
         Gate::authorize('voir_les_calendriers_scolaires');
 
-        // Vérifier que code_iso et annee_scolaire sont présents (obligatoires)
+        // Vérifier que code_iso est présent (obligatoire)
         $codeIso = $request->get('code_iso');
         $anneeScolaire = $request->get('annee_scolaire');
 
-        if (!$codeIso || !$anneeScolaire) {
+        if (!$codeIso) {
             return response()->json([
                 'success' => false,
-                'message' => 'Les paramètres code_iso et annee_scolaire sont obligatoires.'
+                'message' => 'Le paramètre code_iso est obligatoire.'
             ], 400);
         }
 
