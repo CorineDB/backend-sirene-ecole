@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ModeleSireneController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EcoleController;
+use App\Http\Controllers\Api\SiteController;
 use App\Http\Controllers\Api\SireneController;
 use App\Http\Controllers\Api\CinetPayController;
 use App\Http\Controllers\Api\TechnicienController;
@@ -100,7 +101,18 @@ Route::prefix('ecoles')->group(function () {
 
         // School calendar with merged holidays
         Route::get('me/calendrier-scolaire/with-ecole-holidays', [EcoleController::class, 'getCalendrierScolaireWithJoursFeries'])->middleware('can:voir_ecole');
+
+        // Sites management for a school
+        Route::get('{ecoleId}/sites', [SiteController::class, 'index'])->middleware('can:voir_les_sites');
     });
+});
+
+// Site routes
+Route::prefix('sites')->middleware('auth:api')->group(function () {
+    Route::get('{id}', [SiteController::class, 'show'])->middleware('can:voir_site');
+    Route::post('/', [SiteController::class, 'store'])->middleware('can:creer_site');
+    Route::put('{id}', [SiteController::class, 'update'])->middleware('can:modifier_site');
+    Route::delete('{id}', [SiteController::class, 'destroy'])->middleware('can:supprimer_site');
 });
 
 // Sirene routes

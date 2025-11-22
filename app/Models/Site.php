@@ -37,9 +37,9 @@ class Site extends Model
         'est_principale' => 'boolean',
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s',
+        'deleted_at' => 'datetime:Y-m-d H:i:s',
     ];
 
     protected $appends = [
