@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\ProgrammationController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\PaysController;
 use App\Http\Controllers\Api\VilleController;
+use App\Http\Controllers\Api\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('permissions')->middleware('auth:api')->group(function () {
@@ -298,6 +299,9 @@ Route::prefix('cinetpay')->group(function () {
     Route::post('check-status', [CinetPayController::class, 'checkStatus']);
 });
 
+// Routes spécifiques pannes (avant le groupe pour éviter conflit avec {id})
+Route::get('pannes-actives', [PanneController::class, 'pannesActives'])->middleware('auth:api');
+
 // Panne routes
 Route::prefix('pannes')->middleware('auth:api')->group(function () {
     Route::get('/', [PanneController::class, 'index']);
@@ -310,6 +314,21 @@ Route::prefix('pannes')->middleware('auth:api')->group(function () {
 
 // Statistiques pannes
 Route::get('statistiques-pannes', [PanneController::class, 'statistiques'])->middleware('auth:api');
+
+// Dashboard routes
+Route::prefix('')->middleware('auth:api')->group(function () {
+    // Statistiques dashboard
+    Route::get('statistiques-dashboard-ecole', [DashboardController::class, 'statistiquesEcole']);
+    Route::get('statistiques-dashboard-technicien', [DashboardController::class, 'statistiquesTechnicien']);
+
+    // Interventions filtrées
+    Route::get('interventions-en-cours', [DashboardController::class, 'interventionsEnCours']);
+    Route::get('interventions-du-jour', [DashboardController::class, 'interventionsDuJour']);
+    Route::get('interventions-a-venir', [DashboardController::class, 'interventionsAVenir']);
+
+    // Ordres de mission disponibles
+    Route::get('ordres-mission-disponibles', [DashboardController::class, 'ordresMissionDisponibles']);
+});
 
 // Ordre de mission routes
 Route::prefix('ordres-mission')->middleware('auth:api')->group(function () {
