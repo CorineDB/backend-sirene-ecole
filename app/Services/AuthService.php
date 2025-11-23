@@ -97,6 +97,9 @@ class AuthService implements AuthServiceInterface
                 $user->save(); // Save the updated user
             }
 
+            // Charger les relations nécessaires
+            $user->load(['userInfo', 'role.permissions', 'userAccount']);
+
             // Créer le token d'accès
             $token = $user->createToken('auth_token')->accessToken;
 
@@ -108,11 +111,17 @@ class AuthService implements AuthServiceInterface
                     'user' => [
                         'id' => $user->id,
                         'nom_utilisateur' => $user->nom_utilisateur,
+                        'identifiant' => $user->identifiant,
                         'type' => $user->type,
+                        'user_account_type_type' => $user->user_account_type_type,
+                        'user_account_type_id' => $user->user_account_type_id,
                         'telephone' => $user->userInfo->telephone ?? null,
                         'email' => $user->userInfo->email ?? null,
                         'doit_changer_mot_de_passe' => $user->doit_changer_mot_de_passe,
                         'mot_de_passe_change' => $user->mot_de_passe_change,
+                        'userInfo' => $user->userInfo,
+                        'role' => $user->role,
+                        'userAccount' => $user->userAccount,
                     ],
                 ]
             );
@@ -152,6 +161,9 @@ class AuthService implements AuthServiceInterface
                 ]);
             }
 
+            // Charger les relations nécessaires
+            $user->load(['userInfo', 'role.permissions', 'userAccount']);
+
             // Créer le token d'accès
             $token = $user->createToken('auth_token')->accessToken;
 
@@ -163,11 +175,17 @@ class AuthService implements AuthServiceInterface
                     'user' => [
                         'id' => $user->id,
                         'nom_utilisateur' => $user->nom_utilisateur,
+                        'identifiant' => $user->identifiant,
                         'type' => $user->type,
+                        'user_account_type_type' => $user->user_account_type_type,
+                        'user_account_type_id' => $user->user_account_type_id,
                         'telephone' => $user->userInfo->telephone ?? null,
                         'email' => $user->userInfo->email ?? null,
                         'doit_changer_mot_de_passe' => $user->doit_changer_mot_de_passe,
                         'mot_de_passe_change' => $user->mot_de_passe_change,
+                        'userInfo' => $user->userInfo,
+                        'role' => $user->role,
+                        'userAccount' => $user->userAccount,
                     ],
                 ]
             );
@@ -200,7 +218,7 @@ class AuthService implements AuthServiceInterface
     public function me($user): JsonResponse
     {
         try {
-            $user->load(['userInfo', 'role.permissions']);
+            $user->load(['userInfo', 'role.permissions', 'userAccount']);
 
             return $this->successResponse(
                 null,
@@ -210,10 +228,12 @@ class AuthService implements AuthServiceInterface
                         'nom_utilisateur' => $user->nom_utilisateur,
                         'identifiant' => $user->identifiant,
                         'type' => $user->type,
+                        'user_account_type_type' => $user->user_account_type_type,
+                        'user_account_type_id' => $user->user_account_type_id,
                         'telephone' => $user->userInfo->telephone ?? null,
                         'email' => $user->userInfo->email ?? null,
                         'role' => $user->role,
-                        'permissions' => $user->role->permissions ?? [],
+                        'userAccount' => $user->userAccount,
                     ],
                 ]
             );

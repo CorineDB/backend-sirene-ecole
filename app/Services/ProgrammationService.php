@@ -8,6 +8,7 @@ use App\Models\Programmation;
 use App\Services\Contracts\ProgrammationServiceInterface;
 use App\Repositories\Contracts\ProgrammationRepositoryInterface;
 use App\Services\Contracts\JourFerieServiceInterface;
+use App\Traits\FiltersByEcole;
 use App\Traits\JsonResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -17,7 +18,7 @@ use Exception;
 
 class ProgrammationService extends BaseService implements ProgrammationServiceInterface
 {
-    use JsonResponseTrait;
+    use FiltersByEcole, JsonResponseTrait;
 
     /**
      * @var JourFerieServiceInterface
@@ -32,6 +33,57 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
     {
         parent::__construct($repository);
         $this->jourFerieService = $jourFerieService;
+    }
+
+    /**
+     * Surcharge de getAll pour filtrer par école si nécessaire
+     */
+    public function getAll(int $perPage = 15, array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query();
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilterForProgrammations($query);
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->paginate($perPage);
+            return $this->successResponse('Données récupérées avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in ProgrammationService::getAll - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Surcharge de getById pour vérifier l'accès si école
+     */
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query()->where('id', $id);
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilterForProgrammations($query);
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->first($columns);
+
+            if (!$data) {
+                return $this->errorResponse('Programmation non trouvée ou accès non autorisé.', 404);
+            }
+
+            return $this->successResponse('Donnée récupérée avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in ProgrammationService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     /**

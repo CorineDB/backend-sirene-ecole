@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Role;
 use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Services\Contracts\RoleServiceInterface;
+use App\Traits\FiltersByEcole;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -14,12 +15,39 @@ use Illuminate\Database\Eloquent\Model;
 
 class RoleService extends BaseService implements RoleServiceInterface
 {
+    use FiltersByEcole;
+
     protected RoleRepositoryInterface $roleRepository;
 
     public function __construct(RoleRepositoryInterface $roleRepository)
     {
         parent::__construct($roleRepository);
         $this->roleRepository = $roleRepository;
+    }
+
+    /**
+     * Override create pour auto-fill roleable_id et roleable_type si école
+     */
+    public function create(array $data): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            // Si l'utilisateur connecté est une école, remplir automatiquement roleable_id et roleable_type
+            if ($this->isEcoleUser()) {
+                $user = auth()->user();
+                $data['roleable_type'] = $user->user_account_type_type;
+                $data['roleable_id'] = $user->user_account_type_id;
+            }
+
+            $model = $this->repository->create($data);
+            DB::commit();
+            return $this->createdResponse($model);
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in " . get_class($this) . "::create - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     /**

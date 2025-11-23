@@ -16,7 +16,66 @@ class PanneController extends Controller
     public function __construct(PanneServiceInterface $panneService)
     {
         $this->panneService = $panneService;
-        $this->middleware('auth:api');
+    }
+
+    /**
+     * Liste de toutes les pannes
+     *
+     * @OA\Get(
+     *     path="/api/pannes",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Liste de toutes les pannes",
+     *     description="Récupère la liste paginée de toutes les pannes",
+     *     operationId="getAllPannes",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         required=false,
+     *         description="Nombre de résultats par page",
+     *         @OA\Schema(type="integer", default=15)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Liste des pannes récupérée avec succès"
+     *     )
+     * )
+     */
+    public function index(Request $request)
+    {
+        Gate::authorize('voir_les_pannes');
+        $perPage = $request->query('per_page') ? (int) $request->query('per_page') : 15;
+        $filters = $request->only(['ecole_id', 'site_id', 'sirene_id', 'statut', 'priorite', 'date_debut', 'date_fin', 'est_cloture']);
+        return $this->panneService->getAll($perPage, ['sirene', 'site', 'ordreMission', 'interventions'], $filters);
+    }
+
+    /**
+     * Détails d'une panne
+     *
+     * @OA\Get(
+     *     path="/api/pannes/{id}",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Détails d'une panne",
+     *     description="Récupère les détails complets d'une panne",
+     *     operationId="getPanneDetails",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID de la panne",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Détails de la panne récupérés avec succès"
+     *     )
+     * )
+     */
+    public function show(string $id)
+    {
+        Gate::authorize('voir_panne');
+        return $this->panneService->getById($id, ['*'], ['sirene', 'site', 'ordreMission', 'interventions.ordreMission']);
     }
 
     /**
@@ -176,5 +235,180 @@ class PanneController extends Controller
     {
         Gate::authorize('resoudre_panne');
         return $this->panneService->cloturerPanne($panneId);
+    }
+
+    /**
+     * Récupérer les pannes actives
+     */
+    public function pannesActives(Request $request)
+    {
+        Gate::authorize('voir_les_pannes');
+        $perPage = $request->query('per_page') ? (int) $request->query('per_page') : null;
+        return $this->panneService->getPannesActives($perPage);
+    }
+
+    /**
+     * Récupérer les pannes par priorité
+     */
+    public function pannesByPriorite(Request $request, string $priorite)
+    {
+        Gate::authorize('voir_les_pannes');
+        $perPage = $request->query('per_page') ? (int) $request->query('per_page') : null;
+        return $this->panneService->getPannesByPriorite($priorite, $perPage);
+    }
+
+    /**
+     * Assigner un technicien à une panne
+     *
+     * @OA\Put(
+     *     path="/api/pannes/{panneId}/assigner/{technicienId}",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Assigner un technicien à une panne",
+     *     description="Assigne un technicien à l'intervention liée à la panne",
+     *     operationId="assignerTechnicien",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="panneId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de la panne",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="technicienId",
+     *         in="path",
+     *         required=true,
+     *         description="ID du technicien",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Technicien assigné avec succès"
+     *     )
+     * )
+     */
+    public function assignerTechnicien(string $panneId, string $technicienId)
+    {
+        Gate::authorize('assigner_technicien_intervention');
+        return $this->panneService->assignerTechnicien($panneId, $technicienId);
+    }
+
+    /**
+     * Mettre à jour le statut d'une panne
+     *
+     * @OA\Put(
+     *     path="/api/pannes/{panneId}",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Mettre à jour une panne",
+     *     description="Met à jour le statut ou d'autres informations d'une panne",
+     *     operationId="updatePanne",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="panneId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de la panne",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="statut", type="string", example="en_cours")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Panne mise à jour avec succès"
+     *     )
+     * )
+     */
+    public function update(Request $request, string $panneId)
+    {
+        Gate::authorize('modifier_panne');
+        $validated = $request->validate([
+            'statut' => 'required|string',
+        ]);
+
+        return $this->panneService->updateStatut($panneId, $validated['statut']);
+    }
+
+    /**
+     * Récupérer les pannes d'une sirène
+     *
+     * @OA\Get(
+     *     path="/api/sirenes/{sireneId}/pannes",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Pannes d'une sirène",
+     *     description="Récupère toutes les pannes déclarées pour une sirène",
+     *     operationId="getPannesBySirene",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="sireneId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de la sirène",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Pannes récupérées avec succès"
+     *     )
+     * )
+     */
+    public function pannesBySirene(string $sireneId)
+    {
+        Gate::authorize('voir_les_pannes');
+        return $this->panneService->getPannesBySirene($sireneId);
+    }
+
+    /**
+     * Récupérer les pannes d'une école
+     *
+     * @OA\Get(
+     *     path="/api/ecoles/{ecoleId}/pannes",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Pannes d'une école",
+     *     description="Récupère toutes les pannes déclarées par une école",
+     *     operationId="getPannesByEcole",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="ecoleId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'école",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Pannes récupérées avec succès"
+     *     )
+     * )
+     */
+    public function pannesByEcole(string $ecoleId)
+    {
+        Gate::authorize('voir_les_pannes');
+        return $this->panneService->getPannesByEcole($ecoleId);
+    }
+
+    /**
+     * Récupérer les statistiques des pannes
+     *
+     * @OA\Get(
+     *     path="/api/statistiques-pannes",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Statistiques des pannes",
+     *     description="Récupère les statistiques globales des pannes (total, par statut, par priorité, etc.)",
+     *     operationId="getStatistiquesPannes",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Statistiques récupérées avec succès"
+     *     )
+     * )
+     */
+    public function statistiques()
+    {
+        Gate::authorize('voir_les_pannes');
+        return $this->panneService->getStatistiques();
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Contracts\OrdreMissionServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use OpenApi\Annotations as OA;
 
 /**
@@ -139,7 +140,6 @@ class OrdreMissionController extends Controller
     public function __construct(OrdreMissionServiceInterface $ordreMissionService)
     {
         $this->ordreMissionService = $ordreMissionService;
-        $this->middleware('auth:api');
     }
 
     /**
@@ -178,7 +178,7 @@ class OrdreMissionController extends Controller
     {
         Gate::authorize('voir_les_ordres_mission');
         $perPage = $request->get('per_page', 15);
-        return $this->ordreMissionService->getAll($perPage, ['panne', 'ville', 'validePar', 'interventions.technicien']);
+        return $this->ordreMissionService->getAll($perPage, ['panne', 'ville', 'validePar', 'interventions.techniciens']);
     }
 
     /**
@@ -215,7 +215,7 @@ class OrdreMissionController extends Controller
     public function show(string $id): JsonResponse
     {
         Gate::authorize('voir_ordre_mission');
-        return $this->ordreMissionService->getById($id, ['panne.sirene', 'ville', 'validePar', 'interventions.technicien', 'missionsTechniciens.technicien']);
+        return $this->ordreMissionService->getById($id, ['*'], ['panne.sirene', 'ville', 'validePar', 'interventions.techniciens', 'missionsTechniciens.technicien']);
     }
 
     /**
