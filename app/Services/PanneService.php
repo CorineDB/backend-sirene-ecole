@@ -108,6 +108,7 @@ class PanneService extends BaseService implements PanneServiceInterface
             $ordreMissionPayload = array_merge([
                 'panne_id' => $panneWithSite->id,
                 'ville_id' => $panneWithSite->site->ville_id ?? null,
+                'numero_ordre' => $this->generateNumeroOrdre(),
                 'statut' => 'en_attente',
                 'date_generation' => now(),
                 'nombre_techniciens_acceptes' => 0,
