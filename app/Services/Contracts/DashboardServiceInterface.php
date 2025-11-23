@@ -24,15 +24,15 @@ interface DashboardServiceInterface
     /**
      * Récupérer les interventions du jour
      */
-    public function getInterventionsDuJour(?int $perPage): JsonResponse;
+    public function getInterventionsDuJour(array $filters, ?int $perPage): JsonResponse;
 
     /**
      * Récupérer les interventions à venir
      */
-    public function getInterventionsAVenir(?int $perPage): JsonResponse;
+    public function getInterventionsAVenir(array $filters, ?int $perPage): JsonResponse;
 
     /**
      * Récupérer les ordres de mission disponibles pour candidature
      */
-    public function getOrdresMissionDisponibles(?int $perPage): JsonResponse;
+    public function getOrdresMissionDisponibles(array $filters, ?int $perPage): JsonResponse;
 }
