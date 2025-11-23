@@ -102,6 +102,9 @@ Route::prefix('ecoles')->group(function () {
         // School pannes
         Route::get('{ecoleId}/pannes', [PanneController::class, 'pannesByEcole']);
 
+        // School sirenes
+        Route::get('{ecoleId}/sirenes', [SireneController::class, 'getSirenesByEcole'])->middleware('can:voir_les_sirenes');
+
         // School calendar with merged holidays
         Route::get('me/calendrier-scolaire/with-ecole-holidays', [EcoleController::class, 'getCalendrierScolaireWithJoursFeries'])->middleware('can:voir_ecole');
 

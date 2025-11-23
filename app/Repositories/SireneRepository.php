@@ -92,4 +92,20 @@ class SireneRepository extends BaseRepository implements SireneRepositoryInterfa
 
         return $query->paginate($perPage);
     }
+
+    /**
+     * Récupérer toutes les sirènes d'une école
+     *
+     * @param string $ecoleId
+     * @param array $relations
+     * @return Collection
+     */
+    public function getByEcole(string $ecoleId, array $relations = []): Collection
+    {
+        return $this->model->with($relations)
+            ->with(['abonnementActif.tokenActif'])
+            ->where('ecole_id', $ecoleId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
 }
