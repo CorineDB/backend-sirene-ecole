@@ -118,7 +118,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
     public function getInterventionsEnCours(array $filters, ?int $perPage): JsonResponse
     {
         try {
-            $query = Intervention::with(['panne.site.ecole', 'techniciens', 'ordreMission']);
+            $query = Intervention::with(['panne.site.ecolePrincipale', 'techniciens', 'ordreMission']);
 
             // Filtre statut (par défaut EN_COURS)
             if (!empty($filters['statut'])) {
@@ -130,7 +130,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
             // Filtres par relations
             if (!empty($filters['ecole_id'])) {
                 $query->whereHas('panne', function($q) use ($filters) {
-                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $filters['ecole_id']));
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_principale_id', $filters['ecole_id']));
                 });
             }
             if (!empty($filters['site_id'])) {
@@ -152,7 +152,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
             if ($this->isEcoleUser()) {
                 $ecoleId = $this->getEcoleId();
                 $query->whereHas('panne', function($q) use ($ecoleId) {
-                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $ecoleId));
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_principale_id', $ecoleId));
                 });
             }
 
@@ -171,7 +171,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
         try {
             $today = now()->format('Y-m-d');
 
-            $query = Intervention::with(['panne.site.ecole', 'techniciens', 'ordreMission'])
+            $query = Intervention::with(['panne.site.ecolePrincipale', 'techniciens', 'ordreMission'])
                 ->whereDate('date_intervention', $today);
 
             // Filtre statut (par défaut PLANIFIEE ou EN_COURS)
@@ -184,7 +184,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
             // Filtres par relations
             if (!empty($filters['ecole_id'])) {
                 $query->whereHas('panne', function($q) use ($filters) {
-                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $filters['ecole_id']));
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_principale_id', $filters['ecole_id']));
                 });
             }
             if (!empty($filters['site_id'])) {
@@ -198,7 +198,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
             if ($this->isEcoleUser()) {
                 $ecoleId = $this->getEcoleId();
                 $query->whereHas('panne', function($q) use ($ecoleId) {
-                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $ecoleId));
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_principale_id', $ecoleId));
                 });
             }
 
@@ -215,7 +215,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
     public function getInterventionsAVenir(array $filters, ?int $perPage): JsonResponse
     {
         try {
-            $query = Intervention::with(['panne.site.ecole', 'techniciens', 'ordreMission']);
+            $query = Intervention::with(['panne.site.ecolePrincipale', 'techniciens', 'ordreMission']);
 
             // Filtre par dates (par défaut futures)
             if (!empty($filters['date_debut'])) {
@@ -237,7 +237,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
             // Filtres par relations
             if (!empty($filters['ecole_id'])) {
                 $query->whereHas('panne', function($q) use ($filters) {
-                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $filters['ecole_id']));
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_principale_id', $filters['ecole_id']));
                 });
             }
             if (!empty($filters['site_id'])) {
@@ -251,7 +251,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
             if ($this->isEcoleUser()) {
                 $ecoleId = $this->getEcoleId();
                 $query->whereHas('panne', function($q) use ($ecoleId) {
-                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $ecoleId));
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_principale_id', $ecoleId));
                 });
             }
 
@@ -268,7 +268,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
     public function getOrdresMissionDisponibles(array $filters, ?int $perPage): JsonResponse
     {
         try {
-            $query = OrdreMission::with(['panne.site.ecole', 'panne.sirene', 'ville', 'interventions'])
+            $query = OrdreMission::with(['panne.site.ecolePrincipale', 'panne.sirene', 'ville', 'interventions'])
                 ->where('candidature_cloturee', false)
                 ->where('statut', 'en_attente')
                 ->where(function($q) {
@@ -279,7 +279,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
             // Filtres par relations
             if (!empty($filters['ecole_id'])) {
                 $query->whereHas('panne', function($q) use ($filters) {
-                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $filters['ecole_id']));
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_principale_id', $filters['ecole_id']));
                 });
             }
             if (!empty($filters['ville_id'])) {
@@ -293,7 +293,7 @@ class DashboardService extends BaseService implements DashboardServiceInterface
             if ($this->isEcoleUser()) {
                 $ecoleId = $this->getEcoleId();
                 $query->whereHas('panne', function($q) use ($ecoleId) {
-                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $ecoleId));
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_principale_id', $ecoleId));
                 });
             }
 
