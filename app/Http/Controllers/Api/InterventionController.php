@@ -168,11 +168,11 @@ class InterventionController extends Controller
     public function accepterCandidature(Request $request, string $missionTechnicienId): JsonResponse
     {
         Gate::authorize('assigner_technicien_intervention');
-        $validated = $request->validate([
+        /* $validated = $request->validate([
             'admin_id' => 'required|string|exists:users,id',
-        ]);
+        ]); */
 
-        return $this->interventionService->accepterCandidature($missionTechnicienId, $validated['admin_id']);
+        return $this->interventionService->accepterCandidature($missionTechnicienId);
     }
 
     /**
@@ -212,11 +212,11 @@ class InterventionController extends Controller
     public function refuserCandidature(Request $request, string $missionTechnicienId): JsonResponse
     {
         Gate::authorize('modifier_mission_technicien');
-        $validated = $request->validate([
+        /* $validated = $request->validate([
             'admin_id' => 'required|string|exists:users,id',
-        ]);
+        ]); */
 
-        return $this->interventionService->refuserCandidature($missionTechnicienId, $validated['admin_id']);
+        return $this->interventionService->refuserCandidature($missionTechnicienId);
     }
 
     /**

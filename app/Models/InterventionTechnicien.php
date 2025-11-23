@@ -5,10 +5,13 @@ namespace App\Models;
 use App\Traits\HasUlid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class InterventionTechnicien extends Model
+class InterventionTechnicien extends Pivot
 {
-    use HasUlid;
+
+    use HasUlid, SoftDeletes;
 
     protected $table = 'intervention_technicien';
 

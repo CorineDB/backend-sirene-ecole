@@ -178,7 +178,7 @@ class OrdreMissionController extends Controller
     {
         Gate::authorize('voir_les_ordres_mission');
         $perPage = $request->get('per_page', 15);
-        return $this->ordreMissionService->getAll($perPage, ['panne', 'ville', 'validePar', 'interventions.techniciens']);
+        return $this->ordreMissionService->getAll($perPage, ['panne.ecole', 'panne.site', 'ville', 'validePar', 'interventions.techniciens']);
     }
 
     /**
@@ -462,11 +462,11 @@ class OrdreMissionController extends Controller
     public function cloturerCandidatures(Request $request, string $id): JsonResponse
     {
         Gate::authorize('modifier_ordre_mission');
-        $validated = $request->validate([
+        /*$validated = $request->validate([
             'admin_id' => 'required|string|exists:users,id',
-        ]);
+        ]);*/
 
-        return $this->ordreMissionService->cloturerCandidatures($id, $validated['admin_id']);
+        return $this->ordreMissionService->cloturerCandidatures($id);
     }
 
     /**
@@ -506,10 +506,10 @@ class OrdreMissionController extends Controller
     public function rouvrirCandidatures(Request $request, string $id): JsonResponse
     {
         Gate::authorize('modifier_ordre_mission');
-        $validated = $request->validate([
+        /* $validated = $request->validate([
             'admin_id' => 'required|string|exists:users,id',
-        ]);
+        ]); */
 
-        return $this->ordreMissionService->rouvrirCandidatures($id, $validated['admin_id']);
+        return $this->ordreMissionService->rouvrirCandidatures($id);
     }
 }

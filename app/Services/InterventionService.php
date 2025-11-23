@@ -195,7 +195,7 @@ class InterventionService extends BaseService implements InterventionServiceInte
         }
     }
 
-    public function accepterCandidature(string $missionTechnicienId, string $adminId): JsonResponse
+    public function accepterCandidature(string $missionTechnicienId): JsonResponse
     {
         try {
             DB::beginTransaction();
@@ -272,7 +272,7 @@ class InterventionService extends BaseService implements InterventionServiceInte
         }
     }
 
-    public function refuserCandidature(string $missionTechnicienId, string $adminId): JsonResponse
+    public function refuserCandidature(string $missionTechnicienId): JsonResponse
     {
         try {
             $missionTechnicien = $this->missionRepository->update($missionTechnicienId, [

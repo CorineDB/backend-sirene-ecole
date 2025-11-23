@@ -164,7 +164,7 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
                 'ordre_mission_id' => $ordreMissionId
             ]);
 
-            return $this->successResponse(null, $candidatures);
+            return $this->successResponse(null, $candidatures->load("technicien.user.userInfo"));
         } catch (Exception $e) {
             Log::error("Error in OrdreMissionService::getCandidaturesByOrdreMission - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
@@ -182,7 +182,7 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
         }
     }
 
-    public function cloturerCandidatures(string $ordreMissionId, string $adminId): JsonResponse
+    public function cloturerCandidatures(string $ordreMissionId): JsonResponse
     {
         try {
             $ordreMission = $this->repository->find($ordreMissionId);
@@ -197,7 +197,7 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
             $ordreMission = $this->repository->update($ordreMissionId, [
                 'candidature_cloturee' => true,
                 'date_cloture_candidature' => now(),
-                'cloture_par' => $adminId,
+                'cloture_par' => auth()->id(),
             ]);
 
             return $this->successResponse('Candidatures clôturées avec succès.', $ordreMission);
@@ -207,7 +207,7 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
         }
     }
 
-    public function rouvrirCandidatures(string $ordreMissionId, string $adminId): JsonResponse
+    public function rouvrirCandidatures(string $ordreMissionId): JsonResponse
     {
         try {
             $ordreMission = $this->repository->find($ordreMissionId);

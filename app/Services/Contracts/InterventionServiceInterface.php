@@ -7,8 +7,8 @@ use Illuminate\Http\JsonResponse;
 interface InterventionServiceInterface extends BaseServiceInterface
 {
     public function soumettreCandidatureMission(string $ordreMissionId, string $technicienId): JsonResponse;
-    public function accepterCandidature(string $missionTechnicienId, string $adminId): JsonResponse;
-    public function refuserCandidature(string $missionTechnicienId, string $adminId): JsonResponse;
+    public function accepterCandidature(string $missionTechnicienId): JsonResponse;
+    public function refuserCandidature(string $missionTechnicienId): JsonResponse;
     public function retirerCandidature(string $missionTechnicienId, string $motifRetrait): JsonResponse;
     public function retirerMissionTechnicien(string $interventionId, string $motifRetrait, string $adminId): JsonResponse;
     public function demarrerIntervention(string $interventionId): JsonResponse;
