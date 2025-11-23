@@ -44,8 +44,9 @@ class PanneController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('voir_les_pannes');
-        $perPage = $request->get('per_page', 15);
-        return $this->panneService->getAll($perPage, ['sirene', 'site', 'ordreMission', 'interventions']);
+        $perPage = $request->query('per_page') ? (int) $request->query('per_page') : 15;
+        $filters = $request->only(['ecole_id', 'site_id', 'sirene_id', 'statut', 'priorite', 'date_debut', 'date_fin', 'est_cloture']);
+        return $this->panneService->getAll($perPage, ['sirene', 'site', 'ordreMission', 'interventions'], $filters);
     }
 
     /**
@@ -244,6 +245,16 @@ class PanneController extends Controller
         Gate::authorize('voir_les_pannes');
         $perPage = $request->query('per_page') ? (int) $request->query('per_page') : null;
         return $this->panneService->getPannesActives($perPage);
+    }
+
+    /**
+     * Récupérer les pannes par priorité
+     */
+    public function pannesByPriorite(Request $request, string $priorite)
+    {
+        Gate::authorize('voir_les_pannes');
+        $perPage = $request->query('per_page') ? (int) $request->query('per_page') : null;
+        return $this->panneService->getPannesByPriorite($priorite, $perPage);
     }
 
     /**
