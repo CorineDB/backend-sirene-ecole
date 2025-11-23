@@ -45,20 +45,29 @@ class InterventionService extends BaseService implements InterventionServiceInte
     }
 
     /**
-<<<<<<< HEAD
-     * Surcharge de getAll pour filtrer par école si nécessaire
-=======
-     * Override getAll() pour filtrer selon le rôle de l'utilisateur
->>>>>>> cff7959822ba164dff0121642c99d7a92771262c
+     * Override getAll() pour filtrer par école (via trait) et technician (par zone/ville)
      */
     public function getAll(int $perPage = 15, array $relations = []): JsonResponse
     {
         try {
-<<<<<<< HEAD
+            $user = Auth::user();
             $query = $this->repository->query();
 
-            // Appliquer le filtre école si l'utilisateur est une école
+            // Apply école filter via FiltersByEcole trait
             $query = $this->applyEcoleFilterForInterventions($query);
+
+            // Apply technician zone filter if user is technician
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+                if ($technicien) {
+                    $query->where(function ($q) use ($technicien) {
+                        $q->where('technicien_id', $technicien->id)
+                          ->orWhereHas('panne.site', function ($subQ) use ($technicien) {
+                              $subQ->where('ville_id', $technicien->ville_id);
+                          });
+                    });
+                }
+            }
 
             if (!empty($relations)) {
                 $query->with($relations);
@@ -66,38 +75,6 @@ class InterventionService extends BaseService implements InterventionServiceInte
 
             $data = $query->orderBy('created_at', 'desc')->paginate($perPage);
             return $this->successResponse('Données récupérées avec succès.', $data);
-=======
-            $user = Auth::user();
-
-            // Si l'utilisateur est admin, retourner toutes les interventions
-            if ($user && $user->isAdmin()) {
-                return parent::getAll($perPage, $relations);
-            }
-
-            // Si l'utilisateur est technicien, filtrer par ses interventions ou par zone
-            if ($user && $user->isTechnicien()) {
-                $technicien = $user->getTechnicien();
-
-                if ($technicien) {
-                    // Filtrer les interventions qui sont assignées au technicien
-                    // OU dont la panne est dans un site de la ville du technicien
-                    $data = Intervention::with($relations)
-                        ->where(function ($query) use ($technicien) {
-                            $query->where('technicien_id', $technicien->id)
-                                  ->orWhereHas('panne.site', function ($q) use ($technicien) {
-                                      $q->where('ville_id', $technicien->ville_id);
-                                  });
-                        })
-                        ->orderBy('created_at', 'desc')
-                        ->paginate($perPage);
-
-                    return $this->successResponse(null, $data);
-                }
-            }
-
-            // Par défaut, retourner une liste vide si l'utilisateur n'est ni admin ni technicien
-            return $this->successResponse(null, []);
->>>>>>> cff7959822ba164dff0121642c99d7a92771262c
         } catch (Exception $e) {
             Log::error("Error in InterventionService::getAll - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
@@ -105,16 +82,29 @@ class InterventionService extends BaseService implements InterventionServiceInte
     }
 
     /**
-<<<<<<< HEAD
-     * Surcharge de getById pour vérifier l'accès si école
+     * Override getById() pour filtrer par école (via trait) et technician (par zone/ville)
      */
-    public function getById(string $id, array $relations = []): JsonResponse
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
     {
         try {
+            $user = Auth::user();
             $query = $this->repository->query()->where('id', $id);
 
-            // Appliquer le filtre école si l'utilisateur est une école
+            // Apply école filter via FiltersByEcole trait
             $query = $this->applyEcoleFilterForInterventions($query);
+
+            // Apply technician zone filter if user is technician
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+                if ($technicien) {
+                    $query->where(function ($q) use ($technicien) {
+                        $q->where('technicien_id', $technicien->id)
+                          ->orWhereHas('panne.site', function ($subQ) use ($technicien) {
+                              $subQ->where('ville_id', $technicien->ville_id);
+                          });
+                    });
+                }
+            }
 
             if (!empty($relations)) {
                 $query->with($relations);
@@ -127,43 +117,6 @@ class InterventionService extends BaseService implements InterventionServiceInte
             }
 
             return $this->successResponse('Donnée récupérée avec succès.', $data);
-=======
-     * Override getById() pour filtrer selon le rôle de l'utilisateur
-     */
-    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
-    {
-        try {
-            $user = Auth::user();
-
-            // Si l'utilisateur est admin, retourner l'intervention
-            if ($user && $user->isAdmin()) {
-                return parent::getById($id, $columns, $relations);
-            }
-
-            // Si l'utilisateur est technicien, vérifier qu'il est concerné
-            if ($user && $user->isTechnicien()) {
-                $technicien = $user->getTechnicien();
-
-                if ($technicien) {
-                    $intervention = Intervention::with($relations)
-                        ->where(function ($query) use ($technicien) {
-                            $query->where('technicien_id', $technicien->id)
-                                  ->orWhereHas('panne.site', function ($q) use ($technicien) {
-                                      $q->where('ville_id', $technicien->ville_id);
-                                  });
-                        })
-                        ->find($id, $columns);
-
-                    if (!$intervention) {
-                        return $this->notFoundResponse('Intervention non trouvée ou non accessible.');
-                    }
-
-                    return $this->successResponse(null, $intervention);
-                }
-            }
-
-            return $this->notFoundResponse('Intervention non accessible.');
->>>>>>> cff7959822ba164dff0121642c99d7a92771262c
         } catch (Exception $e) {
             Log::error("Error in InterventionService::getById - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
