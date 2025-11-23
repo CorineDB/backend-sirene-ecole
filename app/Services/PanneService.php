@@ -33,19 +33,49 @@ class PanneService extends BaseService implements PanneServiceInterface
     /**
      * Surcharge de getAll pour filtrer par école si nécessaire
      */
-    public function getAll(int $perPage = 15, array $relations = []): JsonResponse
+    public function getAll(?int $perPage = 15, array $relations = [], array $filters = []): JsonResponse
     {
         try {
             $query = $this->repository->query();
 
-            // Appliquer le filtre école si l'utilisateur est une école
+            // Appliquer les filtres
+            if (!empty($filters['ecole_id'])) {
+                $query->whereHas('site', fn($q) => $q->where('ecole_id', $filters['ecole_id']));
+            }
+            if (!empty($filters['site_id'])) {
+                $query->where('site_id', $filters['site_id']);
+            }
+            if (!empty($filters['sirene_id'])) {
+                $query->where('sirene_id', $filters['sirene_id']);
+            }
+            if (!empty($filters['statut'])) {
+                $query->where('statut', $filters['statut']);
+            }
+            if (!empty($filters['priorite'])) {
+                $query->where('priorite', $filters['priorite']);
+            }
+            if (!empty($filters['date_debut'])) {
+                $query->whereDate('date_signalement', '>=', $filters['date_debut']);
+            }
+            if (!empty($filters['date_fin'])) {
+                $query->whereDate('date_signalement', '<=', $filters['date_fin']);
+            }
+            if (isset($filters['est_cloture'])) {
+                $query->where('est_cloture', filter_var($filters['est_cloture'], FILTER_VALIDATE_BOOLEAN));
+            }
+
+            // Appliquer le filtre école si l'utilisateur est une école (prioritaire)
             $query = $this->applyEcoleFilterForPannes($query);
 
             if (!empty($relations)) {
                 $query->with($relations);
             }
 
-            $data = $query->orderBy('created_at', 'desc')->paginate($perPage);
+            $query->orderBy('created_at', 'desc');
+
+            // Paginer ou retourner tout
+            $data = $perPage ? $query->paginate($perPage) : $query->get();
+
             return $this->successResponse('Données récupérées avec succès.', $data);
         } catch (Exception $e) {
             Log::error("Error in PanneService::getAll - " . $e->getMessage());
@@ -358,6 +388,31 @@ class PanneService extends BaseService implements PanneServiceInterface
             return $this->successResponse('Pannes actives récupérées avec succès.', $data);
         } catch (Exception $e) {
             Log::error("Error in PanneService::getPannesActives - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Récupérer les pannes par priorité
+     */
+    public function getPannesByPriorite(string $priorite, ?int $perPage = null): JsonResponse
+    {
+        try {
+            $query = $this->repository->query()
+                ->where('priorite', $priorite)
+                ->with(['sirene', 'site', 'ordreMission', 'interventions']);
+
+            // Appliquer le filtre école si nécessaire
+            $query = $this->applyEcoleFilterForPannes($query);
+
+            $query->orderBy('date_signalement', 'desc');
+
+            // Paginer si perPage est spécifié, sinon tout charger
+            $data = $perPage ? $query->paginate($perPage) : $query->get();
+
+            return $this->successResponse("Pannes de priorité {$priorite} récupérées avec succès.", $data);
+        } catch (Exception $e) {
+            Log::error("Error in PanneService::getPannesByPriorite - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
         }
     }
