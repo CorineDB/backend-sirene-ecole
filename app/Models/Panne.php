@@ -26,6 +26,7 @@ class Panne extends Model
         'sirene_id',
         'site_id',
         'numero_panne',
+        'objet',
         'description',
         'date_signalement',
         'priorite',

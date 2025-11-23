@@ -128,6 +128,7 @@ class PanneController extends Controller
         $sirene = Sirene::findOrFail($sireneId);
 
         $validated = $request->validate([
+            'objet' => 'required|string',
             'description' => 'required|string',
             'priorite' => 'sometimes|string|in:faible,moyenne,haute',
         ]);
@@ -187,6 +188,7 @@ class PanneController extends Controller
     {
         Gate::authorize('modifier_panne');
         $validated = $request->validate([
+            'priorite' => 'sometimes|string|in:faible,moyenne,haute',
             'nombre_techniciens_requis' => 'required|integer|min:1', // OBLIGATOIRE
             'date_debut_candidature' => 'nullable|date',
             'date_fin_candidature' => 'nullable|date|after:date_debut_candidature',

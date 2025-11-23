@@ -88,7 +88,7 @@ class SireneController extends Controller
     {
         Gate::authorize('voir_les_sirenes');
         $perPage = $request->get('per_page', 15);
-        return $this->sireneService->getAll(1000, relations:['modeleSirene', 'ecole', 'site']);
+        return $this->sireneService->getAll(1000, relations:['modeleSirene', 'abonnementActif.tokenActif', 'ecole', 'site']);
     }
 
     /**
