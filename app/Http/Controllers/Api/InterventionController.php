@@ -15,7 +15,6 @@ class InterventionController extends Controller
 
     public function __construct(InterventionServiceInterface $interventionService)
     {
-        $this->middleware('auth:api');
         $this->interventionService = $interventionService;
     }
 
@@ -265,6 +264,73 @@ class InterventionController extends Controller
     }
 
     /**
+     * Créer une intervention manuellement (sans passer par les candidatures)
+     */
+    public function creerIntervention(Request $request, string $ordreMissionId): JsonResponse
+    {
+        Gate::authorize('creer_intervention');
+        $validated = $request->validate([
+            'type_intervention' => 'nullable|string|in:inspection,constat,reparation,installation,maintenance,autre',
+            'nombre_techniciens_requis' => 'nullable|integer|min:1',
+            'date_intervention' => 'nullable|date',
+            'instructions' => 'nullable|string',
+            'lieu_rdv' => 'nullable|string',
+            'heure_rdv' => 'nullable|date_format:H:i',
+            'technicien_ids' => 'nullable|array',
+            'technicien_ids.*' => 'string|exists:techniciens,id',
+        ]);
+
+        return $this->interventionService->creerIntervention($ordreMissionId, $validated);
+    }
+
+    /**
+     * Assigner un technicien à une intervention (même si démarrée)
+     */
+    public function assignerTechnicien(Request $request, string $interventionId): JsonResponse
+    {
+        Gate::authorize('assigner_technicien_intervention');
+        $validated = $request->validate([
+            'technicien_id' => 'required|string|exists:techniciens,id',
+            'role' => 'nullable|string',
+        ]);
+
+        return $this->interventionService->assignerTechnicien(
+            $interventionId,
+            $validated['technicien_id'],
+            $validated['role'] ?? null
+        );
+    }
+
+    /**
+     * Retirer un technicien d'une intervention
+     */
+    public function retirerTechnicien(Request $request, string $interventionId): JsonResponse
+    {
+        Gate::authorize('modifier_intervention');
+        $validated = $request->validate([
+            'technicien_id' => 'required|string|exists:techniciens,id',
+        ]);
+
+        return $this->interventionService->retirerTechnicien($interventionId, $validated['technicien_id']);
+    }
+
+    /**
+     * Planifier une intervention (date, instructions, lieu/heure rdv)
+     */
+    public function planifierIntervention(Request $request, string $interventionId): JsonResponse
+    {
+        Gate::authorize('modifier_intervention');
+        $validated = $request->validate([
+            'date_intervention' => 'nullable|date',
+            'instructions' => 'nullable|string',
+            'lieu_rdv' => 'nullable|string',
+            'heure_rdv' => 'nullable|date_format:H:i',
+        ]);
+
+        return $this->interventionService->planifierIntervention($interventionId, $validated);
+    }
+
+    /**
      * Retirer un technicien d'une mission
      *
      * @OA\Put(
@@ -444,6 +510,39 @@ class InterventionController extends Controller
         ]);
 
         return $this->interventionService->redigerRapport($interventionId, $validated);
+    }
+
+    /**
+     * Récupérer les rapports d'une intervention
+     *
+     * @OA\Get(
+     *     path="/api/interventions/{interventionId}/rapports",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Récupérer les rapports d'une intervention",
+     *     description="Retourne tous les rapports associés à une intervention",
+     *     operationId="getRapportsIntervention",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="interventionId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'intervention",
+     *         @OA\Schema(type="string", example="01ARZ3NDEKTSV4RRFFQ69G5FAV")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Liste des rapports récupérée avec succès",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
+     *         )
+     *     )
+     * )
+     */
+    public function getRapports(string $interventionId): JsonResponse
+    {
+        Gate::authorize('voir_rapport_intervention');
+        return $this->interventionService->getById($interventionId, ['*'], ['rapports.technicien']);
     }
 
     /**

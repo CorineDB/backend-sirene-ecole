@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\ProgrammationController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\PaysController;
 use App\Http\Controllers\Api\VilleController;
+use App\Http\Controllers\Api\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('permissions')->middleware('auth:api')->group(function () {
@@ -81,15 +82,20 @@ Route::prefix('auth')->middleware('auth:api')->group(function () {
 
 // Ecole routes
 Route::prefix('ecoles')->group(function () {
-    // Public: Inscription & Checkout
+    // Public: Inscription
     Route::post('inscription', [EcoleController::class, 'inscrire']);
-    Route::get('{id}', [EcoleController::class, 'showById']); // Public pour checkout via QR code
 
     // Protected routes for Ecole management
     Route::middleware('auth:api')->group(function () {
         Route::get('/', [EcoleController::class, 'index'])->middleware('can:voir_les_ecoles');
+
+        // Routes spécifiques 'me' - DOIVENT être avant {id}
         Route::get('me', [EcoleController::class, 'show'])->middleware('can:voir_ecole');
+        Route::get('me/sirenes', [SireneController::class, 'getMySirenes']);
+        Route::get('me/calendrier-scolaire/with-ecole-holidays', [EcoleController::class, 'getCalendrierScolaireWithJoursFeries'])->middleware('can:voir_ecole');
         Route::put('me', [EcoleController::class, 'update'])->middleware('can:modifier_ecole');
+
+        // Routes avec paramètres
         Route::put('{id}', [EcoleController::class, 'updateById'])->middleware('can:modifier_ecole');
         Route::delete('{id}', [EcoleController::class, 'destroy'])->middleware('can:supprimer_ecole');
 
@@ -99,12 +105,18 @@ Route::prefix('ecoles')->group(function () {
         Route::post('{ecoleId}/abonnements/{abonnementId}', [PaiementController::class, 'traiter']);
         Route::post('{ecoleId}/jours-feries', [JourFerieController::class, 'storeForEcole']);
 
-        // School calendar with merged holidays
-        Route::get('me/calendrier-scolaire/with-ecole-holidays', [EcoleController::class, 'getCalendrierScolaireWithJoursFeries'])->middleware('can:voir_ecole');
+        // School pannes
+        Route::get('{ecoleId}/pannes', [PanneController::class, 'pannesByEcole']);
+
+        // School sirenes
+        Route::get('{ecoleId}/sirenes', [SireneController::class, 'getSirenesByEcole'])->middleware('can:voir_les_sirenes');
 
         // Sites management for a school
         Route::get('{ecoleId}/sites', [SiteController::class, 'index'])->middleware('can:voir_les_sites');
     });
+
+    // Public: Checkout via QR code - DOIT être après les routes protégées pour éviter les conflits
+    Route::get('{id}', [EcoleController::class, 'showById']);
 });
 
 // Site routes
@@ -117,6 +129,9 @@ Route::prefix('sites')->middleware('auth:api')->group(function () {
 
 // Sirene routes
 Route::get('sirenes-programmable', [SireneController::class, 'avecAbonnementActif'])
+    ->middleware(['auth:api', 'can:voir_les_sirenes']);
+
+Route::get('sirenes-installees', [SireneController::class, 'installees'])
     ->middleware(['auth:api', 'can:voir_les_sirenes']);
 
 Route::prefix('sirenes')->group(function () {
@@ -138,6 +153,7 @@ Route::prefix('sirenes')->group(function () {
         Route::delete('{id}', [SireneController::class, 'destroy'])->middleware('can:supprimer_sirene');
 
         Route::post('{id}/declarer-panne', [PanneController::class, 'declarer']);
+        Route::get('{sireneId}/pannes', [PanneController::class, 'pannesBySirene']);
 
         // Programmations for a sirene
         Route::apiResource('{sirene}/programmations', ProgrammationController::class);
@@ -191,18 +207,21 @@ Route::prefix('jours-feries')->middleware('auth:api')->group(function () {
     Route::delete('{id}', [JourFerieController::class, 'destroy']);
 });
 
+// Checkout route (public) - doit être avant les routes abonnements pour éviter les conflits
+Route::get('checkout/{id}', [AbonnementController::class, 'checkout']);
+
 // Abonnement routes
 Route::prefix('abonnements')->group(function () {
     // Public: Accès via QR Code
     Route::get('{id}/details', [AbonnementController::class, 'details']);
     Route::get('{id}/paiement', [AbonnementController::class, 'paiement']);
     Route::get('{id}/qr-code-url', [AbonnementController::class, 'getQrCodeUrl']); // Obtenir URL signée du QR code
-    Route::get('{id}', [AbonnementController::class, 'show']); // Public pour checkout via QR code
 
     // Protected routes
     Route::middleware('auth:api')->group(function () {
         // CRUD de base
         Route::get('/', [AbonnementController::class, 'index']);
+        Route::get('{id}', [AbonnementController::class, 'show']); // Maintenant protégé par auth
         Route::put('{id}', [AbonnementController::class, 'update']);
         Route::delete('{id}', [AbonnementController::class, 'destroy']);
 
@@ -280,10 +299,36 @@ Route::prefix('cinetpay')->group(function () {
     Route::post('check-status', [CinetPayController::class, 'checkStatus']);
 });
 
+// Routes spécifiques pannes (avant le groupe pour éviter conflit avec {id})
+Route::get('pannes-actives', [PanneController::class, 'pannesActives'])->middleware('auth:api');
+Route::get('pannes/priorite/{priorite}', [PanneController::class, 'pannesByPriorite'])->middleware('auth:api');
+
 // Panne routes
 Route::prefix('pannes')->middleware('auth:api')->group(function () {
+    Route::get('/', [PanneController::class, 'index']);
+    Route::get('{id}', [PanneController::class, 'show']);
+    Route::put('{panneId}', [PanneController::class, 'update']);
     Route::put('{panneId}/valider', [PanneController::class, 'valider']);
     Route::put('{panneId}/cloturer', [PanneController::class, 'cloturer']);
+    Route::put('{panneId}/assigner/{technicienId}', [PanneController::class, 'assignerTechnicien']);
+});
+
+// Statistiques pannes
+Route::get('statistiques-pannes', [PanneController::class, 'statistiques'])->middleware('auth:api');
+
+// Dashboard routes
+Route::prefix('')->middleware('auth:api')->group(function () {
+    // Statistiques dashboard
+    Route::get('statistiques-dashboard-ecole', [DashboardController::class, 'statistiquesEcole']);
+    Route::get('statistiques-dashboard-technicien', [DashboardController::class, 'statistiquesTechnicien']);
+
+    // Interventions filtrées
+    Route::get('interventions-en-cours', [DashboardController::class, 'interventionsEnCours']);
+    Route::get('interventions-du-jour', [DashboardController::class, 'interventionsDuJour']);
+    Route::get('interventions-a-venir', [DashboardController::class, 'interventionsAVenir']);
+
+    // Ordres de mission disponibles
+    Route::get('ordres-mission-disponibles', [DashboardController::class, 'ordresMissionDisponibles']);
 });
 
 // Ordre de mission routes
@@ -310,11 +355,18 @@ Route::prefix('interventions')->middleware('auth:api')->group(function () {
     Route::put('candidatures/{missionTechnicienId}/refuser', [InterventionController::class, 'refuserCandidature']);
     Route::put('candidatures/{missionTechnicienId}/retirer', [InterventionController::class, 'retirerCandidature']);
 
+    // Création et gestion manuelle
+    Route::post('ordres-mission/{ordreMissionId}/creer', [InterventionController::class, 'creerIntervention']);
+    Route::post('{interventionId}/techniciens', [InterventionController::class, 'assignerTechnicien']);
+    Route::delete('{interventionId}/techniciens', [InterventionController::class, 'retirerTechnicien']);
+    Route::put('{interventionId}/planifier', [InterventionController::class, 'planifierIntervention']);
+
     // Gestion des interventions
     Route::put('{interventionId}/demarrer', [InterventionController::class, 'demarrer']);
     Route::put('{interventionId}/terminer', [InterventionController::class, 'terminer']);
     Route::put('{interventionId}/retirer-mission', [InterventionController::class, 'retirerMission']);
     Route::post('{interventionId}/rapport', [InterventionController::class, 'redigerRapport']);
+    Route::get('{interventionId}/rapports', [InterventionController::class, 'getRapports']);
 
     // Notations
     Route::put('{interventionId}/noter', [InterventionController::class, 'noterIntervention']);

@@ -5,20 +5,75 @@ namespace App\Services;
 use App\Repositories\Contracts\CalendrierScolaireRepositoryInterface;
 use App\Repositories\Contracts\JourFerieRepositoryInterface;
 use App\Services\Contracts\CalendrierScolaireServiceInterface;
+use App\Traits\FiltersByEcole;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
 class CalendrierScolaireService extends BaseService implements CalendrierScolaireServiceInterface
 {
+    use FiltersByEcole;
+
     protected $jourFerieRepository;
 
     public function __construct(CalendrierScolaireRepositoryInterface $repository, JourFerieRepositoryInterface $jourFerieRepository)
     {
         parent::__construct($repository);
         $this->jourFerieRepository = $jourFerieRepository;
+    }
+
+    /**
+     * Surcharge de getAll pour filtrer par école si nécessaire
+     */
+    public function getAll(int $perPage = 15, array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query();
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilterForCalendriers($query);
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->paginate($perPage);
+            return $this->successResponse('Données récupérées avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in CalendrierScolaireService::getAll - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Surcharge de getById pour vérifier l'accès si école
+     */
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query()->where('id', $id);
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilterForCalendriers($query);
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->first($columns);
+
+            if (!$data) {
+                return $this->errorResponse('Calendrier non trouvé ou accès non autorisé.', 404);
+            }
+
+            return $this->successResponse('Donnée récupérée avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in CalendrierScolaireService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     public function create(array $data): JsonResponse

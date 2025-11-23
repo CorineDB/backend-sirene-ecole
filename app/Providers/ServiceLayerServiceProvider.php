@@ -98,6 +98,11 @@ class ServiceLayerServiceProvider extends ServiceProvider
             \App\Services\OrdreMissionService::class
         );
 
+        $this->app->bind(
+            \App\Services\Contracts\DashboardServiceInterface::class,
+            \App\Services\DashboardService::class
+        );
+
         // Repositories
         $this->app->bind(
             \App\Repositories\Contracts\PermissionRepositoryInterface::class,

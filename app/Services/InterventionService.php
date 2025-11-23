@@ -7,6 +7,7 @@ use App\Enums\StatutMission;
 use App\Enums\StatutOrdreMission;
 use App\Models\AvisIntervention;
 use App\Models\AvisRapport;
+use App\Models\Intervention;
 use App\Models\User;
 use App\Models\Ecole;
 use App\Notifications\AdminCandidatureSubmissionNotification;
@@ -16,13 +17,17 @@ use App\Repositories\Contracts\MissionTechnicienRepositoryInterface;
 use App\Repositories\Contracts\RapportInterventionRepositoryInterface;
 use App\Repositories\Contracts\OrdreMissionRepositoryInterface;
 use App\Services\Contracts\InterventionServiceInterface;
+use App\Traits\FiltersByEcole;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
 class InterventionService extends BaseService implements InterventionServiceInterface
 {
+    use FiltersByEcole;
+
     protected MissionTechnicienRepositoryInterface $missionRepository;
     protected RapportInterventionRepositoryInterface $rapportRepository;
     protected OrdreMissionRepositoryInterface $ordreMissionRepository;
@@ -37,6 +42,93 @@ class InterventionService extends BaseService implements InterventionServiceInte
         $this->missionRepository = $missionRepository;
         $this->rapportRepository = $rapportRepository;
         $this->ordreMissionRepository = $ordreMissionRepository;
+    }
+
+    /**
+     * Override getAll() pour filtrer par école (via trait) et technician (par zone/ville)
+     */
+    public function getAll(int $perPage = 15, array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $query = $this->repository->query();
+
+            // Apply école filter via FiltersByEcole trait
+            $query = $this->applyEcoleFilterForInterventions($query);
+
+            // Apply technician zone filter if user is technician
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+                if ($technicien) {
+                    $query->where(function ($q) use ($technicien) {
+                        $q->whereHas('techniciens', function ($techQuery) use ($technicien) {
+                              $techQuery->where('techniciens.id', $technicien->id);
+                          })
+                          ->orWhereHas('panne', function ($panneQ) use ($technicien) {
+                              $panneQ->whereHas('site', function ($siteQ) use ($technicien) {
+                                  $siteQ->where('ville_id', $technicien->ville_id);
+                              });
+                          });
+                    });
+                }
+            }
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->orderBy('created_at', 'desc')->paginate($perPage);
+            return $this->successResponse('Données récupérées avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::getAll - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Override getById() pour filtrer par école (via trait) et technician (par zone/ville)
+     */
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $query = $this->repository->query()->where('id', $id);
+
+            // Apply école filter via FiltersByEcole trait
+            $query = $this->applyEcoleFilterForInterventions($query);
+
+            // Apply technician zone filter if user is technician
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+                if ($technicien) {
+                    $query->where(function ($q) use ($technicien) {
+                        $q->whereHas('techniciens', function ($techQuery) use ($technicien) {
+                              $techQuery->where('techniciens.id', $technicien->id);
+                          })
+                          ->orWhereHas('panne', function ($panneQ) use ($technicien) {
+                              $panneQ->whereHas('site', function ($siteQ) use ($technicien) {
+                                  $siteQ->where('ville_id', $technicien->ville_id);
+                              });
+                          });
+                    });
+                }
+            }
+
+            if (!empty($relations)) {
+                $query->with($relations);
+            }
+
+            $data = $query->first();
+
+            if (!$data) {
+                return $this->errorResponse('Intervention non trouvée ou accès non autorisé.', 404);
+            }
+
+            return $this->successResponse('Donnée récupérée avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     public function soumettreCandidatureMission(string $ordreMissionId, string $technicienId): JsonResponse
@@ -81,8 +173,8 @@ class InterventionService extends BaseService implements InterventionServiceInte
             ]);
 
             // Envoyer la notification à l'admin
-            $adminUsers = User::whereHas('roles', function ($query) {
-                $query->where('name', 'admin');
+            $adminUsers = User::whereHas('role', function ($query) {
+                $query->where('nom', 'admin');
             })->get();
 
             foreach ($adminUsers as $admin) {
@@ -148,17 +240,31 @@ class InterventionService extends BaseService implements InterventionServiceInte
 
             $this->ordreMissionRepository->update($ordreMission->id, $updateData);
 
-            // Créer l'intervention
-            $intervention = $this->repository->create([
-                'panne_id' => $ordreMission->panne_id,
-                'technicien_id' => $missionTechnicien->technicien_id,
-                'ordre_mission_id' => $ordreMission->id,
-                'statut' => 'assignee',
+            // Vérifier si une intervention existe déjà pour cet ordre de mission
+            $intervention = $ordreMission->interventions()->first();
+
+            if (!$intervention) {
+                // Créer UNE intervention pour tout l'ordre de mission
+                $intervention = $this->repository->create([
+                    'panne_id' => $ordreMission->panne_id,
+                    'ordre_mission_id' => $ordreMission->id,
+                    'statut' => 'assignee',
+                    'date_assignation' => now(),
+                ]);
+            }
+
+            // Assigner le technicien à l'intervention via la table pivot
+            $intervention->techniciens()->attach($missionTechnicien->technicien_id, [
                 'date_assignation' => now(),
+                'role' => null, // Peut être défini plus tard
+                'notes' => null,
             ]);
 
+            // Recharger l'intervention avec les techniciens
+            $intervention->load('techniciens');
+
             DB::commit();
-            return $this->successResponse('Candidature acceptée et intervention créée.', $intervention);
+            return $this->successResponse('Candidature acceptée et technicien assigné à l\'intervention.', $intervention);
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in InterventionService::accepterCandidature - " . $e->getMessage());
@@ -435,6 +541,29 @@ class InterventionService extends BaseService implements InterventionServiceInte
     public function getAvisIntervention(string $interventionId): JsonResponse
     {
         try {
+            $user = Auth::user();
+
+            // Vérifier que l'utilisateur peut accéder à cette intervention
+            if ($user && !$user->isAdmin()) {
+                if ($user->isTechnicien()) {
+                    $technicien = $user->getTechnicien();
+                    if ($technicien) {
+                        $intervention = Intervention::where('id', $interventionId)
+                            ->where(function ($query) use ($technicien) {
+                                $query->where('technicien_id', $technicien->id)
+                                      ->orWhereHas('panne.site', function ($q) use ($technicien) {
+                                          $q->where('ville_id', $technicien->ville_id);
+                                      });
+                            })
+                            ->first();
+
+                        if (!$intervention) {
+                            return $this->notFoundResponse('Intervention non trouvée ou non accessible.');
+                        }
+                    }
+                }
+            }
+
             $avis = AvisIntervention::where('intervention_id', $interventionId)
                 ->with(['ecole', 'auteur'])
                 ->get();
@@ -449,6 +578,35 @@ class InterventionService extends BaseService implements InterventionServiceInte
     public function getAvisRapport(string $rapportId): JsonResponse
     {
         try {
+            $user = Auth::user();
+
+            // Vérifier que l'utilisateur peut accéder à ce rapport
+            if ($user && !$user->isAdmin()) {
+                if ($user->isTechnicien()) {
+                    $technicien = $user->getTechnicien();
+                    if ($technicien) {
+                        $rapport = $this->rapportRepository->find($rapportId, relations: ['intervention']);
+                        if (!$rapport) {
+                            return $this->notFoundResponse('Rapport non trouvé.');
+                        }
+
+                        // Vérifier que le rapport est lié à une intervention accessible
+                        $intervention = Intervention::where('id', $rapport->intervention_id)
+                            ->where(function ($query) use ($technicien) {
+                                $query->where('technicien_id', $technicien->id)
+                                      ->orWhereHas('panne.site', function ($q) use ($technicien) {
+                                          $q->where('ville_id', $technicien->ville_id);
+                                      });
+                            })
+                            ->first();
+
+                        if (!$intervention) {
+                            return $this->notFoundResponse('Rapport non accessible.');
+                        }
+                    }
+                }
+            }
+
             $avis = AvisRapport::where('rapport_intervention_id', $rapportId)
                 ->with(['admin'])
                 ->get();
@@ -456,6 +614,163 @@ class InterventionService extends BaseService implements InterventionServiceInte
             return $this->successResponse(null, $avis);
         } catch (Exception $e) {
             Log::error("Error in InterventionService::getAvisRapport - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Créer une intervention manuellement (sans passer par les candidatures)
+     * L'admin peut créer une intervention et y assigner des techniciens directement
+     */
+    public function creerIntervention(string $ordreMissionId, array $data): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $ordreMission = $this->ordreMissionRepository->find($ordreMissionId, relations: ['panne']);
+            if (!$ordreMission) {
+                DB::rollBack();
+                return $this->notFoundResponse('Ordre de mission non trouvé.');
+            }
+
+            // Créer l'intervention (plusieurs interventions possibles par ordre de mission)
+            $intervention = $this->repository->create([
+                'panne_id' => $ordreMission->panne_id,
+                'ordre_mission_id' => $ordreMissionId,
+                'type_intervention' => $data['type_intervention'] ?? 'reparation',
+                'nombre_techniciens_requis' => $data['nombre_techniciens_requis'] ?? null,
+                'date_intervention' => $data['date_intervention'] ?? null,
+                'instructions' => $data['instructions'] ?? null,
+                'lieu_rdv' => $data['lieu_rdv'] ?? null,
+                'heure_rdv' => $data['heure_rdv'] ?? null,
+                'statut' => 'planifiee',
+                'date_assignation' => now(),
+            ]);
+
+            // Assigner les techniciens si fournis
+            if (!empty($data['technicien_ids'])) {
+                foreach ($data['technicien_ids'] as $technicienId) {
+                    $intervention->techniciens()->attach($technicienId, [
+                        'id' => (string) \Illuminate\Support\Str::ulid(),
+                        'date_assignation' => now(),
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return $this->createdResponse($intervention->load('techniciens'));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in InterventionService::creerIntervention - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Assigner un technicien à une intervention
+     * Peut être fait même après le démarrage de l'intervention
+     */
+    public function assignerTechnicien(string $interventionId, string $technicienId, ?string $role = null): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $intervention = $this->repository->find($interventionId);
+            if (!$intervention) {
+                DB::rollBack();
+                return $this->notFoundResponse('Intervention non trouvée.');
+            }
+
+            // Vérifier si le technicien n'est pas déjà assigné
+            if ($intervention->techniciens()->where('technicien_id', $technicienId)->exists()) {
+                DB::rollBack();
+                return $this->errorResponse('Ce technicien est déjà assigné à cette intervention.', 400);
+            }
+
+            // Assigner le technicien
+            $intervention->techniciens()->attach($technicienId, [
+                'date_assignation' => now(),
+                'role' => $role,
+                'notes' => null,
+            ]);
+
+            // Mettre à jour le compteur dans l'ordre de mission si lié
+            if ($intervention->ordre_mission_id) {
+                $ordreMission = $this->ordreMissionRepository->find($intervention->ordre_mission_id);
+                if ($ordreMission) {
+                    $this->ordreMissionRepository->update($ordreMission->id, [
+                        'nombre_techniciens_acceptes' => $ordreMission->nombre_techniciens_acceptes + 1,
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return $this->successResponse('Technicien assigné à l\'intervention.', $intervention->load('techniciens'));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in InterventionService::assignerTechnicien - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Retirer un technicien d'une intervention
+     */
+    public function retirerTechnicien(string $interventionId, string $technicienId): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $intervention = $this->repository->find($interventionId);
+            if (!$intervention) {
+                DB::rollBack();
+                return $this->notFoundResponse('Intervention non trouvée.');
+            }
+
+            // Vérifier si le technicien est assigné
+            if (!$intervention->techniciens()->where('technicien_id', $technicienId)->exists()) {
+                DB::rollBack();
+                return $this->errorResponse('Ce technicien n\'est pas assigné à cette intervention.', 400);
+            }
+
+            // Retirer le technicien
+            $intervention->techniciens()->detach($technicienId);
+
+            // Mettre à jour le compteur dans l'ordre de mission si lié
+            if ($intervention->ordre_mission_id) {
+                $ordreMission = $this->ordreMissionRepository->find($intervention->ordre_mission_id);
+                if ($ordreMission && $ordreMission->nombre_techniciens_acceptes > 0) {
+                    $this->ordreMissionRepository->update($ordreMission->id, [
+                        'nombre_techniciens_acceptes' => $ordreMission->nombre_techniciens_acceptes - 1,
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return $this->successResponse('Technicien retiré de l\'intervention.', $intervention->load('techniciens'));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in InterventionService::retirerTechnicien - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Planifier une intervention (définir date, instructions, lieu RDV)
+     */
+    public function planifierIntervention(string $interventionId, array $data): JsonResponse
+    {
+        try {
+            $intervention = $this->repository->update($interventionId, [
+                'date_intervention' => $data['date_intervention'] ?? null,
+                'instructions' => $data['instructions'] ?? null,
+                'lieu_rdv' => $data['lieu_rdv'] ?? null,
+                'heure_rdv' => $data['heure_rdv'] ?? null,
+            ]);
+
+            return $this->successResponse('Intervention planifiée.', $intervention);
+        } catch (Exception $e) {
+            Log::error("Error in InterventionService::planifierIntervention - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
         }
     }

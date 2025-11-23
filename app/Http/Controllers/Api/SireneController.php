@@ -375,6 +375,147 @@ class SireneController extends Controller
     }
 
     /**
+     * Obtenir toutes les sirènes installées dans une école
+     * @OA\Get(
+     *     path="/api/ecoles/{ecoleId}/sirenes",
+     *     summary="Get all sirenes installed at a school",
+     *     tags={"Sirenes"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="ecoleId",
+     *         in="path",
+     *         required=true,
+     *         description="ID of the school",
+     *         @OA\Schema(type="string", format="ulid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Sirènes récupérées avec succès."),
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Sirene"))
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Unauthorized",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="This action is unauthorized.")
+     *         )
+     *     )
+     * )
+     */
+    public function getSirenesByEcole(string $ecoleId): JsonResponse
+    {
+        Gate::authorize('voir_les_sirenes');
+        return $this->sireneService->getSirenesByEcole($ecoleId, ['modeleSirene', 'site']);
+    }
+
+    /**
+     * Obtenir toutes les sirènes de l'école connectée
+     * @OA\Get(
+     *     path="/api/ecoles/me/sirenes",
+     *     summary="Get all sirenes for the authenticated school",
+     *     tags={"Sirenes"},
+     *     security={ {"passport": {}} },
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Sirènes récupérées avec succès."),
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Sirene"))
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - User is not a school",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Vous devez être connecté en tant qu'école pour accéder à cette ressource.")
+     *         )
+     *     )
+     * )
+     */
+    public function getMySirenes(): JsonResponse
+    {
+        return $this->sireneService->getMySirenes(['modeleSirene', 'site']);
+    }
+
+    /**
+     * Obtenir les sirènes installées (attachées à une école)
+     * @OA\Get(
+     *     path="/api/sirenes-installees",
+     *     summary="Get installed sirenes (attached to a school, paginated)",
+     *     tags={"Sirenes"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Numéro de la page",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         description="Nombre de sirènes par page (max: 100)",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=15)
+     *     ),
+     *     @OA\Parameter(
+     *         name="ecole_id",
+     *         in="query",
+     *         description="Filtrer par ID d'école (admin uniquement)",
+     *         required=false,
+     *         @OA\Schema(type="string", format="ulid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Sirènes installées récupérées avec succès."),
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Sirene")),
+     *             @OA\Property(property="pagination", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated"
+     *     )
+     * )
+     */
+    public function installees(Request $request): JsonResponse
+    {
+        Gate::authorize('voir_les_sirenes');
+
+        $perPage = min((int) $request->query('per_page', 15), 100);
+        $ecoleId = $request->query('ecole_id');
+
+        return $this->sireneService->getSirenesInstallees(
+            ['modeleSirene', 'ecole', 'site'],
+            $perPage,
+            $ecoleId
+        );
+    }
+
+    /**
      * Obtenir les sirènes programmables (avec abonnement actif et pagination)
      * @OA\Get(
      *     path="/api/sirenes-programmable",

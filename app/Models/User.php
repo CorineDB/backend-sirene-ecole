@@ -98,4 +98,52 @@ class User extends Authenticatable
     {
         return $this->role && $this->role->slug === 'admin';
     }
+
+    /**
+     * Check if the user is a technicien.
+     *
+     * @return bool
+     */
+    public function isTechnicien(): bool
+    {
+        return $this->type === 'technicien' ||
+               ($this->role && $this->role->slug === 'technicien');
+    }
+
+    /**
+     * Get the technicien account if user is a technicien.
+     *
+     * @return \App\Models\Technicien|null
+     */
+    public function getTechnicien(): ?Technicien
+    {
+        if ($this->isTechnicien() && $this->user_account_type_type === 'App\\Models\\Technicien') {
+            return $this->userAccount;
+        }
+        return null;
+    }
+
+    /**
+     * Check if the user is an ecole.
+     *
+     * @return bool
+     */
+    public function isEcole(): bool
+    {
+        return $this->type === 'ecole' ||
+               ($this->role && $this->role->slug === 'ecole');
+    }
+
+    /**
+     * Get the ecole account if user is an ecole.
+     *
+     * @return \App\Models\Ecole|null
+     */
+    public function getEcole(): ?Ecole
+    {
+        if ($this->isEcole() && $this->user_account_type_type === 'App\\Models\\Ecole') {
+            return $this->userAccount;
+        }
+        return null;
+    }
 }

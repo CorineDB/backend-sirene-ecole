@@ -50,7 +50,7 @@ class ProgrammationController extends Controller
     use JsonResponseTrait;
 
     /**
-     * @var ProgrammationServiceInterface
+     * @var ProgrammationServiceInterfaceqp
      */
     protected $programmationService;
 

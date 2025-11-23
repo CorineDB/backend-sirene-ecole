@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum StatutIntervention: string
 {
+    case PLANIFIEE = 'planifiee';
     case ASSIGNEE = 'assignee';
     case ACCEPTEE = 'acceptee';
     case EN_COURS = 'en_cours';
@@ -13,6 +14,7 @@ enum StatutIntervention: string
     public function label(): string
     {
         return match($this) {
+            self::PLANIFIEE => 'Planifiée',
             self::ASSIGNEE => 'Assignée',
             self::ACCEPTEE => 'Acceptée',
             self::EN_COURS => 'En cours',

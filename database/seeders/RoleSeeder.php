@@ -94,18 +94,18 @@ class RoleSeeder extends Seeder
             'initier_paiement_abonnement',
             'voir_les_sirenes',
             'voir_sirene',
-            'creer_sirene',
-            'modifier_sirene',
-            'activer_sirene',
-            'desactiver_sirene',
-            'tester_sirene',
-            'configurer_sirene',
             'voir_les_sites',
             'voir_site',
             'creer_site',
             'modifier_site',
             'gerer_sirenes_site',
             'voir_les_pannes',
+            'creer_sirene',
+            'modifier_sirene',
+            'activer_sirene',
+            'desactiver_sirene',
+            'tester_sirene',
+            'configurer_sirene',
             'voir_panne',
             'creer_panne',
             'modifier_panne',
@@ -140,6 +140,51 @@ class RoleSeeder extends Seeder
             'voir_son_propre_profil',
             'changer_son_propre_mot_de_passe',
             'voir_informations_utilisateur',
+
+            // Permissions Générales
+           'gerer_user',
+            'gerer_utilisateurs',
+            'gerer_roles',
+            'gerer_permissions',
+            'voir_les_pays',
+            'voir_pays',
+
+            // Permission
+            'voir_les_permissions',
+            'voir_permission',
+
+
+            // Role
+            'voir_les_roles',
+            'voir_role',
+            'creer_role',
+            'modifier_role',
+            'supprimer_role',
+            'assigner_permissions_role',
+
+            // RolePermission
+            'voir_les_permissions_role',
+            'voir_role_permission',
+            'creer_role_permission',
+            'supprimer_role_permission',
+
+
+            // Utilisateur (User)
+            'voir_les_utilisateurs',
+            'voir_utilisateur',
+            'creer_utilisateur',
+            'modifier_utilisateur',
+            'supprimer_utilisateur',
+            'assigner_roles_utilisateur',
+            'reinitialiser_mot_de_passe_utilisateur',
+
+            // Informations Utilisateur (UserInfo)
+            'voir_les_informations_utilisateur',
+            'voir_informations_utilisateur',
+            'creer_informations_utilisateur',
+            'modifier_informations_utilisateur',
+            'supprimer_informations_utilisateur',
+
         ])->get()->pluck('id');
 
         $ecoleRole->permissions()->sync(
@@ -200,6 +245,21 @@ class RoleSeeder extends Seeder
             'voir_ecole',
             'voir_les_sites',
             'voir_site',
+
+
+            'voir_les_missions_technicien',
+            'voir_mission_technicien',
+            'creer_mission_technicien',
+            'modifier_mission_technicien',
+            'supprimer_mission_technicien',
+            'completer_mission_technicien',
+
+            'creer_sirene',
+            'modifier_sirene',
+            'activer_sirene',
+            'desactiver_sirene',
+            'tester_sirene',
+            'configurer_sirene',
             'voir_les_notifications',
             'voir_notification',
             'modifier_notification',

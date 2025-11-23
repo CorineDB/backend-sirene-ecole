@@ -82,4 +82,9 @@ interface BaseRepositoryInterface
      * Définir le modèle
      */
     public function setModel(Model $model): self;
+
+    /**
+     * Récupérer une instance du query builder
+     */
+    public function query();
 }

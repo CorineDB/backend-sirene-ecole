@@ -2,18 +2,84 @@
 
 namespace App\Services;
 
+use App\Models\Sirene;
 use App\Repositories\Contracts\SireneRepositoryInterface;
 use App\Services\Contracts\SireneServiceInterface;
+use App\Traits\FiltersByEcole;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
 class SireneService extends BaseService implements SireneServiceInterface
 {
+    use FiltersByEcole;
+
     public function __construct(SireneRepositoryInterface $repository)
     {
         parent::__construct($repository);
+    }
+
+    /**
+     * Override getAll() pour filtrer selon le rôle de l'utilisateur
+     */
+    public function getAll(int $perPage = 15, array $columns = ['*'], array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query()->with($relations);
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilterForSirenes($query);
+
+            if ($perPage > 0) {
+                $data = $query->paginate($perPage, $columns);
+            } else {
+                $data = $query->get($columns);
+            }
+
+            return $this->successResponse('Données récupérées avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in SireneService::getAll - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Override getById() pour filtrer selon le rôle de l'utilisateur
+     */
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Si l'utilisateur est admin, retourner la sirène
+            if ($user && $user->isAdmin()) {
+                return parent::getById($id, $columns, $relations);
+            }
+
+            // Si l'utilisateur est une école, vérifier que la sirène lui appartient
+            if ($user && $user->isEcole()) {
+                $ecole = $user->getEcole();
+
+                if ($ecole) {
+                    $sirene = Sirene::with($relations)
+                        ->where('ecole_id', $ecole->id)
+                        ->find($id, $columns);
+
+                    if (!$sirene) {
+                        return $this->notFoundResponse('Sirène non trouvée ou non accessible.');
+                    }
+
+                    return $this->successResponse(null, $sirene);
+                }
+            }
+
+            return $this->notFoundResponse('Sirène non accessible.');
+        } catch (Exception $e) {
+            Log::error("Error in SireneService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     public function findByNumeroSerie(string $numeroSerie, array $relations = []): JsonResponse
@@ -37,6 +103,40 @@ class SireneService extends BaseService implements SireneServiceInterface
             return $this->successResponse(null, $sirenes);
         } catch (Exception $e) {
             Log::error("Error in " . get_class($this) . "::getSirenesDisponibles - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    public function getSirenesByEcole(string $ecoleId, array $relations = []): JsonResponse
+    {
+        try {
+            $sirenes = $this->repository->getByEcole($ecoleId, $relations);
+            return $this->successResponse('Sirènes récupérées avec succès.', $sirenes);
+        } catch (Exception $e) {
+            Log::error("Error in " . get_class($this) . "::getSirenesByEcole - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    public function getMySirenes(array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Vérifier que l'utilisateur est une école
+            if (!$user || !$user->isEcole()) {
+                return $this->errorResponse('Vous devez être connecté en tant qu\'école pour accéder à cette ressource.', 403);
+            }
+
+            $ecole = $user->getEcole();
+            if (!$ecole) {
+                return $this->errorResponse('École non trouvée pour cet utilisateur.', 404);
+            }
+
+            $sirenes = $this->repository->getByEcole($ecole->id, $relations);
+            return $this->successResponse('Sirènes récupérées avec succès.', $sirenes);
+        } catch (Exception $e) {
+            Log::error("Error in " . get_class($this) . "::getMySirenes - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
         }
     }
@@ -68,6 +168,47 @@ class SireneService extends BaseService implements SireneServiceInterface
             ]);
         } catch (Exception $e) {
             Log::error("Error in " . get_class($this) . "::getSirenesAvecAbonnementActif - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    public function getSirenesInstallees(array $relations = [], int $perPage = 15, ?string $ecoleId = null): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Si l'utilisateur est une école, utiliser automatiquement son école_id
+            if (!$ecoleId && $user && $user->isEcole()) {
+                $ecole = $user->getEcole();
+                if ($ecole) {
+                    $ecoleId = $ecole->id;
+                }
+            }
+
+            $sirenes = $this->repository->getSirenesInstallees($relations, $perPage, $ecoleId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sirènes installées récupérées avec succès.',
+                'data' => $sirenes->items(),
+                'pagination' => [
+                    'current_page' => $sirenes->currentPage(),
+                    'per_page' => $sirenes->perPage(),
+                    'total' => $sirenes->total(),
+                    'last_page' => $sirenes->lastPage(),
+                    'from' => $sirenes->firstItem(),
+                    'to' => $sirenes->lastItem(),
+                    'has_more_pages' => $sirenes->hasMorePages(),
+                ],
+                'links' => [
+                    'first' => $sirenes->url(1),
+                    'last' => $sirenes->url($sirenes->lastPage()),
+                    'prev' => $sirenes->previousPageUrl(),
+                    'next' => $sirenes->nextPageUrl(),
+                ],
+            ]);
+        } catch (Exception $e) {
+            Log::error("Error in " . get_class($this) . "::getSirenesInstallees - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
         }
     }

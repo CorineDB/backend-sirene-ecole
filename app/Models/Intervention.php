@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Enums\StatutIntervention;
+use App\Enums\TypeIntervention;
 use App\Traits\HasUlid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Intervention extends Model
@@ -22,8 +23,9 @@ class Intervention extends Model
 
     protected $fillable = [
         'panne_id',
-        'technicien_id',
         'ordre_mission_id',
+        'type_intervention',
+        'nombre_techniciens_requis',
         'date_intervention',
         'date_affectation',
         'date_assignation',
@@ -35,6 +37,9 @@ class Intervention extends Model
         'note_ecole',
         'commentaire_ecole',
         'observations',
+        'instructions',
+        'lieu_rdv',
+        'heure_rdv',
     ];
 
     protected $casts = [
@@ -44,8 +49,11 @@ class Intervention extends Model
         'date_acceptation' => 'datetime',
         'date_debut' => 'datetime',
         'date_fin' => 'datetime',
+        'type_intervention' => TypeIntervention::class,
         'old_statut' => StatutIntervention::class,
+        'nombre_techniciens_requis' => 'integer',
         'note_ecole' => 'integer',
+        'heure_rdv' => 'datetime:H:i',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -57,23 +65,57 @@ class Intervention extends Model
         return $this->belongsTo(Panne::class, 'panne_id');
     }
 
-    public function technicien(): BelongsTo
-    {
-        return $this->belongsTo(Technicien::class, 'technicien_id');
-    }
-
     public function ordreMission(): BelongsTo
     {
         return $this->belongsTo(OrdreMission::class, 'ordre_mission_id');
     }
 
-    public function rapport(): HasOne
+    /**
+     * Techniciens assignés à cette intervention (équipe)
+     */
+    public function techniciens(): BelongsToMany
     {
-        return $this->hasOne(RapportIntervention::class, 'intervention_id');
+        return $this->belongsToMany(Technicien::class, 'intervention_technicien', 'intervention_id', 'technicien_id')
+            ->using(InterventionTechnicien::class)
+            ->withPivot(['date_assignation', 'role', 'notes'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Rapports d'intervention (peut y en avoir plusieurs, un par technicien ou un collectif)
+     */
+    public function rapports(): HasMany
+    {
+        return $this->hasMany(RapportIntervention::class, 'intervention_id');
+    }
+
+    /**
+     * Alias pour compatibilité - retourne le premier rapport
+     */
+    public function rapport()
+    {
+        return $this->hasOne(RapportIntervention::class, 'intervention_id')->latestOfMany();
     }
 
     public function avis(): HasMany
     {
         return $this->hasMany(AvisIntervention::class, 'intervention_id');
+    }
+
+    // Helper methods
+    /**
+     * Obtenir le site de l'intervention via la panne
+     */
+    public function getSiteAttribute()
+    {
+        return $this->panne?->site;
+    }
+
+    /**
+     * Obtenir l'école de l'intervention via la panne
+     */
+    public function getEcoleAttribute()
+    {
+        return $this->panne?->ecole;
     }
 }

@@ -147,4 +147,12 @@ abstract class BaseRepository implements BaseRepositoryInterface
         $this->model = $model;
         return $this;
     }
+
+    /**
+     * Récupérer une instance du query builder
+     */
+    public function query()
+    {
+        return $this->model->query();
+    }
 }

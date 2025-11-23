@@ -15,7 +15,7 @@ class PaiementController extends Controller
     public function __construct(PaiementServiceInterface $paiementService)
     {
         $this->paiementService = $paiementService;
-        $this->middleware('auth:api')->except(['traiter']);
+        // Middleware appliqué au niveau des routes
     }
 
     /**
