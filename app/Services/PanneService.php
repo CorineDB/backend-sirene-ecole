@@ -334,4 +334,31 @@ class PanneService extends BaseService implements PanneServiceInterface
             return $this->errorResponse($e->getMessage(), 500);
         }
     }
+
+    /**
+     * Récupérer les pannes actives (non clôturées)
+     */
+    public function getPannesActives(?int $perPage = null): JsonResponse
+    {
+        try {
+            $query = $this->repository->query()
+                ->where('est_cloture', false)
+                ->whereIn('statut', [StatutPanne::VALIDEE, StatutPanne::EN_COURS])
+                ->with(['sirene', 'site', 'ordreMission', 'interventions']);
+
+            // Appliquer le filtre école si nécessaire
+            $query = $this->applyEcoleFilterForPannes($query);
+
+            $query->orderBy('priorite', 'desc')
+                  ->orderBy('date_signalement', 'asc');
+
+            // Paginer si perPage est spécifié, sinon tout charger
+            $data = $perPage ? $query->paginate($perPage) : $query->get();
+
+            return $this->successResponse('Pannes actives récupérées avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in PanneService::getPannesActives - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
 }

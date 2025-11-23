@@ -237,6 +237,16 @@ class PanneController extends Controller
     }
 
     /**
+     * Récupérer les pannes actives
+     */
+    public function pannesActives(Request $request)
+    {
+        Gate::authorize('voir_les_pannes');
+        $perPage = $request->query('per_page') ? (int) $request->query('per_page') : null;
+        return $this->panneService->getPannesActives($perPage);
+    }
+
+    /**
      * Assigner un technicien à une panne
      *
      * @OA\Put(

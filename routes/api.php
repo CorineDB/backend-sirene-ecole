@@ -298,6 +298,9 @@ Route::prefix('cinetpay')->group(function () {
     Route::post('check-status', [CinetPayController::class, 'checkStatus']);
 });
 
+// Routes spécifiques pannes (avant le groupe pour éviter conflit avec {id})
+Route::get('pannes-actives', [PanneController::class, 'pannesActives'])->middleware('auth:api');
+
 // Panne routes
 Route::prefix('pannes')->middleware('auth:api')->group(function () {
     Route::get('/', [PanneController::class, 'index']);
