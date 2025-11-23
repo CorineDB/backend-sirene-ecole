@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Contracts\OrdreMissionServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use OpenApi\Annotations as OA;
 
 /**
