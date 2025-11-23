@@ -72,4 +72,14 @@ class Panne extends Model
     {
         return $this->hasMany(Intervention::class);
     }
+
+    public function ordresMission(): HasMany
+    {
+        return $this->hasMany(OrdreMission::class, 'panne_id');
+    }
+
+    public function ordreMission(): HasMany
+    {
+        return $this->hasMany(OrdreMission::class, 'panne_id');
+    }
 }
