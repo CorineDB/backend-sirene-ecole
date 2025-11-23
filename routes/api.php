@@ -346,6 +346,7 @@ Route::prefix('interventions')->middleware('auth:api')->group(function () {
     Route::put('{interventionId}/terminer', [InterventionController::class, 'terminer']);
     Route::put('{interventionId}/retirer-mission', [InterventionController::class, 'retirerMission']);
     Route::post('{interventionId}/rapport', [InterventionController::class, 'redigerRapport']);
+    Route::get('{interventionId}/rapports', [InterventionController::class, 'getRapports']);
 
     // Notations
     Route::put('{interventionId}/noter', [InterventionController::class, 'noterIntervention']);

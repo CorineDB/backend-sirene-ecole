@@ -8,6 +8,7 @@ use App\Traits\HasUlid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Panne extends Model
@@ -78,8 +79,19 @@ class Panne extends Model
         return $this->hasMany(OrdreMission::class, 'panne_id');
     }
 
-    public function ordreMission(): HasMany
+    /**
+     * Retourne le dernier ordre de mission actif pour cette panne
+     */
+    public function ordreMission(): HasOne
     {
-        return $this->hasMany(OrdreMission::class, 'panne_id');
+        return $this->hasOne(OrdreMission::class, 'panne_id')->latestOfMany('date_generation');
+    }
+
+    /**
+     * Alias pour ordreMission (pour compatibilité)
+     */
+    public function ordreMissionActif(): HasOne
+    {
+        return $this->ordreMission();
     }
 }

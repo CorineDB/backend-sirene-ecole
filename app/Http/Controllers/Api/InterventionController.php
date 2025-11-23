@@ -513,6 +513,39 @@ class InterventionController extends Controller
     }
 
     /**
+     * Récupérer les rapports d'une intervention
+     *
+     * @OA\Get(
+     *     path="/api/interventions/{interventionId}/rapports",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Récupérer les rapports d'une intervention",
+     *     description="Retourne tous les rapports associés à une intervention",
+     *     operationId="getRapportsIntervention",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="interventionId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'intervention",
+     *         @OA\Schema(type="string", example="01ARZ3NDEKTSV4RRFFQ69G5FAV")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Liste des rapports récupérée avec succès",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
+     *         )
+     *     )
+     * )
+     */
+    public function getRapports(string $interventionId): JsonResponse
+    {
+        Gate::authorize('voir_rapport_intervention');
+        return $this->interventionService->getById($interventionId, ['*'], ['rapports.technicien']);
+    }
+
+    /**
      * Noter une intervention
      *
      * @OA\Put(
