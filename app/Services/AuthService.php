@@ -200,7 +200,7 @@ class AuthService implements AuthServiceInterface
     public function me($user): JsonResponse
     {
         try {
-            $user->load(['userInfo', 'role.permissions']);
+            $user->load(['userInfo', 'role.permissions', 'userAccount']);
 
             return $this->successResponse(
                 null,
@@ -210,10 +210,13 @@ class AuthService implements AuthServiceInterface
                         'nom_utilisateur' => $user->nom_utilisateur,
                         'identifiant' => $user->identifiant,
                         'type' => $user->type,
+                        'user_account_type_type' => $user->user_account_type_type,
+                        'user_account_type_id' => $user->user_account_type_id,
                         'telephone' => $user->userInfo->telephone ?? null,
                         'email' => $user->userInfo->email ?? null,
                         'role' => $user->role,
                         'permissions' => $user->role->permissions ?? [],
+                        'userAccount' => $user->userAccount,
                     ],
                 ]
             );
