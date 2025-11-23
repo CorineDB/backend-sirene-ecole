@@ -458,6 +458,64 @@ class SireneController extends Controller
     }
 
     /**
+     * Obtenir les sirènes installées (attachées à une école)
+     * @OA\Get(
+     *     path="/api/sirenes-installees",
+     *     summary="Get installed sirenes (attached to a school, paginated)",
+     *     tags={"Sirenes"},
+     *     security={ {"passport": {}} },
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Numéro de la page",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         description="Nombre de sirènes par page (max: 100)",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=15)
+     *     ),
+     *     @OA\Parameter(
+     *         name="ecole_id",
+     *         in="query",
+     *         description="Filtrer par ID d'école (admin uniquement)",
+     *         required=false,
+     *         @OA\Schema(type="string", format="ulid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Sirènes installées récupérées avec succès."),
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Sirene")),
+     *             @OA\Property(property="pagination", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated"
+     *     )
+     * )
+     */
+    public function installees(Request $request): JsonResponse
+    {
+        Gate::authorize('voir_les_sirenes');
+
+        $perPage = min((int) $request->query('per_page', 15), 100);
+        $ecoleId = $request->query('ecole_id');
+
+        return $this->sireneService->getSirenesInstallees(
+            ['modeleSirene', 'ecole', 'site'],
+            $perPage,
+            $ecoleId
+        );
+    }
+
+    /**
      * Obtenir les sirènes programmables (avec abonnement actif et pagination)
      * @OA\Get(
      *     path="/api/sirenes-programmable",
