@@ -81,16 +81,20 @@ Route::prefix('auth')->middleware('auth:api')->group(function () {
 
 // Ecole routes
 Route::prefix('ecoles')->group(function () {
-    // Public: Inscription & Checkout
+    // Public: Inscription
     Route::post('inscription', [EcoleController::class, 'inscrire']);
-    Route::get('{id}', [EcoleController::class, 'showById']); // Public pour checkout via QR code
 
     // Protected routes for Ecole management
     Route::middleware('auth:api')->group(function () {
         Route::get('/', [EcoleController::class, 'index'])->middleware('can:voir_les_ecoles');
+
+        // Routes spécifiques 'me' - DOIVENT être avant {id}
         Route::get('me', [EcoleController::class, 'show'])->middleware('can:voir_ecole');
         Route::get('me/sirenes', [SireneController::class, 'getMySirenes']);
+        Route::get('me/calendrier-scolaire/with-ecole-holidays', [EcoleController::class, 'getCalendrierScolaireWithJoursFeries'])->middleware('can:voir_ecole');
         Route::put('me', [EcoleController::class, 'update'])->middleware('can:modifier_ecole');
+
+        // Routes avec paramètres
         Route::put('{id}', [EcoleController::class, 'updateById'])->middleware('can:modifier_ecole');
         Route::delete('{id}', [EcoleController::class, 'destroy'])->middleware('can:supprimer_ecole');
 
@@ -106,12 +110,12 @@ Route::prefix('ecoles')->group(function () {
         // School sirenes
         Route::get('{ecoleId}/sirenes', [SireneController::class, 'getSirenesByEcole'])->middleware('can:voir_les_sirenes');
 
-        // School calendar with merged holidays
-        Route::get('me/calendrier-scolaire/with-ecole-holidays', [EcoleController::class, 'getCalendrierScolaireWithJoursFeries'])->middleware('can:voir_ecole');
-
         // Sites management for a school
         Route::get('{ecoleId}/sites', [SiteController::class, 'index'])->middleware('can:voir_les_sites');
     });
+
+    // Public: Checkout via QR code - DOIT être après les routes protégées pour éviter les conflits
+    Route::get('{id}', [EcoleController::class, 'showById']);
 });
 
 // Site routes
