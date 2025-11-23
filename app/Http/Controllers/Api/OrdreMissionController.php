@@ -139,7 +139,6 @@ class OrdreMissionController extends Controller
     public function __construct(OrdreMissionServiceInterface $ordreMissionService)
     {
         $this->ordreMissionService = $ordreMissionService;
-        $this->middleware('auth:api');
     }
 
     /**
