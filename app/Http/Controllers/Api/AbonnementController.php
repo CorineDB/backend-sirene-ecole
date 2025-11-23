@@ -191,6 +191,7 @@ class AbonnementController extends Controller
      */
     public function show(string $id): JsonResponse
     {
+        
         Gate::authorize('voir_abonnement');
 
         return $this->abonnementService->getById($id, relations: [
