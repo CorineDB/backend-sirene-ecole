@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\StatutOrdreMission;
+use App\Models\OrdreMission;
 use App\Models\Technicien;
 use App\Notifications\NewMissionOrderNotification;
 use App\Notifications\CandidatureValidationNotification;
@@ -11,6 +12,7 @@ use App\Repositories\Contracts\MissionTechnicienRepositoryInterface;
 use App\Repositories\Contracts\PanneRepositoryInterface;
 use App\Services\Contracts\OrdreMissionServiceInterface;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -28,6 +30,83 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
         parent::__construct($repository);
         $this->missionTechnicienRepository = $missionTechnicienRepository;
         $this->panneRepository = $panneRepository;
+    }
+
+    /**
+     * Override getAll() pour filtrer selon le rôle de l'utilisateur
+     */
+    public function getAll(int $perPage = 15, array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Si l'utilisateur est admin, retourner tous les ordres de mission
+            if ($user && $user->isAdmin()) {
+                return parent::getAll($perPage, $relations);
+            }
+
+            // Si l'utilisateur est technicien, filtrer par zone (ville)
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+
+                if ($technicien && $technicien->ville_id) {
+                    // Filtrer les ordres de mission dont la panne est dans un site de la ville du technicien
+                    $data = OrdreMission::with($relations)
+                        ->whereHas('panne.site', function ($query) use ($technicien) {
+                            $query->where('ville_id', $technicien->ville_id);
+                        })
+                        ->orderBy('created_at', 'desc')
+                        ->paginate($perPage);
+
+                    return $this->successResponse(null, $data);
+                }
+            }
+
+            // Par défaut, retourner une liste vide si l'utilisateur n'est ni admin ni technicien
+            return $this->successResponse(null, []);
+        } catch (Exception $e) {
+            Log::error("Error in OrdreMissionService::getAll - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Override getById() pour filtrer selon le rôle de l'utilisateur
+     */
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Si l'utilisateur est admin, retourner l'ordre de mission
+            if ($user && $user->isAdmin()) {
+                return parent::getById($id, $columns, $relations);
+            }
+
+            // Si l'utilisateur est technicien, vérifier qu'il est dans la bonne zone
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+
+                if ($technicien && $technicien->ville_id) {
+                    $ordreMission = OrdreMission::with($relations)
+                        ->whereHas('panne.site', function ($query) use ($technicien) {
+                            $query->where('ville_id', $technicien->ville_id);
+                        })
+                        ->find($id, $columns);
+
+                    if (!$ordreMission) {
+                        return $this->notFoundResponse('Ordre de mission non trouvé ou non accessible.');
+                    }
+
+                    return $this->successResponse(null, $ordreMission);
+                }
+            }
+
+            return $this->notFoundResponse('Ordre de mission non accessible.');
+        } catch (Exception $e) {
+            Log::error("Error in OrdreMissionService::getById - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     // Override create() pour ajouter la logique métier spécifique

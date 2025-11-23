@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\Sirene;
 use App\Repositories\Contracts\SireneRepositoryInterface;
 use App\Services\Contracts\SireneServiceInterface;
 use App\Traits\FiltersByEcole;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -20,50 +22,36 @@ class SireneService extends BaseService implements SireneServiceInterface
     }
 
     /**
-     * Surcharge de getAll pour filtrer par école si nécessaire
+     * Override getById() pour filtrer selon le rôle de l'utilisateur
      */
-    public function getAll(int $perPage = 15, array $relations = []): JsonResponse
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
     {
         try {
-            $query = $this->repository->query();
+            $user = Auth::user();
 
-            // Appliquer le filtre école si l'utilisateur est une école
-            $query = $this->applyEcoleFilterForSirenes($query);
-
-            if (!empty($relations)) {
-                $query->with($relations);
+            // Si l'utilisateur est admin, retourner la sirène
+            if ($user && $user->isAdmin()) {
+                return parent::getById($id, $columns, $relations);
             }
 
-            $data = $query->paginate($perPage);
-            return $this->successResponse('Données récupérées avec succès.', $data);
-        } catch (Exception $e) {
-            Log::error("Error in SireneService::getAll - " . $e->getMessage());
-            return $this->errorResponse($e->getMessage(), 500);
-        }
-    }
+            // Si l'utilisateur est une école, vérifier que la sirène lui appartient
+            if ($user && $user->isEcole()) {
+                $ecole = $user->getEcole();
 
-    /**
-     * Surcharge de getById pour vérifier l'accès si école
-     */
-    public function getById(string $id, array $relations = []): JsonResponse
-    {
-        try {
-            $query = $this->repository->query()->where('id', $id);
+                if ($ecole) {
+                    $sirene = Sirene::with($relations)
+                        ->where('ecole_id', $ecole->id)
+                        ->find($id, $columns);
 
-            // Appliquer le filtre école si l'utilisateur est une école
-            $query = $this->applyEcoleFilterForSirenes($query);
+                    if (!$sirene) {
+                        return $this->notFoundResponse('Sirène non trouvée ou non accessible.');
+                    }
 
-            if (!empty($relations)) {
-                $query->with($relations);
+                    return $this->successResponse(null, $sirene);
+                }
             }
 
-            $data = $query->first();
-
-            if (!$data) {
-                return $this->errorResponse('Sirène non trouvée ou accès non autorisé.', 404);
-            }
-
-            return $this->successResponse('Donnée récupérée avec succès.', $data);
+            return $this->notFoundResponse('Sirène non accessible.');
         } catch (Exception $e) {
             Log::error("Error in SireneService::getById - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
