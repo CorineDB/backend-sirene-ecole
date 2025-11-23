@@ -120,7 +120,6 @@ class AuthService implements AuthServiceInterface
                         'doit_changer_mot_de_passe' => $user->doit_changer_mot_de_passe,
                         'mot_de_passe_change' => $user->mot_de_passe_change,
                         'role' => $user->role,
-                        'permissions' => $user->role->permissions ?? [],
                         'userAccount' => $user->userAccount,
                     ],
                 ]
@@ -184,7 +183,6 @@ class AuthService implements AuthServiceInterface
                         'doit_changer_mot_de_passe' => $user->doit_changer_mot_de_passe,
                         'mot_de_passe_change' => $user->mot_de_passe_change,
                         'role' => $user->role,
-                        'permissions' => $user->role->permissions ?? [],
                         'userAccount' => $user->userAccount,
                     ],
                 ]
@@ -233,7 +231,6 @@ class AuthService implements AuthServiceInterface
                         'telephone' => $user->userInfo->telephone ?? null,
                         'email' => $user->userInfo->email ?? null,
                         'role' => $user->role,
-                        'permissions' => $user->role->permissions ?? [],
                         'userAccount' => $user->userAccount,
                     ],
                 ]
