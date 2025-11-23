@@ -420,6 +420,44 @@ class SireneController extends Controller
     }
 
     /**
+     * Obtenir toutes les sirènes de l'école connectée
+     * @OA\Get(
+     *     path="/api/ecoles/me/sirenes",
+     *     summary="Get all sirenes for the authenticated school",
+     *     tags={"Sirenes"},
+     *     security={ {"passport": {}} },
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Sirènes récupérées avec succès."),
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Sirene"))
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - User is not a school",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Vous devez être connecté en tant qu'école pour accéder à cette ressource.")
+     *         )
+     *     )
+     * )
+     */
+    public function getMySirenes(): JsonResponse
+    {
+        return $this->sireneService->getMySirenes(['modeleSirene', 'site']);
+    }
+
+    /**
      * Obtenir les sirènes programmables (avec abonnement actif et pagination)
      * @OA\Get(
      *     path="/api/sirenes-programmable",

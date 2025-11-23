@@ -89,6 +89,7 @@ Route::prefix('ecoles')->group(function () {
     Route::middleware('auth:api')->group(function () {
         Route::get('/', [EcoleController::class, 'index'])->middleware('can:voir_les_ecoles');
         Route::get('me', [EcoleController::class, 'show'])->middleware('can:voir_ecole');
+        Route::get('me/sirenes', [SireneController::class, 'getMySirenes']);
         Route::put('me', [EcoleController::class, 'update'])->middleware('can:modifier_ecole');
         Route::put('{id}', [EcoleController::class, 'updateById'])->middleware('can:modifier_ecole');
         Route::delete('{id}', [EcoleController::class, 'destroy'])->middleware('can:supprimer_ecole');

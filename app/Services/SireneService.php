@@ -94,6 +94,29 @@ class SireneService extends BaseService implements SireneServiceInterface
         }
     }
 
+    public function getMySirenes(array $relations = []): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Vérifier que l'utilisateur est une école
+            if (!$user || !$user->isEcole()) {
+                return $this->errorResponse('Vous devez être connecté en tant qu\'école pour accéder à cette ressource.', 403);
+            }
+
+            $ecole = $user->getEcole();
+            if (!$ecole) {
+                return $this->errorResponse('École non trouvée pour cet utilisateur.', 404);
+            }
+
+            $sirenes = $this->repository->getByEcole($ecole->id, $relations);
+            return $this->successResponse('Sirènes récupérées avec succès.', $sirenes);
+        } catch (Exception $e) {
+            Log::error("Error in " . get_class($this) . "::getMySirenes - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
     public function getSirenesAvecAbonnementActif(array $relations = [], int $perPage = 15, ?string $ecoleId = null): JsonResponse
     {
         try {
