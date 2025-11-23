@@ -51,7 +51,7 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
     /**
      * Surcharge de getById pour vérifier l'accès si école
      */
-    public function getById(string $id, array $relations = []): JsonResponse
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
     {
         try {
             $query = $this->repository->query()->where('id', $id);
@@ -63,7 +63,7 @@ class CalendrierScolaireService extends BaseService implements CalendrierScolair
                 $query->with($relations);
             }
 
-            $data = $query->first();
+            $data = $query->first($columns);
 
             if (!$data) {
                 return $this->errorResponse('Calendrier non trouvé ou accès non autorisé.', 404);
