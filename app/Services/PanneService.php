@@ -102,7 +102,7 @@ class PanneService extends BaseService implements PanneServiceInterface
             ]);
 
             // Fetch the panne with its site relationship
-            $panneWithSite = $this->repository->find($panneId, ['site']);
+            $panneWithSite = $this->repository->find($panneId, ['*'], ['site']);
 
             // Merge default data with provided data
             $ordreMissionPayload = array_merge([

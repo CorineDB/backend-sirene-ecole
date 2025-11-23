@@ -61,9 +61,13 @@ class InterventionService extends BaseService implements InterventionServiceInte
                 $technicien = $user->getTechnicien();
                 if ($technicien) {
                     $query->where(function ($q) use ($technicien) {
-                        $q->where('technicien_id', $technicien->id)
-                          ->orWhereHas('panne.site', function ($subQ) use ($technicien) {
-                              $subQ->where('ville_id', $technicien->ville_id);
+                        $q->whereHas('techniciens', function ($techQuery) use ($technicien) {
+                              $techQuery->where('techniciens.id', $technicien->id);
+                          })
+                          ->orWhereHas('panne', function ($panneQ) use ($technicien) {
+                              $panneQ->whereHas('site', function ($siteQ) use ($technicien) {
+                                  $siteQ->where('ville_id', $technicien->ville_id);
+                              });
                           });
                     });
                 }
@@ -98,9 +102,13 @@ class InterventionService extends BaseService implements InterventionServiceInte
                 $technicien = $user->getTechnicien();
                 if ($technicien) {
                     $query->where(function ($q) use ($technicien) {
-                        $q->where('technicien_id', $technicien->id)
-                          ->orWhereHas('panne.site', function ($subQ) use ($technicien) {
-                              $subQ->where('ville_id', $technicien->ville_id);
+                        $q->whereHas('techniciens', function ($techQuery) use ($technicien) {
+                              $techQuery->where('techniciens.id', $technicien->id);
+                          })
+                          ->orWhereHas('panne', function ($panneQ) use ($technicien) {
+                              $panneQ->whereHas('site', function ($siteQ) use ($technicien) {
+                                  $siteQ->where('ville_id', $technicien->ville_id);
+                              });
                           });
                     });
                 }

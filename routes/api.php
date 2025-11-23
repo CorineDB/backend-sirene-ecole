@@ -202,18 +202,21 @@ Route::prefix('jours-feries')->middleware('auth:api')->group(function () {
     Route::delete('{id}', [JourFerieController::class, 'destroy']);
 });
 
+// Checkout route (public) - doit être avant les routes abonnements pour éviter les conflits
+Route::get('checkout/{id}', [AbonnementController::class, 'checkout']);
+
 // Abonnement routes
 Route::prefix('abonnements')->group(function () {
     // Public: Accès via QR Code
     Route::get('{id}/details', [AbonnementController::class, 'details']);
     Route::get('{id}/paiement', [AbonnementController::class, 'paiement']);
     Route::get('{id}/qr-code-url', [AbonnementController::class, 'getQrCodeUrl']); // Obtenir URL signée du QR code
-    Route::get('{id}', [AbonnementController::class, 'show']); // Public pour checkout via QR code
 
     // Protected routes
     Route::middleware('auth:api')->group(function () {
         // CRUD de base
         Route::get('/', [AbonnementController::class, 'index']);
+        Route::get('{id}', [AbonnementController::class, 'show']); // Maintenant protégé par auth
         Route::put('{id}', [AbonnementController::class, 'update']);
         Route::delete('{id}', [AbonnementController::class, 'destroy']);
 
