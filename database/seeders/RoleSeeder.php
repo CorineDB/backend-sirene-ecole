@@ -246,6 +246,14 @@ class RoleSeeder extends Seeder
             'voir_les_sites',
             'voir_site',
 
+
+            'voir_les_missions_technicien',
+            'voir_mission_technicien',
+            'creer_mission_technicien',
+            'modifier_mission_technicien',
+            'supprimer_mission_technicien',
+            'completer_mission_technicien',
+
             'creer_sirene',
             'modifier_sirene',
             'activer_sirene',

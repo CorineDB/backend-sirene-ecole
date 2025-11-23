@@ -144,6 +144,7 @@ class SmsService
 
         $phoneNumbers = is_array($to) ? $to : [$to];
         Log::info("SMS sending to: " . json_encode($phoneNumbers));
+        Log::info("SMS sending to: " . $message);
 
         $requestBody = [
             "globals" => [

@@ -173,8 +173,8 @@ class InterventionService extends BaseService implements InterventionServiceInte
             ]);
 
             // Envoyer la notification à l'admin
-            $adminUsers = User::whereHas('roles', function ($query) {
-                $query->where('name', 'admin');
+            $adminUsers = User::whereHas('role', function ($query) {
+                $query->where('nom', 'admin');
             })->get();
 
             foreach ($adminUsers as $admin) {
