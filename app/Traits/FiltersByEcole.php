@@ -85,8 +85,10 @@ trait FiltersByEcole
     {
         if ($this->isEcoleUser()) {
             $ecoleId = $this->getEcoleId();
-            $query->whereHas('panne.site', function ($q) use ($ecoleId) {
-                $q->where('ecole_id', $ecoleId);
+            $query->whereHas('panne', function ($panneQ) use ($ecoleId) {
+                $panneQ->whereHas('site', function ($siteQ) use ($ecoleId) {
+                    $siteQ->where('ecole_id', $ecoleId);
+                });
             });
         }
         return $query;

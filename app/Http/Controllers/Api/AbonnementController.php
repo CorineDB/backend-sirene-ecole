@@ -204,6 +204,29 @@ class AbonnementController extends Controller
     }
 
     /**
+     * @OA\Get(
+     *     path="/api/checkout/{id}",
+     *     tags={"Abonnements"},
+     *     summary="Obtenir les détails d'un abonnement pour le checkout (public)",
+     *     description="Endpoint public pour consulter les détails d'un abonnement via QR code",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="string")),
+     *     @OA\Response(response=200, description="Success", @OA\JsonContent(ref="#/components/schemas/Abonnement")),
+     *     @OA\Response(response=404, description="Not Found")
+     * )
+     */
+    public function checkout(string $id): JsonResponse
+    {
+        // Endpoint public - pas d'authentification requise
+        return $this->abonnementService->getById($id, relations: [
+            'ecole',
+            'site',
+            'sirene',
+            'paiements',
+            'token'
+        ]);
+    }
+
+    /**
      * @OA\Put(
      *     path="/api/abonnements/{id}",
      *     tags={"Abonnements"},
