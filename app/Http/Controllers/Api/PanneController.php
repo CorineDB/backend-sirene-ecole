@@ -45,7 +45,7 @@ class PanneController extends Controller
     {
         Gate::authorize('voir_les_pannes');
         $perPage = $request->get('per_page', 15);
-        return $this->panneService->getAll($perPage, ['sirene', 'site', 'ordreMission']);
+        return $this->panneService->getAll($perPage, ['sirene', 'site', 'interventions.ordreMission']);
     }
 
     /**
@@ -74,7 +74,7 @@ class PanneController extends Controller
     public function show(string $id)
     {
         Gate::authorize('voir_panne');
-        return $this->panneService->getById($id, ['sirene', 'site', 'ordreMission', 'interventions']);
+        return $this->panneService->getById($id, ['sirene', 'site', 'interventions.ordreMission', 'interventions']);
     }
 
     /**
