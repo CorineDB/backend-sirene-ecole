@@ -74,7 +74,7 @@ class PanneController extends Controller
     public function show(string $id)
     {
         Gate::authorize('voir_panne');
-        return $this->panneService->getById($id, ['sirene', 'site', 'ordreMission', 'interventions.ordreMission']);
+        return $this->panneService->getById($id, ['*'], ['sirene', 'site', 'ordreMission', 'interventions.ordreMission']);
     }
 
     /**
