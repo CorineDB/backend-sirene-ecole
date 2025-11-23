@@ -118,12 +118,20 @@ class DashboardService extends BaseService implements DashboardServiceInterface
     public function getInterventionsEnCours(array $filters, ?int $perPage): JsonResponse
     {
         try {
-            $query = Intervention::with(['panne.site', 'techniciens', 'ordreMission'])
-                ->where('statut', StatutIntervention::EN_COURS);
+            $query = Intervention::with(['panne.site.ecole', 'techniciens', 'ordreMission']);
 
-            // Filtres
+            // Filtre statut (par défaut EN_COURS)
+            if (!empty($filters['statut'])) {
+                $query->where('statut', $filters['statut']);
+            } else {
+                $query->where('statut', StatutIntervention::EN_COURS);
+            }
+
+            // Filtres par relations
             if (!empty($filters['ecole_id'])) {
-                $query->whereHas('panne.site', fn($q) => $q->where('ecole_id', $filters['ecole_id']));
+                $query->whereHas('panne', function($q) use ($filters) {
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $filters['ecole_id']));
+                });
             }
             if (!empty($filters['site_id'])) {
                 $query->whereHas('panne', fn($q) => $q->where('site_id', $filters['site_id']));
@@ -132,7 +140,15 @@ class DashboardService extends BaseService implements DashboardServiceInterface
                 $query->whereHas('techniciens', fn($q) => $q->where('techniciens.id', $filters['technicien_id']));
             }
 
-            // Auto-filtre école
+            // Filtres par dates
+            if (!empty($filters['date_debut'])) {
+                $query->whereDate('date_intervention', '>=', $filters['date_debut']);
+            }
+            if (!empty($filters['date_fin'])) {
+                $query->whereDate('date_intervention', '<=', $filters['date_fin']);
+            }
+
+            // Auto-filtre école (prioritaire sur filtres manuels)
             if ($this->isEcoleUser()) {
                 $ecoleId = $this->getEcoleId();
                 $query->whereHas('panne', function($q) use ($ecoleId) {
@@ -150,16 +166,35 @@ class DashboardService extends BaseService implements DashboardServiceInterface
         }
     }
 
-    public function getInterventionsDuJour(?int $perPage): JsonResponse
+    public function getInterventionsDuJour(array $filters, ?int $perPage): JsonResponse
     {
         try {
             $today = now()->format('Y-m-d');
 
-            $query = Intervention::with(['panne.site', 'techniciens', 'ordreMission'])
-                ->whereDate('date_intervention', $today)
-                ->whereIn('statut', [StatutIntervention::PLANIFIEE, StatutIntervention::EN_COURS]);
+            $query = Intervention::with(['panne.site.ecole', 'techniciens', 'ordreMission'])
+                ->whereDate('date_intervention', $today);
 
-            // Auto-filtre école
+            // Filtre statut (par défaut PLANIFIEE ou EN_COURS)
+            if (!empty($filters['statut'])) {
+                $query->where('statut', $filters['statut']);
+            } else {
+                $query->whereIn('statut', [StatutIntervention::PLANIFIEE, StatutIntervention::EN_COURS]);
+            }
+
+            // Filtres par relations
+            if (!empty($filters['ecole_id'])) {
+                $query->whereHas('panne', function($q) use ($filters) {
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $filters['ecole_id']));
+                });
+            }
+            if (!empty($filters['site_id'])) {
+                $query->whereHas('panne', fn($q) => $q->where('site_id', $filters['site_id']));
+            }
+            if (!empty($filters['technicien_id'])) {
+                $query->whereHas('techniciens', fn($q) => $q->where('techniciens.id', $filters['technicien_id']));
+            }
+
+            // Auto-filtre école (prioritaire sur filtres manuels)
             if ($this->isEcoleUser()) {
                 $ecoleId = $this->getEcoleId();
                 $query->whereHas('panne', function($q) use ($ecoleId) {
@@ -177,14 +212,42 @@ class DashboardService extends BaseService implements DashboardServiceInterface
         }
     }
 
-    public function getInterventionsAVenir(?int $perPage): JsonResponse
+    public function getInterventionsAVenir(array $filters, ?int $perPage): JsonResponse
     {
         try {
-            $query = Intervention::with(['panne.site', 'techniciens', 'ordreMission'])
-                ->where('date_intervention', '>', now())
-                ->where('statut', StatutIntervention::PLANIFIEE);
+            $query = Intervention::with(['panne.site.ecole', 'techniciens', 'ordreMission']);
 
-            // Auto-filtre école
+            // Filtre par dates (par défaut futures)
+            if (!empty($filters['date_debut'])) {
+                $query->whereDate('date_intervention', '>=', $filters['date_debut']);
+            } else {
+                $query->where('date_intervention', '>', now());
+            }
+            if (!empty($filters['date_fin'])) {
+                $query->whereDate('date_intervention', '<=', $filters['date_fin']);
+            }
+
+            // Filtre statut (par défaut PLANIFIEE)
+            if (!empty($filters['statut'])) {
+                $query->where('statut', $filters['statut']);
+            } else {
+                $query->where('statut', StatutIntervention::PLANIFIEE);
+            }
+
+            // Filtres par relations
+            if (!empty($filters['ecole_id'])) {
+                $query->whereHas('panne', function($q) use ($filters) {
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $filters['ecole_id']));
+                });
+            }
+            if (!empty($filters['site_id'])) {
+                $query->whereHas('panne', fn($q) => $q->where('site_id', $filters['site_id']));
+            }
+            if (!empty($filters['technicien_id'])) {
+                $query->whereHas('techniciens', fn($q) => $q->where('techniciens.id', $filters['technicien_id']));
+            }
+
+            // Auto-filtre école (prioritaire sur filtres manuels)
             if ($this->isEcoleUser()) {
                 $ecoleId = $this->getEcoleId();
                 $query->whereHas('panne', function($q) use ($ecoleId) {
@@ -202,16 +265,37 @@ class DashboardService extends BaseService implements DashboardServiceInterface
         }
     }
 
-    public function getOrdresMissionDisponibles(?int $perPage): JsonResponse
+    public function getOrdresMissionDisponibles(array $filters, ?int $perPage): JsonResponse
     {
         try {
-            $query = OrdreMission::with(['panne.site', 'ville', 'interventions'])
+            $query = OrdreMission::with(['panne.site.ecole', 'panne.sirene', 'ville', 'interventions'])
                 ->where('candidature_cloturee', false)
                 ->where('statut', 'en_attente')
                 ->where(function($q) {
                     $q->whereNull('date_fin_candidature')
                       ->orWhere('date_fin_candidature', '>=', now());
                 });
+
+            // Filtres par relations
+            if (!empty($filters['ecole_id'])) {
+                $query->whereHas('panne', function($q) use ($filters) {
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $filters['ecole_id']));
+                });
+            }
+            if (!empty($filters['ville_id'])) {
+                $query->where('ville_id', $filters['ville_id']);
+            }
+            if (!empty($filters['priorite'])) {
+                $query->whereHas('panne', fn($q) => $q->where('priorite', $filters['priorite']));
+            }
+
+            // Auto-filtre école (prioritaire sur filtres manuels)
+            if ($this->isEcoleUser()) {
+                $ecoleId = $this->getEcoleId();
+                $query->whereHas('panne', function($q) use ($ecoleId) {
+                    $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_id', $ecoleId));
+                });
+            }
 
             $query->orderBy('date_generation', 'desc');
             $data = $perPage ? $query->paginate($perPage) : $query->get();

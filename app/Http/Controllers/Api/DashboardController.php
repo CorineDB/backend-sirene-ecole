@@ -32,7 +32,7 @@ class DashboardController extends Controller
     public function interventionsEnCours(Request $request): JsonResponse
     {
         Gate::authorize('voir_les_interventions');
-        $filters = $request->only(['ecole_id', 'site_id', 'technicien_id']);
+        $filters = $request->only(['ecole_id', 'site_id', 'technicien_id', 'statut', 'date_debut', 'date_fin']);
         $perPage = $request->query('per_page') ? (int) $request->query('per_page') : null;
         return $this->dashboardService->getInterventionsEnCours($filters, $perPage);
     }
@@ -40,21 +40,24 @@ class DashboardController extends Controller
     public function interventionsDuJour(Request $request): JsonResponse
     {
         Gate::authorize('voir_les_interventions');
+        $filters = $request->only(['ecole_id', 'site_id', 'technicien_id', 'statut']);
         $perPage = $request->query('per_page') ? (int) $request->query('per_page') : null;
-        return $this->dashboardService->getInterventionsDuJour($perPage);
+        return $this->dashboardService->getInterventionsDuJour($filters, $perPage);
     }
 
     public function interventionsAVenir(Request $request): JsonResponse
     {
         Gate::authorize('voir_les_interventions');
+        $filters = $request->only(['ecole_id', 'site_id', 'technicien_id', 'statut', 'date_debut', 'date_fin']);
         $perPage = $request->query('per_page') ? (int) $request->query('per_page') : null;
-        return $this->dashboardService->getInterventionsAVenir($perPage);
+        return $this->dashboardService->getInterventionsAVenir($filters, $perPage);
     }
 
     public function ordresMissionDisponibles(Request $request): JsonResponse
     {
         Gate::authorize('voir_les_ordres_mission');
+        $filters = $request->only(['ecole_id', 'ville_id', 'priorite']);
         $perPage = $request->query('per_page') ? (int) $request->query('per_page') : null;
-        return $this->dashboardService->getOrdresMissionDisponibles($perPage);
+        return $this->dashboardService->getOrdresMissionDisponibles($filters, $perPage);
     }
 }
