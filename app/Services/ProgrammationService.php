@@ -61,7 +61,7 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
     /**
      * Surcharge de getById pour vérifier l'accès si école
      */
-    public function getById(string $id, array $relations = []): JsonResponse
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
     {
         try {
             $query = $this->repository->query()->where('id', $id);
@@ -73,7 +73,7 @@ class ProgrammationService extends BaseService implements ProgrammationServiceIn
                 $query->with($relations);
             }
 
-            $data = $query->first();
+            $data = $query->first($columns);
 
             if (!$data) {
                 return $this->errorResponse('Programmation non trouvée ou accès non autorisé.', 404);

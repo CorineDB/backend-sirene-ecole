@@ -48,7 +48,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
     /**
      * Surcharge de getById pour vérifier l'accès si école
      */
-    public function getById(string $id, array $relations = []): JsonResponse
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
     {
         try {
             $query = $this->repository->query()->where('id', $id);
@@ -60,7 +60,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 $query->with($relations);
             }
 
-            $data = $query->first();
+            $data = $query->first($columns);
 
             if (!$data) {
                 return $this->errorResponse('Abonnement non trouvé ou accès non autorisé.', 404);
