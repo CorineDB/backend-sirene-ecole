@@ -3,19 +3,13 @@
 namespace App\Services;
 
 use App\Enums\StatutPanne;
-<<<<<<< HEAD
-use App\Models\Ecole;
 use App\Repositories\Contracts\InterventionRepositoryInterface;
-=======
-use App\Models\Panne;
->>>>>>> cff7959822ba164dff0121642c99d7a92771262c
 use App\Repositories\Contracts\OrdreMissionRepositoryInterface;
 use App\Repositories\Contracts\PanneRepositoryInterface;
 use App\Services\Contracts\PanneServiceInterface;
 use App\Traits\FiltersByEcole;
 use Exception;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -62,7 +56,7 @@ class PanneService extends BaseService implements PanneServiceInterface
     /**
      * Surcharge de getById pour vérifier l'accès si école
      */
-    public function getById(string $id, array $relations = []): JsonResponse
+    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
     {
         try {
             $query = $this->repository->query()->where('id', $id);
@@ -74,52 +68,13 @@ class PanneService extends BaseService implements PanneServiceInterface
                 $query->with($relations);
             }
 
-            $data = $query->first();
+            $data = $query->first($columns);
 
             if (!$data) {
                 return $this->errorResponse('Panne non trouvée ou accès non autorisé.', 404);
             }
 
             return $this->successResponse('Donnée récupérée avec succès.', $data);
-        } catch (Exception $e) {
-            Log::error("Error in PanneService::getById - " . $e->getMessage());
-            return $this->errorResponse($e->getMessage(), 500);
-        }
-    }
-
-    /**
-     * Override getById() pour filtrer selon le rôle de l'utilisateur
-     */
-    public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
-    {
-        try {
-            $user = Auth::user();
-
-            // Si l'utilisateur est admin, retourner la panne
-            if ($user && $user->isAdmin()) {
-                return parent::getById($id, $columns, $relations);
-            }
-
-            // Si l'utilisateur est une école, vérifier que la panne lui appartient
-            if ($user && $user->isEcole()) {
-                $ecole = $user->getEcole();
-
-                if ($ecole) {
-                    $panne = Panne::with($relations)
-                        ->whereHas('site', function ($query) use ($ecole) {
-                            $query->where('ecole_id', $ecole->id);
-                        })
-                        ->find($id, $columns);
-
-                    if (!$panne) {
-                        return $this->notFoundResponse('Panne non trouvée ou non accessible.');
-                    }
-
-                    return $this->successResponse(null, $panne);
-                }
-            }
-
-            return $this->notFoundResponse('Panne non accessible.');
         } catch (Exception $e) {
             Log::error("Error in PanneService::getById - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
@@ -149,16 +104,10 @@ class PanneService extends BaseService implements PanneServiceInterface
             // Fetch the panne with its site relationship
             $panneWithSite = $this->repository->find($panneId, ['site']);
 
-            // Générer le numéro d'ordre
-            $numeroOrdre = $this->generateNumeroOrdre();
-
-            // Préparer les données de l'ordre de mission
-            // Le nombre_techniciens_requis doit être fourni par l'admin lors de la validation
+            // Merge default data with provided data
             $ordreMissionPayload = array_merge([
                 'panne_id' => $panneWithSite->id,
-                'ville_id' => $panneWithSite->site->ville_id,
-                'valide_par' => auth()->user()->id,
-                'numero_ordre' => $numeroOrdre,
+                'ville_id' => $panneWithSite->site->ville_id ?? null,
                 'statut' => 'en_attente',
                 'date_generation' => now(),
                 'nombre_techniciens_acceptes' => 0,
@@ -192,10 +141,7 @@ class PanneService extends BaseService implements PanneServiceInterface
 
     private function generateNumeroOrdre(): string
     {
-        do {
-            $numero = 'OM-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
-        } while ($this->ordreMissionRepository->findBy(['numero_ordre' => $numero]));
-
+        $numero = 'OM-' . now()->format('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
         return $numero;
     }
 
