@@ -22,6 +22,30 @@ class SireneService extends BaseService implements SireneServiceInterface
     }
 
     /**
+     * Override getAll() pour filtrer selon le rôle de l'utilisateur
+     */
+    public function getAll(int $perPage = 15, array $columns = ['*'], array $relations = []): JsonResponse
+    {
+        try {
+            $query = $this->repository->query()->with($relations);
+
+            // Appliquer le filtre école si l'utilisateur est une école
+            $query = $this->applyEcoleFilterForSirenes($query);
+
+            if ($perPage > 0) {
+                $data = $query->paginate($perPage, $columns);
+            } else {
+                $data = $query->get($columns);
+            }
+
+            return $this->successResponse('Données récupérées avec succès.', $data);
+        } catch (Exception $e) {
+            Log::error("Error in SireneService::getAll - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Override getById() pour filtrer selon le rôle de l'utilisateur
      */
     public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
