@@ -6,6 +6,7 @@ enum StatutAbonnement: string
 {
     case ACTIF = 'actif';
     case EXPIRE = 'expire';
+    case ANNULE = 'annule';
     case SUSPENDU = 'suspendu';
     case EN_ATTENTE = 'en_attente';
 
@@ -14,6 +15,7 @@ enum StatutAbonnement: string
         return match($this) {
             self::ACTIF => 'Actif',
             self::EXPIRE => 'Expiré',
+            self::ANNULE => 'Annulé',
             self::SUSPENDU => 'Suspendu',
             self::EN_ATTENTE => 'En attente',
         };

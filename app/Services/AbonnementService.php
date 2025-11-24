@@ -73,7 +73,67 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
         }
     }
 
-    // ========== 1. GESTION DU CYCLE DE VIE ==========
+    // ========== 1. CRÉATION D'ABONNEMENT ==========
+
+    /**
+     * Créer un nouvel abonnement avec toutes les validations
+     */
+    public function create(array $data): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            // Validation: vérifier que la sirène existe
+            if (empty($data['sirene_id'])) {
+                DB::rollBack();
+                return $this->errorResponse('La sirène est requise.', 422);
+            }
+
+            // Validation: vérifier qu'il n'y a pas déjà un abonnement actif/en attente/suspendu pour cette sirène
+            if (\App\Models\Abonnement::sireneHasActiveOrPendingSubscription($data['sirene_id'])) {
+                DB::rollBack();
+                return $this->errorResponse(
+                    'Cette sirène a déjà un abonnement actif, en attente ou suspendu. ' .
+                    'Veuillez d\'abord annuler ou laisser expirer l\'abonnement existant.',
+                    422
+                );
+            }
+
+            // Générer le numéro d'abonnement si non fourni
+            if (empty($data['numero_abonnement'])) {
+                $data['numero_abonnement'] = $this->generateNumeroAbonnement();
+            }
+
+            // Définir le statut par défaut
+            if (empty($data['statut'])) {
+                $data['statut'] = StatutAbonnement::EN_ATTENTE;
+            }
+
+            // Créer l'abonnement
+            $abonnement = $this->repository->create($data);
+
+            // Mettre à jour le statut de la sirène
+            $abonnement->updateSireneStatus();
+
+            // Générer le QR code pour le paiement
+            $abonnement->genererQrCode();
+
+            // Si l'abonnement est créé directement comme ACTIF (avec paiement validé)
+            if ($abonnement->statut === StatutAbonnement::ACTIF) {
+                $abonnement->activate();
+            }
+
+            DB::commit();
+            return $this->successResponse('Abonnement créé avec succès.', $abonnement->load(['sirene', 'ecole', 'site']));
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in AbonnementService::create - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    // ========== 2. GESTION DU CYCLE DE VIE ==========
 
     public function renouvelerAbonnement(string $abonnementId): JsonResponse
     {
@@ -84,6 +144,26 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
             if (!$abonnement) {
                 DB::rollBack();
                 return $this->notFoundResponse('Abonnement non trouvé.');
+            }
+
+            // Validation: vérifier que l'abonnement peut être renouvelé
+            if (!$abonnement->canBeRenewed()) {
+                DB::rollBack();
+                return $this->errorResponse(
+                    'Cet abonnement ne peut pas être renouvelé. ' .
+                    'Les abonnements actifs, suspendus ou en attente (sans parent) ne peuvent pas être renouvelés.',
+                    422
+                );
+            }
+
+            // Validation: vérifier qu'il n'y a pas déjà un abonnement en attente pour cette sirène
+            if (\App\Models\Abonnement::sireneHasActiveOrPendingSubscription($abonnement->sirene_id)) {
+                DB::rollBack();
+                return $this->errorResponse(
+                    'Cette sirène a déjà un abonnement actif, en attente ou suspendu. ' .
+                    'Impossible de créer un renouvellement.',
+                    422
+                );
             }
 
             // Générer un nouveau numéro d'abonnement
@@ -102,6 +182,10 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 'statut' => StatutAbonnement::EN_ATTENTE,
                 'auto_renouvellement' => $abonnement->auto_renouvellement,
             ]);
+
+            // Mettre à jour le statut de la sirène et générer le QR code
+            $nouveauAbonnement->updateSireneStatus();
+            $nouveauAbonnement->genererQrCode();
 
             DB::commit();
             return $this->successResponse('Abonnement renouvelé avec succès.', $nouveauAbonnement);
@@ -124,11 +208,28 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 return $this->notFoundResponse('Abonnement non trouvé.');
             }
 
+            // Validation: vérifier que l'abonnement peut être suspendu
+            if (!$abonnement->canBeSuspended()) {
+                DB::rollBack();
+                return $this->errorResponse(
+                    'Cet abonnement ne peut pas être suspendu. ' .
+                    'Seuls les abonnements actifs peuvent être suspendus.',
+                    422
+                );
+            }
+
+            // Mettre à jour le statut
             $this->repository->update($abonnementId, [
                 'statut' => StatutAbonnement::SUSPENDU,
                 'notes' => ($abonnement->notes ? $abonnement->notes . "\n" : '') .
                           "[" . now()->format('Y-m-d H:i:s') . "] Suspendu: " . $raison
             ]);
+
+            // Recharger l'abonnement
+            $abonnement = $this->repository->find($abonnementId);
+
+            // Gérer la suspension (expirer les tokens)
+            $abonnement->suspend();
 
             DB::commit();
             return $this->successResponse('Abonnement suspendu avec succès.');
@@ -151,16 +252,28 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 return $this->notFoundResponse('Abonnement non trouvé.');
             }
 
-            if ($abonnement->statut !== StatutAbonnement::SUSPENDU) {
+            // Validation: vérifier que l'abonnement peut être réactivé
+            if (!$abonnement->canBeReactivated()) {
                 DB::rollBack();
-                return $this->errorResponse('Seuls les abonnements suspendus peuvent être réactivés.', 400);
+                return $this->errorResponse(
+                    'Cet abonnement ne peut pas être réactivé. ' .
+                    'Seuls les abonnements suspendus et non expirés peuvent être réactivés.',
+                    422
+                );
             }
 
+            // Mettre à jour le statut
             $this->repository->update($abonnementId, [
                 'statut' => StatutAbonnement::ACTIF,
                 'notes' => ($abonnement->notes ? $abonnement->notes . "\n" : '') .
                           "[" . now()->format('Y-m-d H:i:s') . "] Réactivé"
             ]);
+
+            // Recharger l'abonnement
+            $abonnement = $this->repository->find($abonnementId);
+
+            // Gérer la réactivation (token + sirène)
+            $abonnement->activate();
 
             DB::commit();
             return $this->successResponse('Abonnement réactivé avec succès.');
@@ -183,12 +296,29 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 return $this->notFoundResponse('Abonnement non trouvé.');
             }
 
+            // Validation: vérifier que l'abonnement peut être annulé
+            if (!$abonnement->canBeCancelled()) {
+                DB::rollBack();
+                return $this->errorResponse(
+                    'Cet abonnement ne peut pas être annulé. ' .
+                    'Les abonnements déjà expirés ou annulés ne peuvent pas être annulés.',
+                    422
+                );
+            }
+
+            // Mettre à jour le statut
             $this->repository->update($abonnementId, [
-                'statut' => StatutAbonnement::EXPIRE,
+                'statut' => StatutAbonnement::ANNULE,
                 'date_fin' => now(),
                 'notes' => ($abonnement->notes ? $abonnement->notes . "\n" : '') .
                           "[" . now()->format('Y-m-d H:i:s') . "] Annulé: " . $raison
             ]);
+
+            // Recharger l'abonnement
+            $abonnement = $this->repository->find($abonnementId);
+
+            // Gérer l'annulation (expirer tokens + mettre à jour sirène)
+            $abonnement->cancel();
 
             DB::commit();
             return $this->successResponse('Abonnement annulé avec succès.');
@@ -200,7 +330,62 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
         }
     }
 
-    // ========== 2. RECHERCHE ET FILTRAGE ==========
+    /**
+     * Activer un abonnement après validation du paiement
+     */
+    public function activerAbonnement(string $abonnementId): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $abonnement = $this->repository->find($abonnementId, relations: ['paiements']);
+            if (!$abonnement) {
+                DB::rollBack();
+                return $this->notFoundResponse('Abonnement non trouvé.');
+            }
+
+            // Validation: vérifier que l'abonnement est en attente
+            if ($abonnement->statut !== StatutAbonnement::EN_ATTENTE) {
+                DB::rollBack();
+                return $this->errorResponse(
+                    'Seuls les abonnements en attente peuvent être activés.',
+                    422
+                );
+            }
+
+            // Validation: vérifier qu'un paiement validé existe
+            if (!$abonnement->hasPaiementValide()) {
+                DB::rollBack();
+                return $this->errorResponse(
+                    'Impossible d\'activer un abonnement sans paiement validé.',
+                    422
+                );
+            }
+
+            // Mettre à jour le statut
+            $this->repository->update($abonnementId, [
+                'statut' => StatutAbonnement::ACTIF,
+                'notes' => ($abonnement->notes ? $abonnement->notes . "\n" : '') .
+                          "[" . now()->format('Y-m-d H:i:s') . "] Activé après paiement validé"
+            ]);
+
+            // Recharger l'abonnement
+            $abonnement = $this->repository->find($abonnementId);
+
+            // Gérer l'activation (générer token + mettre à jour sirène)
+            $abonnement->activate();
+
+            DB::commit();
+            return $this->successResponse('Abonnement activé avec succès.', $abonnement->load(['token', 'sirene']));
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in AbonnementService::activerAbonnement - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    // ========== 3. RECHERCHE ET FILTRAGE ==========
 
     public function getAbonnementActif(string $ecoleId): JsonResponse
     {
@@ -448,6 +633,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 'actifs' => $this->repository->count(['statut' => StatutAbonnement::ACTIF]),
                 'en_attente' => $this->repository->count(['statut' => StatutAbonnement::EN_ATTENTE]),
                 'expires' => $this->repository->count(['statut' => StatutAbonnement::EXPIRE]),
+                'annules' => $this->repository->count(['statut' => StatutAbonnement::ANNULE]),
                 'suspendus' => $this->repository->count(['statut' => StatutAbonnement::SUSPENDU]),
                 'expirant_7j' => $this->repository->model
                     ->where('statut', StatutAbonnement::ACTIF)
