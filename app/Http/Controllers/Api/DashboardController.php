@@ -19,13 +19,23 @@ class DashboardController extends Controller
 
     public function statistiquesEcole(): JsonResponse
     {
-        Gate::authorize('voir_ecole');
+        // Vérifier que l'utilisateur est une école
+        $user = auth()->user();
+        if (!$user || !$user->isEcoleUser()) {
+            abort(403, 'Accès réservé aux écoles.');
+        }
+
         return $this->dashboardService->getStatistiquesEcole();
     }
 
     public function statistiquesTechnicien(): JsonResponse
     {
-        Gate::authorize('voir_technicien');
+        // Vérifier que l'utilisateur est un technicien
+        $user = auth()->user();
+        if (!$user || !$user->isTechnicienUser()) {
+            abort(403, 'Accès réservé aux techniciens.');
+        }
+
         return $this->dashboardService->getStatistiquesTechnicien();
     }
 
