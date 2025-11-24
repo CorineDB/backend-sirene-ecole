@@ -244,7 +244,7 @@ class PanneController extends Controller
      */
     public function pannesActives(Request $request)
     {
-        Gate::authorize('voir_les_pannes');
+        //Gate::authorize('voir_les_pannes');
         $perPage = $request->query('per_page') ? (int) $request->query('per_page') : null;
         return $this->panneService->getPannesActives($perPage);
     }

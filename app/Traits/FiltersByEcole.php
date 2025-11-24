@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Models\Ecole;
+use Illuminate\Support\Facades\Log;
 
 trait FiltersByEcole
 {
@@ -51,6 +52,7 @@ trait FiltersByEcole
             }
         }
 
+        Log::info('user info in FiltersByEcole: ', ['query' => $query]);
         return $query;
     }
 

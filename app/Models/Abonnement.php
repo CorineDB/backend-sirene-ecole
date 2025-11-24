@@ -370,15 +370,21 @@ class Abonnement extends Model
 
         // Déterminer le nouveau statut
         $newStatut = match($this->statut) {
-            StatutAbonnement::ACTIF => StatutSirene::RESERVE,
+            StatutAbonnement::ACTIF => StatutSirene::INSTALLE,
             StatutAbonnement::EN_ATTENTE => StatutSirene::RESERVE,
             StatutAbonnement::SUSPENDU => $oldStatut, // Ne change pas le statut si suspendu
-            StatutAbonnement::EXPIRE, StatutAbonnement::ANNULE =>
+            StatutAbonnement::ANNULE =>
                 // Si expire/annule, remet en stock
                 // Exception : garde EN_PANNE (mais INSTALLE peut être changé vers EN_STOCK)
                 $oldStatut === StatutSirene::EN_PANNE
                     ? $oldStatut
                     : StatutSirene::EN_STOCK,
+            StatutAbonnement::EXPIRE =>
+                // Si expire/annule, remet en stock
+                // Exception : garde EN_PANNE (mais INSTALLE peut être changé vers EN_STOCK)
+                $oldStatut === StatutSirene::EN_PANNE
+                    ? $oldStatut
+                    : StatutSirene::RESERVE,
         };
 
         // Mettre à jour uniquement si le statut change

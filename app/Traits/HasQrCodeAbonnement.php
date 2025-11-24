@@ -63,6 +63,7 @@ trait HasQrCodeAbonnement
             Log::info('QR code généré pour abonnement', [
                 'abonnement_id' => $model->id,
                 'ecole_id' => $ecole->id,
+                'frontend_url' => $frontendUrl,
                 'checkout_url' => $checkoutUrl,
                 'statut' => $model->statut->value,
                 'qr_data_size' => strlen($qrContent),
