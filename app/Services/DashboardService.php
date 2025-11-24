@@ -97,8 +97,8 @@ class DashboardService extends BaseService implements DashboardServiceInterface
             // Note moyenne
             $noteMoyenne = DB::table('rapports_intervention')
                 ->where('technicien_id', $technicien->id)
-                ->whereNotNull('note_admin')
-                ->avg('note_admin');
+                ->whereNotNull('review_note')
+                ->avg('review_note');
 
             $stats = [
                 'interventions_terminees' => $interventionsTerminees,
