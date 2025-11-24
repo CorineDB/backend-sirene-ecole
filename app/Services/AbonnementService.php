@@ -76,35 +76,20 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
     // ========== 1. CRÉATION D'ABONNEMENT ==========
 
     /**
-     * Créer un nouvel abonnement avec toutes les validations
+     * Créer un nouvel abonnement
+     * Les validations métier sont gérées par les hooks Eloquent (creating, updating)
      */
     public function create(array $data): JsonResponse
     {
         try {
             DB::beginTransaction();
 
-            // Validation: vérifier que la sirène existe
-            if (empty($data['sirene_id'])) {
-                DB::rollBack();
-                return $this->errorResponse('La sirène est requise.', 422);
-            }
-
-            // Validation: vérifier qu'il n'y a pas déjà un abonnement actif/en attente/suspendu pour cette sirène
-            if (\App\Models\Abonnement::sireneHasActiveOrPendingSubscription($data['sirene_id'])) {
-                DB::rollBack();
-                return $this->errorResponse(
-                    'Cette sirène a déjà un abonnement actif, en attente ou suspendu. ' .
-                    'Veuillez d\'abord annuler ou laisser expirer l\'abonnement existant.',
-                    422
-                );
-            }
-
             // Définir le statut par défaut
             if (empty($data['statut'])) {
                 $data['statut'] = StatutAbonnement::EN_ATTENTE;
             }
 
-            // Créer l'abonnement
+            // Créer l'abonnement (les validations sont gérées par le hook creating)
             $abonnement = $this->repository->create($data);
 
             // Mettre à jour le statut de la sirène
@@ -123,12 +108,16 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in AbonnementService::create - " . $e->getMessage());
-            return $this->errorResponse($e->getMessage(), 500);
+            return $this->errorResponse($e->getMessage(), 422);
         }
     }
 
     // ========== 2. GESTION DU CYCLE DE VIE ==========
 
+    /**
+     * Renouveler un abonnement
+     * Les validations métier sont gérées par les hooks Eloquent (creating)
+     */
     public function renouvelerAbonnement(string $abonnementId): JsonResponse
     {
         try {
@@ -140,27 +129,9 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 return $this->notFoundResponse('Abonnement non trouvé.');
             }
 
-            // Validation: vérifier que l'abonnement peut être renouvelé
-            if (!$abonnement->canBeRenewed()) {
-                DB::rollBack();
-                return $this->errorResponse(
-                    'Cet abonnement ne peut pas être renouvelé. ' .
-                    'Les abonnements actifs, suspendus ou en attente (sans parent) ne peuvent pas être renouvelés.',
-                    422
-                );
-            }
-
-            // Validation: vérifier qu'il n'y a pas déjà un abonnement en attente pour cette sirène
-            if (\App\Models\Abonnement::sireneHasActiveOrPendingSubscription($abonnement->sirene_id)) {
-                DB::rollBack();
-                return $this->errorResponse(
-                    'Cette sirène a déjà un abonnement actif, en attente ou suspendu. ' .
-                    'Impossible de créer un renouvellement.',
-                    422
-                );
-            }
-
-            // Créer le nouvel abonnement (le numéro sera généré automatiquement via HasNumeroAbonnement)
+            // Créer le nouvel abonnement (les validations sont gérées par le hook creating)
+            // Le hook vérifiera automatiquement que le parent peut être renouvelé
+            // et qu'il n'y a pas déjà un abonnement actif/en attente/suspendu pour la sirène
             $nouveauAbonnement = $this->repository->create([
                 'ecole_id' => $abonnement->ecole_id,
                 'site_id' => $abonnement->site_id,
@@ -182,10 +153,14 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in AbonnementService::renouvelerAbonnement - " . $e->getMessage());
-            return $this->errorResponse($e->getMessage(), 500);
+            return $this->errorResponse($e->getMessage(), 422);
         }
     }
 
+    /**
+     * Suspendre un abonnement
+     * Les validations métier sont gérées par le hook updating
+     */
     public function suspendre(string $abonnementId, string $raison): JsonResponse
     {
         try {
@@ -197,17 +172,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 return $this->notFoundResponse('Abonnement non trouvé.');
             }
 
-            // Validation: vérifier que l'abonnement peut être suspendu
-            if (!$abonnement->canBeSuspended()) {
-                DB::rollBack();
-                return $this->errorResponse(
-                    'Cet abonnement ne peut pas être suspendu. ' .
-                    'Seuls les abonnements actifs peuvent être suspendus.',
-                    422
-                );
-            }
-
-            // Mettre à jour le statut
+            // Mettre à jour le statut (la validation est gérée par le hook updating)
             $this->repository->update($abonnementId, [
                 'statut' => StatutAbonnement::SUSPENDU,
                 'notes' => ($abonnement->notes ? $abonnement->notes . "\n" : '') .
@@ -226,10 +191,14 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in AbonnementService::suspendre - " . $e->getMessage());
-            return $this->errorResponse($e->getMessage(), 500);
+            return $this->errorResponse($e->getMessage(), 422);
         }
     }
 
+    /**
+     * Réactiver un abonnement suspendu
+     * Les validations métier sont gérées par le hook updating
+     */
     public function reactiver(string $abonnementId): JsonResponse
     {
         try {
@@ -241,7 +210,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 return $this->notFoundResponse('Abonnement non trouvé.');
             }
 
-            // Validation: vérifier que l'abonnement peut être réactivé
+            // Validation manuelle pour réactivation (car le hook ne vérifie que ACTIF depuis SUSPENDU)
             if (!$abonnement->canBeReactivated()) {
                 DB::rollBack();
                 return $this->errorResponse(
@@ -251,7 +220,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 );
             }
 
-            // Mettre à jour le statut
+            // Mettre à jour le statut (la validation du changement SUSPENDU -> ACTIF est permise par le hook)
             $this->repository->update($abonnementId, [
                 'statut' => StatutAbonnement::ACTIF,
                 'notes' => ($abonnement->notes ? $abonnement->notes . "\n" : '') .
@@ -270,10 +239,14 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in AbonnementService::reactiver - " . $e->getMessage());
-            return $this->errorResponse($e->getMessage(), 500);
+            return $this->errorResponse($e->getMessage(), 422);
         }
     }
 
+    /**
+     * Annuler un abonnement
+     * Les validations métier sont gérées par le hook updating
+     */
     public function annuler(string $abonnementId, string $raison): JsonResponse
     {
         try {
@@ -285,17 +258,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 return $this->notFoundResponse('Abonnement non trouvé.');
             }
 
-            // Validation: vérifier que l'abonnement peut être annulé
-            if (!$abonnement->canBeCancelled()) {
-                DB::rollBack();
-                return $this->errorResponse(
-                    'Cet abonnement ne peut pas être annulé. ' .
-                    'Les abonnements déjà expirés ou annulés ne peuvent pas être annulés.',
-                    422
-                );
-            }
-
-            // Mettre à jour le statut
+            // Mettre à jour le statut (la validation est gérée par le hook updating)
             $this->repository->update($abonnementId, [
                 'statut' => StatutAbonnement::ANNULE,
                 'date_fin' => now(),
@@ -315,12 +278,13 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in AbonnementService::annuler - " . $e->getMessage());
-            return $this->errorResponse($e->getMessage(), 500);
+            return $this->errorResponse($e->getMessage(), 422);
         }
     }
 
     /**
      * Activer un abonnement après validation du paiement
+     * Les validations métier sont gérées par le hook updating
      */
     public function activerAbonnement(string $abonnementId): JsonResponse
     {
@@ -342,16 +306,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 );
             }
 
-            // Validation: vérifier qu'un paiement validé existe
-            if (!$abonnement->hasPaiementValide()) {
-                DB::rollBack();
-                return $this->errorResponse(
-                    'Impossible d\'activer un abonnement sans paiement validé.',
-                    422
-                );
-            }
-
-            // Mettre à jour le statut
+            // Mettre à jour le statut (le hook vérifiera qu'un paiement validé existe)
             $this->repository->update($abonnementId, [
                 'statut' => StatutAbonnement::ACTIF,
                 'notes' => ($abonnement->notes ? $abonnement->notes . "\n" : '') .
@@ -370,7 +325,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in AbonnementService::activerAbonnement - " . $e->getMessage());
-            return $this->errorResponse($e->getMessage(), 500);
+            return $this->errorResponse($e->getMessage(), 422);
         }
     }
 
@@ -741,6 +696,10 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
 
     // ========== OVERRIDE UPDATE FROM BASESERVICE ==========
 
+    /**
+     * Mettre à jour un abonnement
+     * Les validations de changement de statut sont gérées par le hook updating
+     */
     public function update(string $id, array $data): JsonResponse
     {
         try {
@@ -755,19 +714,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
             // Validation métier : ne pas permettre de modifier un abonnement expiré
             if ($abonnement->statut === StatutAbonnement::EXPIRE && !isset($data['statut'])) {
                 DB::rollBack();
-                return $this->errorResponse('Impossible de modifier un abonnement expiré.', 400);
-            }
-
-            // Si on change le statut à ACTIF, vérifier qu'un paiement validé existe
-            if (isset($data['statut']) && $data['statut'] === 'actif' && $abonnement->statut !== StatutAbonnement::ACTIF) {
-                $paiementValide = $abonnement->paiements()
-                    ->where('statut', 'valide')
-                    ->exists();
-
-                if (!$paiementValide) {
-                    DB::rollBack();
-                    return $this->errorResponse('Impossible d\'activer un abonnement sans paiement validé.', 400);
-                }
+                return $this->errorResponse('Impossible de modifier un abonnement expiré.', 422);
             }
 
             // Ajouter une note de modification si des champs importants changent
@@ -792,6 +739,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 }
             }
 
+            // Mettre à jour (les validations de changement de statut sont gérées par le hook)
             $updated = $this->repository->update($id, $data);
 
             DB::commit();
@@ -800,7 +748,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in AbonnementService::update - " . $e->getMessage());
-            return $this->errorResponse($e->getMessage(), 500);
+            return $this->errorResponse($e->getMessage(), 422);
         }
     }
 

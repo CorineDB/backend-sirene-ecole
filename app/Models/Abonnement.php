@@ -41,6 +41,115 @@ class Abonnement extends Model
 
             // Si admin ou technicien, pas de filtre (retourne tous les abonnements)
         });
+
+        // ========== HOOKS DE VALIDATION MÉTIER ==========
+
+        /**
+         * Hook avant création : valider les règles métier
+         */
+        static::creating(function (Abonnement $abonnement) {
+            // Vérifier que la sirène est spécifiée
+            if (empty($abonnement->sirene_id)) {
+                throw new \Exception('La sirène est requise pour créer un abonnement.');
+            }
+
+            // Vérifier qu'il n'y a pas déjà un abonnement actif/en attente/suspendu pour cette sirène
+            // Exception : si c'est un renouvellement (parent_abonnement_id existe)
+            $hasActiveSubscription = self::where('sirene_id', $abonnement->sirene_id)
+                ->whereIn('statut', [
+                    StatutAbonnement::ACTIF,
+                    StatutAbonnement::EN_ATTENTE,
+                    StatutAbonnement::SUSPENDU
+                ])
+                ->exists();
+
+            if ($hasActiveSubscription) {
+                throw new \Exception(
+                    'Cette sirène a déjà un abonnement actif, en attente ou suspendu. ' .
+                    'Veuillez d\'abord annuler ou laisser expirer l\'abonnement existant.'
+                );
+            }
+
+            // Si c'est un renouvellement, vérifier que le parent existe et est EXPIRE ou ANNULE
+            if (!empty($abonnement->parent_abonnement_id)) {
+                $parentAbonnement = self::withoutGlobalScope('userAccess')
+                    ->find($abonnement->parent_abonnement_id);
+
+                if (!$parentAbonnement) {
+                    throw new \Exception('L\'abonnement parent n\'existe pas.');
+                }
+
+                if (!$parentAbonnement->canBeRenewed()) {
+                    throw new \Exception(
+                        'L\'abonnement parent ne peut pas être renouvelé. ' .
+                        'Les abonnements actifs, suspendus ou en attente (sans parent) ne peuvent pas être renouvelés.'
+                    );
+                }
+            }
+        });
+
+        /**
+         * Hook avant modification : valider les changements de statut
+         */
+        static::updating(function (Abonnement $abonnement) {
+            // Si on change le statut
+            if ($abonnement->isDirty('statut')) {
+                $oldStatut = $abonnement->getOriginal('statut');
+                $newStatut = $abonnement->statut;
+
+                // Si on passe à ACTIF, vérifier qu'un paiement validé existe
+                if ($newStatut === StatutAbonnement::ACTIF && $oldStatut !== StatutAbonnement::ACTIF->value) {
+                    // Charger les paiements si pas déjà chargés
+                    if (!$abonnement->relationLoaded('paiements')) {
+                        $abonnement->load('paiements');
+                    }
+
+                    $hasPaiementValide = $abonnement->paiements()
+                        ->where('statut', 'valide')
+                        ->exists();
+
+                    if (!$hasPaiementValide) {
+                        throw new \Exception(
+                            'Impossible d\'activer un abonnement sans paiement validé.'
+                        );
+                    }
+                }
+
+                // Si on passe à SUSPENDU, vérifier que l'abonnement est ACTIF
+                if ($newStatut === StatutAbonnement::SUSPENDU && $oldStatut !== StatutAbonnement::ACTIF->value) {
+                    throw new \Exception(
+                        'Seuls les abonnements actifs peuvent être suspendus.'
+                    );
+                }
+
+                // Si on passe à ANNULE, vérifier que l'abonnement n'est pas déjà EXPIRE ou ANNULE
+                if ($newStatut === StatutAbonnement::ANNULE) {
+                    if (in_array($oldStatut, [StatutAbonnement::EXPIRE->value, StatutAbonnement::ANNULE->value])) {
+                        throw new \Exception(
+                            'Les abonnements déjà expirés ou annulés ne peuvent pas être annulés.'
+                        );
+                    }
+                }
+            }
+
+            // Si on change la sirène, vérifier qu'il n'y a pas déjà un abonnement actif pour la nouvelle sirène
+            if ($abonnement->isDirty('sirene_id')) {
+                $hasActiveSubscription = self::where('sirene_id', $abonnement->sirene_id)
+                    ->where('id', '!=', $abonnement->id)
+                    ->whereIn('statut', [
+                        StatutAbonnement::ACTIF,
+                        StatutAbonnement::EN_ATTENTE,
+                        StatutAbonnement::SUSPENDU
+                    ])
+                    ->exists();
+
+                if ($hasActiveSubscription) {
+                    throw new \Exception(
+                        'La nouvelle sirène a déjà un abonnement actif, en attente ou suspendu.'
+                    );
+                }
+            }
+        });
     }
 
     protected $primaryKey = 'id';
