@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\PrioritePanne;
 use App\Enums\StatutPanne;
 use App\Traits\HasUlid;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +15,43 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Panne extends Model
 {
     use HasUlid, SoftDeletes;
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('userAccess', function (Builder $builder) {
+            $user = auth()->user();
+
+            if (!$user) {
+                return;
+            }
+
+            // Si l'utilisateur est un technicien, filtrer par ses interventions
+            if ($user->isTechnicienUser()) {
+                $technicien = $user->userAccount;
+                if ($technicien) {
+                    $builder->whereHas('interventions', function ($q) use ($technicien) {
+                        $q->whereHas('techniciens', function ($techQ) use ($technicien) {
+                            $techQ->where('techniciens.id', $technicien->id);
+                        });
+                    });
+                }
+                return;
+            }
+
+            // Si l'utilisateur est une école, filtrer par école
+            if ($user->isEcoleUser()) {
+                $ecole = $user->userAccount;
+                if ($ecole) {
+                    $builder->where('ecole_id', $ecole->id);
+                }
+            }
+
+            // Si admin, pas de filtre (retourne toutes les pannes)
+        });
+    }
 
     protected $primaryKey = 'id';
     public $incrementing = false;

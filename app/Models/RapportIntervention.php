@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\StatutRapportIntervention; // Assuming this enum exists or will be created
 use App\Enums\ResultatIntervention; // Assuming this enum exists or will be created
 use App\Traits\HasUlid;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,6 +14,55 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class RapportIntervention extends Model
 {
     use HasUlid, SoftDeletes;
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('userAccess', function (Builder $builder) {
+            $user = auth()->user();
+
+            if (!$user) {
+                return;
+            }
+
+            // Si l'utilisateur est un technicien, filtrer ses rapports
+            if ($user->isTechnicienUser()) {
+                $technicien = $user->userAccount;
+                if ($technicien) {
+                    $builder->where(function ($q) use ($technicien) {
+                        // Rapports individuels du technicien
+                        $q->where('technicien_id', $technicien->id)
+                          // OU rapports collectifs des interventions où il participe
+                          ->orWhere(function ($collectifQ) use ($technicien) {
+                              $collectifQ->whereNull('technicien_id')
+                                         ->whereHas('intervention', function ($interventionQ) use ($technicien) {
+                                             $interventionQ->whereHas('techniciens', function ($techQ) use ($technicien) {
+                                                 $techQ->where('techniciens.id', $technicien->id);
+                                             });
+                                         });
+                          });
+                    });
+                }
+                return;
+            }
+
+            // Si l'utilisateur est une école, filtrer par école via intervention->panne
+            if ($user->isEcoleUser()) {
+                $ecole = $user->userAccount;
+                if ($ecole) {
+                    $builder->whereHas('intervention', function ($q) use ($ecole) {
+                        $q->whereHas('panne', function ($panneQ) use ($ecole) {
+                            $panneQ->where('ecole_id', $ecole->id);
+                        });
+                    });
+                }
+            }
+
+            // Si admin, pas de filtre (retourne tous les rapports)
+        });
+    }
 
     protected $primaryKey = 'id';
     public $incrementing = false;

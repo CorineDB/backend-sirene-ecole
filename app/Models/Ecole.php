@@ -6,6 +6,7 @@ use App\Enums\StatutAbonnement;
 use App\Traits\HasCodeEtablissement;
 use App\Traits\HasUlid;
 use App\Traits\SoftDeletesUniqueFields;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -17,6 +18,30 @@ use Illuminate\Notifications\Notifiable;
 class Ecole extends Model
 {
     use HasUlid, HasCodeEtablissement, SoftDeletes, SoftDeletesUniqueFields, Notifiable;
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('userAccess', function (Builder $builder) {
+            $user = auth()->user();
+
+            if (!$user) {
+                return;
+            }
+
+            // Si l'utilisateur est une école, ne voir que sa propre école
+            if ($user->isEcoleUser()) {
+                $ecole = $user->userAccount;
+                if ($ecole) {
+                    $builder->where('id', $ecole->id);
+                }
+            }
+
+            // Si admin ou technicien, pas de filtre (retourne toutes les écoles)
+        });
+    }
 
     protected $primaryKey = 'id';
     public $incrementing = false;
