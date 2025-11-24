@@ -265,8 +265,9 @@ class Abonnement extends Model
             StatutAbonnement::EN_ATTENTE => StatutSirene::RESERVE,
             StatutAbonnement::SUSPENDU => $oldStatut, // Ne change pas le statut si suspendu
             StatutAbonnement::EXPIRE, StatutAbonnement::ANNULE =>
-                // Si expire/annule, remet en stock sauf si installé ou en panne
-                in_array($oldStatut, [StatutSirene::INSTALLE, StatutSirene::EN_PANNE])
+                // Si expire/annule, remet en stock
+                // Exception : garde EN_PANNE (mais INSTALLE peut être changé vers EN_STOCK)
+                $oldStatut === StatutSirene::EN_PANNE
                     ? $oldStatut
                     : StatutSirene::EN_STOCK,
         };
