@@ -8,7 +8,7 @@ enum StatutIntervention: string
     case ASSIGNEE = 'assignee';
     case ACCEPTEE = 'acceptee';
     case EN_COURS = 'en_cours';
-    case TERMINÉE = 'terminee';
+    case TERMINEE = 'terminee';
     case ANNULEE = 'annulee';
 
     public function label(): string
@@ -18,7 +18,7 @@ enum StatutIntervention: string
             self::ASSIGNEE => 'Assignée',
             self::ACCEPTEE => 'Acceptée',
             self::EN_COURS => 'En cours',
-            self::TERMINÉE => 'Terminée',
+            self::TERMINEE => 'Terminée',
             self::ANNULEE => 'Annulée',
         };
     }
