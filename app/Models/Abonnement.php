@@ -33,9 +33,9 @@ class Abonnement extends Model
 
             // Si l'utilisateur est une école, filtrer par école
             if ($user->isEcoleUser()) {
-                $ecole = $user->userAccount;
-                if ($ecole) {
-                    $builder->where('ecole_id', $ecole->id);
+                // Utiliser directement user_account_type_id qui contient l'ID de l'école
+                if ($user->user_account_type_id) {
+                    $builder->where('ecole_id', $user->user_account_type_id);
                 }
             }
 
