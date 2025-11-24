@@ -28,19 +28,21 @@ class OrdreMission extends Model
 
             // Si l'utilisateur est un technicien, filtrer par ville
             if ($user->isTechnicienUser()) {
-                $technicien = $user->userAccount;
-                if ($technicien && $technicien->ville_id) {
-                    $builder->where('ville_id', $technicien->ville_id);
+                if ($user->user_account_type_id) {
+                    // Charger le technicien pour accéder à ville_id
+                    $technicien = \App\Models\Technicien::find($user->user_account_type_id);
+                    if ($technicien && $technicien->ville_id) {
+                        $builder->where('ville_id', $technicien->ville_id);
+                    }
                 }
                 return;
             }
 
             // Si l'utilisateur est une école, filtrer par école via la panne
             if ($user->isEcoleUser()) {
-                $ecole = $user->userAccount;
-                if ($ecole) {
-                    $builder->whereHas('panne', function ($q) use ($ecole) {
-                        $q->where('ecole_id', $ecole->id);
+                if ($user->user_account_type_id) {
+                    $builder->whereHas('panne', function ($q) use ($user) {
+                        $q->where('ecole_id', $user->user_account_type_id);
                     });
                 }
             }

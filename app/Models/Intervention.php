@@ -30,10 +30,9 @@ class Intervention extends Model
 
             // Si l'utilisateur est un technicien, filtrer ses interventions
             if ($user->isTechnicienUser()) {
-                $technicien = $user->userAccount;
-                if ($technicien) {
-                    $builder->whereHas('techniciens', function ($q) use ($technicien) {
-                        $q->where('techniciens.id', $technicien->id);
+                if ($user->user_account_type_id) {
+                    $builder->whereHas('techniciens', function ($q) use ($user) {
+                        $q->where('techniciens.id', $user->user_account_type_id);
                     });
                 }
                 return;
@@ -41,11 +40,10 @@ class Intervention extends Model
 
             // Si l'utilisateur est une école, filtrer par école
             if ($user->isEcoleUser()) {
-                $ecole = $user->userAccount;
-                if ($ecole) {
-                    $builder->whereHas('panne', function ($q) use ($ecole) {
-                        $q->whereHas('site', function ($siteQ) use ($ecole) {
-                            $siteQ->where('ecole_principale_id', $ecole->id);
+                if ($user->user_account_type_id) {
+                    $builder->whereHas('panne', function ($q) use ($user) {
+                        $q->whereHas('site', function ($siteQ) use ($user) {
+                            $siteQ->where('ecole_principale_id', $user->user_account_type_id);
                         });
                     });
                 }
