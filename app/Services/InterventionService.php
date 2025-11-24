@@ -45,14 +45,33 @@ class InterventionService extends BaseService implements InterventionServiceInte
     }
 
     /**
-     * Override getAll() - Le filtre par école et technicien est appliqué automatiquement via le Global Scope
+     * Override getAll() pour filtrer par école (via trait) et technician (par zone/ville)
      */
     public function getAll(int $perPage = 15, array $relations = []): JsonResponse
     {
         try {
+            $user = Auth::user();
             $query = $this->repository->query();
 
-            // Le filtre par école et technicien est appliqué automatiquement via le Global Scope du modèle Intervention
+            // Apply école filter via FiltersByEcole trait
+            $query = $this->applyEcoleFilterForInterventions($query);
+
+            // Apply technician zone filter if user is technician
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+                if ($technicien) {
+                    $query->where(function ($q) use ($technicien) {
+                        $q->whereHas('techniciens', function ($techQuery) use ($technicien) {
+                              $techQuery->where('techniciens.id', $technicien->id);
+                          })
+                          ->orWhereHas('panne', function ($panneQ) use ($technicien) {
+                              $panneQ->whereHas('site', function ($siteQ) use ($technicien) {
+                                  $siteQ->where('ville_id', $technicien->ville_id);
+                              });
+                          });
+                    });
+                }
+            }
 
             if (!empty($relations)) {
                 $query->with($relations);
@@ -67,14 +86,33 @@ class InterventionService extends BaseService implements InterventionServiceInte
     }
 
     /**
-     * Override getById() - Le filtre par école et technicien est appliqué automatiquement via le Global Scope
+     * Override getById() pour filtrer par école (via trait) et technician (par zone/ville)
      */
     public function getById(string $id, array $columns = ['*'], array $relations = []): JsonResponse
     {
         try {
+            $user = Auth::user();
             $query = $this->repository->query()->where('id', $id);
 
-            // Le filtre par école et technicien est appliqué automatiquement via le Global Scope du modèle Intervention
+            // Apply école filter via FiltersByEcole trait
+            $query = $this->applyEcoleFilterForInterventions($query);
+
+            // Apply technician zone filter if user is technician
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+                if ($technicien) {
+                    $query->where(function ($q) use ($technicien) {
+                        $q->whereHas('techniciens', function ($techQuery) use ($technicien) {
+                              $techQuery->where('techniciens.id', $technicien->id);
+                          })
+                          ->orWhereHas('panne', function ($panneQ) use ($technicien) {
+                              $panneQ->whereHas('site', function ($siteQ) use ($technicien) {
+                                  $siteQ->where('ville_id', $technicien->ville_id);
+                              });
+                          });
+                    });
+                }
+            }
 
             if (!empty($relations)) {
                 $query->with($relations);
