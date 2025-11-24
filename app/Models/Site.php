@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\HasUlid;
 use App\Traits\SoftDeletesUniqueFields;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,6 +14,30 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Site extends Model
 {
     use HasUlid, SoftDeletes, SoftDeletesUniqueFields;
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('userAccess', function (Builder $builder) {
+            $user = auth()->user();
+
+            if (!$user) {
+                return;
+            }
+
+            // Si l'utilisateur est une école, filtrer par école
+            if ($user->isEcoleUser()) {
+                $ecole = $user->userAccount;
+                if ($ecole) {
+                    $builder->where('ecole_principale_id', $ecole->id);
+                }
+            }
+
+            // Si admin ou technicien, pas de filtre (retourne tous les sites)
+        });
+    }
 
     protected $table = 'sites';
 

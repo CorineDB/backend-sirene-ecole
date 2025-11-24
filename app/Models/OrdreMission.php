@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\StatutOrdreMission;
 use App\Traits\HasUlid;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,6 +13,41 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class OrdreMission extends Model
 {
     use HasUlid, SoftDeletes;
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('userAccess', function (Builder $builder) {
+            $user = auth()->user();
+
+            if (!$user) {
+                return;
+            }
+
+            // Si l'utilisateur est un technicien, filtrer par ville
+            if ($user->isTechnicienUser()) {
+                $technicien = $user->userAccount;
+                if ($technicien && $technicien->ville_id) {
+                    $builder->where('ville_id', $technicien->ville_id);
+                }
+                return;
+            }
+
+            // Si l'utilisateur est une école, filtrer par école via la panne
+            if ($user->isEcoleUser()) {
+                $ecole = $user->userAccount;
+                if ($ecole) {
+                    $builder->whereHas('panne', function ($q) use ($ecole) {
+                        $q->where('ecole_id', $ecole->id);
+                    });
+                }
+            }
+
+            // Si admin, pas de filtre (retourne tous les ordres de mission)
+        });
+    }
 
     protected $primaryKey = 'id';
     public $incrementing = false;

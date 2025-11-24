@@ -10,10 +10,50 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
 class Intervention extends Model
 {
     use HasUlid, SoftDeletes;
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('userAccess', function (Builder $builder) {
+            $user = auth()->user();
+
+            if (!$user) {
+                return;
+            }
+
+            // Si l'utilisateur est un technicien, filtrer ses interventions
+            if ($user->isTechnicienUser()) {
+                $technicien = $user->userAccount;
+                if ($technicien) {
+                    $builder->whereHas('techniciens', function ($q) use ($technicien) {
+                        $q->where('techniciens.id', $technicien->id);
+                    });
+                }
+                return;
+            }
+
+            // Si l'utilisateur est une école, filtrer par école
+            if ($user->isEcoleUser()) {
+                $ecole = $user->userAccount;
+                if ($ecole) {
+                    $builder->whereHas('panne', function ($q) use ($ecole) {
+                        $q->whereHas('site', function ($siteQ) use ($ecole) {
+                            $siteQ->where('ecole_principale_id', $ecole->id);
+                        });
+                    });
+                }
+            }
+
+            // Si admin, pas de filtre (retourne toutes les interventions)
+        });
+    }
 
     protected $primaryKey = 'id';
     public $incrementing = false;

@@ -146,4 +146,24 @@ class User extends Authenticatable
         }
         return null;
     }
+
+    /**
+     * Vérifier si l'utilisateur connecté est une école (vérifie le type de compte polymorphique)
+     *
+     * @return bool
+     */
+    public function isEcoleUser(): bool
+    {
+        return $this->user_account_type_type === Ecole::class;
+    }
+
+    /**
+     * Vérifier si l'utilisateur connecté est un technicien (vérifie le type de compte polymorphique)
+     *
+     * @return bool
+     */
+    public function isTechnicienUser(): bool
+    {
+        return $this->user_account_type_type === Technicien::class;
+    }
 }
