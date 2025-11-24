@@ -156,6 +156,15 @@ class DashboardService extends BaseService implements DashboardServiceInterface
                 });
             }
 
+            // Auto-filtre technicien (uniquement ses interventions)
+            $user = auth()->user();
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+                if ($technicien) {
+                    $query->whereHas('techniciens', fn($q) => $q->where('techniciens.id', $technicien->id));
+                }
+            }
+
             $query->orderBy('date_intervention', 'asc');
             $data = $perPage ? $query->paginate($perPage) : $query->get();
 
@@ -200,6 +209,15 @@ class DashboardService extends BaseService implements DashboardServiceInterface
                 $query->whereHas('panne', function($q) use ($ecoleId) {
                     $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_principale_id', $ecoleId));
                 });
+            }
+
+            // Auto-filtre technicien (uniquement ses interventions)
+            $user = auth()->user();
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+                if ($technicien) {
+                    $query->whereHas('techniciens', fn($q) => $q->where('techniciens.id', $technicien->id));
+                }
             }
 
             $query->orderBy('heure_rdv', 'asc');
@@ -253,6 +271,15 @@ class DashboardService extends BaseService implements DashboardServiceInterface
                 $query->whereHas('panne', function($q) use ($ecoleId) {
                     $q->whereHas('site', fn($siteQ) => $siteQ->where('ecole_principale_id', $ecoleId));
                 });
+            }
+
+            // Auto-filtre technicien (uniquement ses interventions)
+            $user = auth()->user();
+            if ($user && $user->isTechnicien()) {
+                $technicien = $user->getTechnicien();
+                if ($technicien) {
+                    $query->whereHas('techniciens', fn($q) => $q->where('techniciens.id', $technicien->id));
+                }
             }
 
             $query->orderBy('date_intervention', 'asc');
