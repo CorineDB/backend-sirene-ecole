@@ -99,11 +99,6 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 );
             }
 
-            // Générer le numéro d'abonnement si non fourni
-            if (empty($data['numero_abonnement'])) {
-                $data['numero_abonnement'] = $this->generateNumeroAbonnement();
-            }
-
             // Définir le statut par défaut
             if (empty($data['statut'])) {
                 $data['statut'] = StatutAbonnement::EN_ATTENTE;
@@ -115,8 +110,7 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
             // Mettre à jour le statut de la sirène
             $abonnement->updateSireneStatus();
 
-            // Générer le QR code pour le paiement
-            $abonnement->genererQrCode();
+            // Note: Le QR code est généré automatiquement via HasQrCodeAbonnement boot hook
 
             // Si l'abonnement est créé directement comme ACTIF (avec paiement validé)
             if ($abonnement->statut === StatutAbonnement::ACTIF) {
@@ -166,16 +160,12 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 );
             }
 
-            // Générer un nouveau numéro d'abonnement
-            $numeroAbonnement = $this->generateNumeroAbonnement();
-
-            // Créer le nouvel abonnement
+            // Créer le nouvel abonnement (le numéro sera généré automatiquement via HasNumeroAbonnement)
             $nouveauAbonnement = $this->repository->create([
                 'ecole_id' => $abonnement->ecole_id,
                 'site_id' => $abonnement->site_id,
                 'sirene_id' => $abonnement->sirene_id,
                 'parent_abonnement_id' => $abonnement->id,
-                'numero_abonnement' => $numeroAbonnement,
                 'date_debut' => Carbon::parse($abonnement->date_fin)->addDay(),
                 'date_fin' => Carbon::parse($abonnement->date_fin)->addYear()->addDay(),
                 'montant' => $abonnement->montant,
@@ -183,9 +173,8 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
                 'auto_renouvellement' => $abonnement->auto_renouvellement,
             ]);
 
-            // Mettre à jour le statut de la sirène et générer le QR code
+            // Mettre à jour le statut de la sirène (QR code généré automatiquement via boot hook)
             $nouveauAbonnement->updateSireneStatus();
-            $nouveauAbonnement->genererQrCode();
 
             DB::commit();
             return $this->successResponse('Abonnement renouvelé avec succès.', $nouveauAbonnement);
@@ -876,13 +865,5 @@ class AbonnementService extends BaseService implements AbonnementServiceInterfac
     }
 
     // ========== HELPERS PRIVÉS ==========
-
-    private function generateNumeroAbonnement(): string
-    {
-        do {
-            $numero = 'ABO-' . date('Ymd') . '-' . strtoupper(Str::random(6));
-        } while ($this->repository->exists(['numero_abonnement' => $numero]));
-
-        return $numero;
-    }
+    // Note: La génération du numéro d'abonnement est gérée automatiquement par HasNumeroAbonnement trait
 }
