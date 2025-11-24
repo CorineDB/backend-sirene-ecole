@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatutAbonnement;
+use App\Enums\StatutSirene;
 use App\Traits\HasUlid;
 use App\Traits\HasQrCodeAbonnement;
 use App\Traits\HasTokenCrypte;
@@ -139,5 +140,180 @@ class Abonnement extends Model
     public function daysRemaining(): int
     {
         return max(0, now()->diffInDays($this->date_fin, false));
+    }
+
+    // ========== RÈGLES MÉTIER ==========
+
+    /**
+     * Vérifie si l'abonnement peut être annulé
+     */
+    public function canBeCancelled(): bool
+    {
+        // Ne peut pas annuler un abonnement déjà expiré ou annulé
+        return !in_array($this->statut, [StatutAbonnement::EXPIRE, StatutAbonnement::ANNULE]);
+    }
+
+    /**
+     * Vérifie si l'abonnement peut être suspendu
+     */
+    public function canBeSuspended(): bool
+    {
+        // Seuls les abonnements actifs peuvent être suspendus
+        return $this->statut === StatutAbonnement::ACTIF;
+    }
+
+    /**
+     * Vérifie si l'abonnement peut être réactivé
+     */
+    public function canBeReactivated(): bool
+    {
+        // Seuls les abonnements suspendus peuvent être réactivés
+        return $this->statut === StatutAbonnement::SUSPENDU
+            && $this->date_fin >= now(); // Et non expirés
+    }
+
+    /**
+     * Vérifie si l'abonnement peut être renouvelé
+     */
+    public function canBeRenewed(): bool
+    {
+        // Ne peut pas renouveler :
+        // - Un abonnement actif
+        // - Un abonnement suspendu
+        // - Un abonnement en attente sans parent (création initiale)
+
+        if ($this->statut === StatutAbonnement::ACTIF) {
+            return false;
+        }
+
+        if ($this->statut === StatutAbonnement::SUSPENDU) {
+            return false;
+        }
+
+        if ($this->statut === StatutAbonnement::EN_ATTENTE && !$this->parent_abonnement_id) {
+            return false;
+        }
+
+        return true; // EXPIRE ou ANNULE peuvent être renouvelés
+    }
+
+    /**
+     * Vérifie si une sirène a déjà un abonnement actif, en attente ou suspendu
+     */
+    public static function sireneHasActiveOrPendingSubscription(string $sireneId): bool
+    {
+        return self::where('sirene_id', $sireneId)
+            ->whereIn('statut', [
+                StatutAbonnement::ACTIF,
+                StatutAbonnement::EN_ATTENTE,
+                StatutAbonnement::SUSPENDU
+            ])
+            ->exists();
+    }
+
+    /**
+     * Vérifie si l'abonnement a un paiement validé
+     */
+    public function hasPaiementValide(): bool
+    {
+        return $this->paiements()
+            ->where('statut', 'valide')
+            ->exists();
+    }
+
+    /**
+     * Récupère le token actif de l'abonnement
+     */
+    public function tokenActif()
+    {
+        return $this->token()->where('actif', true);
+    }
+
+    // ========== GESTION AUTOMATIQUE ==========
+
+    /**
+     * Expire tous les tokens de l'abonnement
+     */
+    public function expirerTousLesTokens(): void
+    {
+        $this->token()->update([
+            'actif' => false,
+            'date_expiration' => now()
+        ]);
+    }
+
+    /**
+     * Met à jour le statut de la sirène en fonction du statut de l'abonnement
+     */
+    public function updateSireneStatus(): void
+    {
+        if (!$this->sirene_id) {
+            return;
+        }
+
+        $sirene = $this->sirene;
+        if (!$sirene) {
+            return;
+        }
+
+        // Sauvegarder l'ancien statut
+        $oldStatut = $sirene->statut;
+
+        // Déterminer le nouveau statut
+        $newStatut = match($this->statut) {
+            StatutAbonnement::ACTIF => StatutSirene::RESERVE,
+            StatutAbonnement::EN_ATTENTE => StatutSirene::RESERVE,
+            StatutAbonnement::SUSPENDU => $oldStatut, // Ne change pas le statut si suspendu
+            StatutAbonnement::EXPIRE, StatutAbonnement::ANNULE =>
+                // Si expire/annule, remet en stock sauf si installé ou en panne
+                in_array($oldStatut, [StatutSirene::INSTALLE, StatutSirene::EN_PANNE])
+                    ? $oldStatut
+                    : StatutSirene::EN_STOCK,
+        };
+
+        // Mettre à jour uniquement si le statut change
+        if ($newStatut !== $oldStatut) {
+            $sirene->old_statut = $oldStatut;
+            $sirene->statut = $newStatut;
+            $sirene->save();
+        }
+    }
+
+    /**
+     * Gère l'activation de l'abonnement (token + sirène)
+     */
+    public function activate(): void
+    {
+        // Mettre à jour le statut de la sirène
+        $this->updateSireneStatus();
+
+        // Générer le token si l'abonnement est actif
+        if ($this->statut === StatutAbonnement::ACTIF) {
+            $this->regenererToken();
+        }
+    }
+
+    /**
+     * Gère la suspension de l'abonnement (token + sirène)
+     */
+    public function suspend(): void
+    {
+        // Expirer les tokens
+        $this->expirerTousLesTokens();
+
+        // Le statut de la sirène reste inchangé lors d'une suspension
+        // (elle reste RESERVE ou INSTALLE selon son état actuel)
+    }
+
+    /**
+     * Gère l'annulation de l'abonnement (token + sirène)
+     */
+    public function cancel(): void
+    {
+        // Expirer les tokens
+        $this->expirerTousLesTokens();
+
+        // Mettre à jour le statut de la sirène
+        $this->updateSireneStatus();
     }
 }
