@@ -29,9 +29,8 @@ class Site extends Model
 
             // Si l'utilisateur est une école, filtrer par école
             if ($user->isEcoleUser()) {
-                $ecole = $user->userAccount;
-                if ($ecole) {
-                    $builder->where('ecole_principale_id', $ecole->id);
+                if ($user->user_account_type_id) {
+                    $builder->where('ecole_principale_id', $user->user_account_type_id);
                 }
             }
 

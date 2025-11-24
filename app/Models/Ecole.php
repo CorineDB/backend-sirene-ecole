@@ -33,9 +33,8 @@ class Ecole extends Model
 
             // Si l'utilisateur est une école, ne voir que sa propre école
             if ($user->isEcoleUser()) {
-                $ecole = $user->userAccount;
-                if ($ecole) {
-                    $builder->where('id', $ecole->id);
+                if ($user->user_account_type_id) {
+                    $builder->where('id', $user->user_account_type_id);
                 }
             }
 

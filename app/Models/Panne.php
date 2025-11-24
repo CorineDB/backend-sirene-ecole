@@ -30,11 +30,10 @@ class Panne extends Model
 
             // Si l'utilisateur est un technicien, filtrer par ses interventions
             if ($user->isTechnicienUser()) {
-                $technicien = $user->userAccount;
-                if ($technicien) {
-                    $builder->whereHas('interventions', function ($q) use ($technicien) {
-                        $q->whereHas('techniciens', function ($techQ) use ($technicien) {
-                            $techQ->where('techniciens.id', $technicien->id);
+                if ($user->user_account_type_id) {
+                    $builder->whereHas('interventions', function ($q) use ($user) {
+                        $q->whereHas('techniciens', function ($techQ) use ($user) {
+                            $techQ->where('techniciens.id', $user->user_account_type_id);
                         });
                     });
                 }
@@ -43,9 +42,8 @@ class Panne extends Model
 
             // Si l'utilisateur est une école, filtrer par école
             if ($user->isEcoleUser()) {
-                $ecole = $user->userAccount;
-                if ($ecole) {
-                    $builder->where('ecole_id', $ecole->id);
+                if ($user->user_account_type_id) {
+                    $builder->where('ecole_id', $user->user_account_type_id);
                 }
             }
 
