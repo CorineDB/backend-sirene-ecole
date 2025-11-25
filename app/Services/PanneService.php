@@ -416,4 +416,41 @@ class PanneService extends BaseService implements PanneServiceInterface
             return $this->errorResponse($e->getMessage(), 500);
         }
     }
+
+    /**
+     * Marquer une panne comme résolue
+     */
+    public function resoudrePanne(string $panneId): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            // Vérifier l'accès à la panne si école
+            $query = $this->repository->query()->where('id', $panneId);
+            $query = $this->applyEcoleFilterForPannes($query);
+            $panne = $query->first();
+
+            if (!$panne) {
+                return $this->notFoundResponse('Panne non trouvée ou accès non autorisé.');
+            }
+
+            // Validation: la panne ne doit pas déjà être résolue
+            if ($panne->statut === StatutPanne::RESOLUE) {
+                return $this->errorResponse('Cette panne est déjà résolue.', 422);
+            }
+
+            // Mettre à jour le statut et la date de résolution
+            $panne->update([
+                'statut' => StatutPanne::RESOLUE,
+                'date_resolution' => now(),
+            ]);
+
+            DB::commit();
+            return $this->successResponse('Panne marquée comme résolue avec succès.', $panne->fresh());
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in PanneService::resoudrePanne - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
 }

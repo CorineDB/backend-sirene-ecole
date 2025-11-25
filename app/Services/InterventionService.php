@@ -774,4 +774,71 @@ class InterventionService extends BaseService implements InterventionServiceInte
             return $this->errorResponse($e->getMessage(), 500);
         }
     }
+
+    /**
+     * Reporter une intervention
+     */
+    public function reporterIntervention(string $interventionId, array $data): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $intervention = $this->repository->find($interventionId);
+            if (!$intervention) {
+                return $this->notFoundResponse('Intervention non trouvée.');
+            }
+
+            // Validation: statut doit être PLANIFIEE
+            if ($intervention->statut !== 'planifiee') {
+                return $this->errorResponse('Seules les interventions planifiées peuvent être reportées.', 422);
+            }
+
+            // Mettre à jour la date et les infos de report
+            $intervention->update([
+                'date_intervention' => $data['nouvelle_date'],
+                'motif_report' => $data['motif'] ?? null,
+                'date_report' => now(),
+            ]);
+
+            DB::commit();
+            return $this->successResponse('Intervention reportée avec succès.', $intervention->fresh());
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in InterventionService::reporterIntervention - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Confirmer le programme d'intervention (École)
+     */
+    public function confirmerProgramme(string $interventionId): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $intervention = $this->repository->find($interventionId);
+            if (!$intervention) {
+                return $this->notFoundResponse('Intervention non trouvée.');
+            }
+
+            // Validation: statut doit être PLANIFIEE
+            if ($intervention->statut !== 'planifiee') {
+                return $this->errorResponse('Seules les interventions planifiées peuvent être confirmées.', 422);
+            }
+
+            // Marquer comme confirmée par l'école
+            $intervention->update([
+                'confirme_par_ecole' => true,
+                'date_confirmation_ecole' => now(),
+            ]);
+
+            DB::commit();
+            return $this->successResponse('Programme d\'intervention confirmé avec succès.', $intervention->fresh());
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in InterventionService::confirmerProgramme - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
 }

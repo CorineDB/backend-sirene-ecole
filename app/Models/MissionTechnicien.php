@@ -29,6 +29,9 @@ class MissionTechnicien extends Model
         'date_cloture',
         'date_retrait',
         'motif_retrait',
+        'is_suspended',
+        'motif_suspension',
+        'date_suspension',
     ];
 
     protected $casts = [
@@ -37,6 +40,8 @@ class MissionTechnicien extends Model
         'date_acceptation' => 'datetime',
         'date_cloture' => 'datetime',
         'date_retrait' => 'datetime',
+        'is_suspended' => 'boolean',
+        'date_suspension' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',

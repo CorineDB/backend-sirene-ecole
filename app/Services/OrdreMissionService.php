@@ -275,6 +275,195 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
         }
     }
 
+    /**
+     * Démarrer une mission
+     */
+    public function demarrerMission(string $id): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $ordreMission = $this->repository->find($id);
+            if (!$ordreMission) {
+                return $this->notFoundResponse('Ordre de mission non trouvé.');
+            }
+
+            // Validation: statut doit être EN_ATTENTE
+            if ($ordreMission->statut !== StatutOrdreMission::EN_ATTENTE) {
+                return $this->errorResponse('Seuls les ordres de mission en attente peuvent être démarrés.', 422);
+            }
+
+            // Mettre à jour le statut
+            $ordreMission->update(['statut' => StatutOrdreMission::EN_COURS]);
+
+            DB::commit();
+            return $this->successResponse('Mission démarrée avec succès.', $ordreMission->fresh());
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in OrdreMissionService::demarrerMission - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Terminer une mission
+     */
+    public function terminerMission(string $id): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $ordreMission = $this->repository->find($id);
+            if (!$ordreMission) {
+                return $this->notFoundResponse('Ordre de mission non trouvé.');
+            }
+
+            // Validation: statut doit être EN_COURS
+            if ($ordreMission->statut !== StatutOrdreMission::EN_COURS) {
+                return $this->errorResponse('Seuls les ordres de mission en cours peuvent être terminés.', 422);
+            }
+
+            // Mettre à jour le statut et la date de fin
+            $ordreMission->update([
+                'statut' => StatutOrdreMission::TERMINE,
+                'date_fin_mission' => now(),
+            ]);
+
+            DB::commit();
+            return $this->successResponse('Mission terminée avec succès.', $ordreMission->fresh());
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in OrdreMissionService::terminerMission - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Clôturer une mission
+     */
+    public function cloturerMission(string $id): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $ordreMission = $this->repository->find($id);
+            if (!$ordreMission) {
+                return $this->notFoundResponse('Ordre de mission non trouvé.');
+            }
+
+            // Validation: statut doit être TERMINE
+            if ($ordreMission->statut !== StatutOrdreMission::TERMINE) {
+                return $this->errorResponse('Seuls les ordres de mission terminés peuvent être clôturés.', 422);
+            }
+
+            // Mettre à jour le statut et la date de clôture
+            $ordreMission->update([
+                'statut' => StatutOrdreMission::CLOTURE,
+                'date_cloture_mission' => now(),
+            ]);
+
+            DB::commit();
+            return $this->successResponse('Mission clôturée avec succès.', $ordreMission->fresh());
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in OrdreMissionService::cloturerMission - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Donner un avis sur la mission (École)
+     */
+    public function donnerAvisMission(string $id, array $data): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $ordreMission = $this->repository->find($id);
+            if (!$ordreMission) {
+                return $this->notFoundResponse('Ordre de mission non trouvé.');
+            }
+
+            // Vérifier que la mission est terminée
+            if ($ordreMission->statut !== StatutOrdreMission::TERMINE && $ordreMission->statut !== StatutOrdreMission::CLOTURE) {
+                return $this->errorResponse('Seuls les ordres de mission terminés ou clôturés peuvent recevoir un avis.', 422);
+            }
+
+            // Créer l'avis
+            $user = Auth::user();
+            $ecole = $user->getEcole();
+
+            if (!$ecole) {
+                return $this->errorResponse('Seules les écoles peuvent donner un avis.', 403);
+            }
+
+            $avis = \App\Models\AvisOrdreMission::create([
+                'ordre_mission_id' => $id,
+                'ecole_id' => $ecole->id,
+                'avis' => $data['avis'],
+                'note' => $data['note'] ?? null,
+            ]);
+
+            DB::commit();
+            return $this->successResponse('Avis ajouté avec succès.', $avis);
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in OrdreMissionService::donnerAvisMission - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Ajouter un technicien manuellement à un ordre de mission
+     */
+    public function ajouterTechnicienManuel(string $ordreMissionId, string $technicienId): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $ordreMission = $this->repository->find($ordreMissionId);
+            if (!$ordreMission) {
+                return $this->notFoundResponse('Ordre de mission non trouvé.');
+            }
+
+            // Vérifier que le technicien existe
+            $technicien = Technicien::find($technicienId);
+            if (!$technicien) {
+                return $this->notFoundResponse('Technicien non trouvé.');
+            }
+
+            // Vérifier que le technicien n'est pas déjà assigné
+            $existingMission = $this->missionTechnicienRepository->findBy([
+                'ordre_mission_id' => $ordreMissionId,
+                'technicien_id' => $technicienId,
+            ]);
+
+            if ($existingMission) {
+                return $this->errorResponse('Ce technicien est déjà assigné à cette mission.', 422);
+            }
+
+            // Créer la mission technicien avec statut accepté
+            $missionTechnicien = $this->missionTechnicienRepository->create([
+                'ordre_mission_id' => $ordreMissionId,
+                'technicien_id' => $technicienId,
+                'statut_candidature' => 'acceptee',
+                'date_acceptation' => now(),
+            ]);
+
+            // Incrémenter le nombre de techniciens acceptés
+            $ordreMission->update([
+                'nombre_techniciens_acceptes' => $ordreMission->nombre_techniciens_acceptes + 1,
+            ]);
+
+            DB::commit();
+            return $this->successResponse('Technicien ajouté avec succès.', $missionTechnicien->fresh());
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error in OrdreMissionService::ajouterTechnicienManuel - " . $e->getMessage());
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
     private function generateNumeroOrdre(): string
     {
         do {

@@ -413,4 +413,33 @@ class PanneController extends Controller
         Gate::authorize('voir_les_pannes');
         return $this->panneService->getStatistiques();
     }
+
+    /**
+     * Marquer une panne comme résolue
+     *
+     * @OA\Post(
+     *     path="/api/pannes/{panneId}/resoudre",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Marquer une panne comme résolue",
+     *     description="Change le statut d'une panne à RESOLUE",
+     *     operationId="resoudrePanne",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="panneId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de la panne",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Panne marquée comme résolue avec succès"
+     *     )
+     * )
+     */
+    public function resoudre(string $panneId)
+    {
+        Gate::authorize('resoudre_panne');
+        return $this->panneService->resoudrePanne($panneId);
+    }
 }
