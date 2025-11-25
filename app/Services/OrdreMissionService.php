@@ -89,9 +89,9 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
 
                 if ($technicien && $technicien->ville_id) {
                     $ordreMission = OrdreMission::with($relations)
-                        ->whereHas('panne.site', function ($query) use ($technicien) {
+                        /* ->whereHas('panne.site', function ($query) use ($technicien) {
                             $query->where('ville_id', $technicien->ville_id);
-                        })
+                        }) */
                         ->find($id, $columns);
 
                     if (!$ordreMission) {
@@ -255,7 +255,7 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
             ]);
 
             // Incrémenter le nombre de techniciens acceptés dans l'ordre de mission
-            $this->repository->update($missionTechnicien->ordre_mission_id, [
+            $isValider = $this->repository->update($missionTechnicien->ordre_mission_id, [
                 'nombre_techniciens_acceptes' => DB::raw('nombre_techniciens_acceptes + 1'),
             ]);
 
@@ -267,6 +267,7 @@ class OrdreMissionService extends BaseService implements OrdreMissionServiceInte
             ]));
 
             DB::commit();
+            return $this->successResponse('Candidatures valider avec succès.', $isValider);
         } catch (Exception $e) {
             DB::rollBack();
             Log::error("Error in OrdreMissionService::validerCandidature - " . $e->getMessage());

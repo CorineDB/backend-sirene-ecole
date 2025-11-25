@@ -31,10 +31,10 @@ class DashboardController extends Controller
     public function statistiquesTechnicien(): JsonResponse
     {
         // Vérifier que l'utilisateur est un technicien
-        $user = auth()->user();
+        /*$user = auth()->user();
         if (!$user || !$user->isTechnicienUser()) {
             abort(403, 'Accès réservé aux techniciens.');
-        }
+        }*/
 
         return $this->dashboardService->getStatistiquesTechnicien();
     }
