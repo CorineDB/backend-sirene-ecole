@@ -40,6 +40,10 @@ class Intervention extends Model
         'instructions',
         'lieu_rdv',
         'heure_rdv',
+        'motif_report',
+        'date_report',
+        'confirme_par_ecole',
+        'date_confirmation_ecole',
     ];
 
     protected $casts = [
@@ -54,6 +58,9 @@ class Intervention extends Model
         'nombre_techniciens_requis' => 'integer',
         'note_ecole' => 'integer',
         'heure_rdv' => 'datetime:H:i',
+        'date_report' => 'datetime',
+        'confirme_par_ecole' => 'boolean',
+        'date_confirmation_ecole' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',

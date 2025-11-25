@@ -103,6 +103,11 @@ class ServiceLayerServiceProvider extends ServiceProvider
             \App\Services\DashboardService::class
         );
 
+        $this->app->bind(
+            \App\Services\Contracts\MissionTechnicienServiceInterface::class,
+            \App\Services\MissionTechnicienService::class
+        );
+
         // Repositories
         $this->app->bind(
             \App\Repositories\Contracts\PermissionRepositoryInterface::class,

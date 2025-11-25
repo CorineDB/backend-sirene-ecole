@@ -512,4 +512,175 @@ class OrdreMissionController extends Controller
 
         return $this->ordreMissionService->rouvrirCandidatures($id, $validated['admin_id']);
     }
+
+    /**
+     * Démarrer une mission
+     *
+     * @OA\Post(
+     *     path="/api/ordres-mission/{id}/demarrer",
+     *     tags={"Ordres de mission"},
+     *     summary="Démarrer une mission",
+     *     description="Passe le statut d'une mission de EN_ATTENTE à EN_COURS",
+     *     operationId="demarrerMission",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'ordre de mission",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Mission démarrée avec succès"
+     *     )
+     * )
+     */
+    public function demarrer(string $id): JsonResponse
+    {
+        Gate::authorize('modifier_ordre_mission');
+        return $this->ordreMissionService->demarrerMission($id);
+    }
+
+    /**
+     * Terminer une mission
+     *
+     * @OA\Post(
+     *     path="/api/ordres-mission/{id}/terminer",
+     *     tags={"Ordres de mission"},
+     *     summary="Terminer une mission",
+     *     description="Passe le statut d'une mission de EN_COURS à TERMINE",
+     *     operationId="terminerMission",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'ordre de mission",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Mission terminée avec succès"
+     *     )
+     * )
+     */
+    public function terminer(string $id): JsonResponse
+    {
+        Gate::authorize('modifier_ordre_mission');
+        return $this->ordreMissionService->terminerMission($id);
+    }
+
+    /**
+     * Clôturer une mission
+     *
+     * @OA\Post(
+     *     path="/api/ordres-mission/{id}/cloturer",
+     *     tags={"Ordres de mission"},
+     *     summary="Clôturer une mission",
+     *     description="Passe le statut d'une mission de TERMINE à CLOTURE",
+     *     operationId="cloturerMission",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'ordre de mission",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Mission clôturée avec succès"
+     *     )
+     * )
+     */
+    public function cloturer(string $id): JsonResponse
+    {
+        Gate::authorize('modifier_ordre_mission');
+        return $this->ordreMissionService->cloturerMission($id);
+    }
+
+    /**
+     * Donner un avis sur la mission (École)
+     *
+     * @OA\Post(
+     *     path="/api/ordres-mission/{id}/avis",
+     *     tags={"Ordres de mission"},
+     *     summary="Donner un avis sur la mission",
+     *     description="Permet à une école de donner un avis sur une mission terminée",
+     *     operationId="donnerAvisMission",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'ordre de mission",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"avis"},
+     *             @OA\Property(property="avis", type="string", description="Avis de l'école"),
+     *             @OA\Property(property="note", type="integer", description="Note de 1 à 5", minimum=1, maximum=5)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Avis ajouté avec succès"
+     *     )
+     * )
+     */
+    public function donnerAvis(Request $request, string $id): JsonResponse
+    {
+        Gate::authorize('creer_avis_mission');
+
+        $validated = $request->validate([
+            'avis' => 'required|string',
+            'note' => 'nullable|integer|min:1|max:5',
+        ]);
+
+        return $this->ordreMissionService->donnerAvisMission($id, $validated);
+    }
+
+    /**
+     * Ajouter un technicien manuellement à un ordre de mission
+     *
+     * @OA\Post(
+     *     path="/api/ordres-mission/{id}/techniciens",
+     *     tags={"Ordres de mission"},
+     *     summary="Ajouter un technicien manuellement",
+     *     description="Permet d'ajouter un technicien directement à une mission sans passer par le processus de candidature",
+     *     operationId="ajouterTechnicienManuel",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'ordre de mission",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"technicien_id"},
+     *             @OA\Property(property="technicien_id", type="string", description="ID du technicien à ajouter")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Technicien ajouté avec succès"
+     *     )
+     * )
+     */
+    public function ajouterTechnicien(Request $request, string $id): JsonResponse
+    {
+        Gate::authorize('assigner_technicien_intervention');
+
+        $validated = $request->validate([
+            'technicien_id' => 'required|string|exists:techniciens,id',
+        ]);
+
+        return $this->ordreMissionService->ajouterTechnicienManuel($id, $validated['technicien_id']);
+    }
 }

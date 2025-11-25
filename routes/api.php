@@ -311,6 +311,9 @@ Route::prefix('pannes')->middleware('auth:api')->group(function () {
     Route::put('{panneId}/valider', [PanneController::class, 'valider']);
     Route::put('{panneId}/cloturer', [PanneController::class, 'cloturer']);
     Route::put('{panneId}/assigner/{technicienId}', [PanneController::class, 'assignerTechnicien']);
+
+    // Nouveau endpoint - Marquer comme résolue
+    Route::post('{panneId}/resoudre', [PanneController::class, 'resoudre']);
 });
 
 // Statistiques pannes
@@ -342,6 +345,17 @@ Route::prefix('ordres-mission')->middleware('auth:api')->group(function () {
     Route::get('ville/{villeId}', [OrdreMissionController::class, 'getByVille']);
     Route::put('{id}/cloturer-candidatures', [OrdreMissionController::class, 'cloturerCandidatures']);
     Route::put('{id}/rouvrir-candidatures', [OrdreMissionController::class, 'rouvrirCandidatures']);
+
+    // Nouveaux endpoints - Gestion du cycle de vie
+    Route::post('{id}/demarrer', [OrdreMissionController::class, 'demarrer']);
+    Route::post('{id}/terminer', [OrdreMissionController::class, 'terminer']);
+    Route::post('{id}/cloturer', [OrdreMissionController::class, 'cloturer']);
+
+    // Avis école
+    Route::post('{id}/avis', [OrdreMissionController::class, 'donnerAvis']);
+
+    // Gestion manuelle des techniciens
+    Route::post('{id}/techniciens', [OrdreMissionController::class, 'ajouterTechnicien']);
 });
 
 // Intervention routes
@@ -358,8 +372,14 @@ Route::prefix('interventions')->middleware('auth:api')->group(function () {
     // Création et gestion manuelle
     Route::post('ordres-mission/{ordreMissionId}/creer', [InterventionController::class, 'creerIntervention']);
     Route::post('{interventionId}/techniciens', [InterventionController::class, 'assignerTechnicien']);
-    Route::delete('{interventionId}/techniciens', [InterventionController::class, 'retirerTechnicien']);
+    Route::delete('{interventionId}/techniciens/{technicienId}', [InterventionController::class, 'retirerTechnicien']);
     Route::put('{interventionId}/planifier', [InterventionController::class, 'planifierIntervention']);
+
+    // Nouveaux endpoints - Gestion des interventions
+    Route::patch('{interventionId}', [InterventionController::class, 'update']);
+    Route::post('{interventionId}/reporter', [InterventionController::class, 'reporter']);
+    Route::post('{interventionId}/confirmer', [InterventionController::class, 'confirmer']);
+    Route::delete('{interventionId}', [InterventionController::class, 'destroy']);
 
     // Gestion des interventions
     Route::put('{interventionId}/demarrer', [InterventionController::class, 'demarrer']);
@@ -377,4 +397,10 @@ Route::prefix('interventions')->middleware('auth:api')->group(function () {
     Route::get('{interventionId}/avis', [InterventionController::class, 'getAvisIntervention']);
     Route::post('rapports/{rapportId}/avis', [InterventionController::class, 'ajouterAvisRapport']);
     Route::get('rapports/{rapportId}/avis', [InterventionController::class, 'getAvisRapport']);
+});
+
+// Mission Technicien routes
+Route::prefix('missions-techniciens')->middleware('auth:api')->group(function () {
+    Route::post('{missionTechnicienId}/suspendre', [\App\Http\Controllers\Api\MissionTechnicienController::class, 'suspendre']);
+    Route::delete('{missionTechnicienId}', [\App\Http\Controllers\Api\MissionTechnicienController::class, 'retirer']);
 });

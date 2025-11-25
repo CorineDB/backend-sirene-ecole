@@ -303,15 +303,38 @@ class InterventionController extends Controller
 
     /**
      * Retirer un technicien d'une intervention
+     *
+     * @OA\Delete(
+     *     path="/api/interventions/{interventionId}/techniciens/{technicienId}",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Retirer un technicien d'une intervention",
+     *     description="Retire un technicien assigné à une intervention",
+     *     operationId="retirerTechnicienIntervention",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="interventionId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'intervention",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="technicienId",
+     *         in="path",
+     *         required=true,
+     *         description="ID du technicien à retirer",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Technicien retiré avec succès"
+     *     )
+     * )
      */
-    public function retirerTechnicien(Request $request, string $interventionId): JsonResponse
+    public function retirerTechnicien(string $interventionId, string $technicienId): JsonResponse
     {
         Gate::authorize('modifier_intervention');
-        $validated = $request->validate([
-            'technicien_id' => 'required|string|exists:techniciens,id',
-        ]);
-
-        return $this->interventionService->retirerTechnicien($interventionId, $validated['technicien_id']);
+        return $this->interventionService->retirerTechnicien($interventionId, $technicienId);
     }
 
     /**
@@ -839,5 +862,150 @@ class InterventionController extends Controller
     {
         Gate::authorize('voir_les_avis_rapport');
         return $this->interventionService->getAvisRapport($rapportId);
+    }
+
+    /**
+     * Modifier une intervention
+     *
+     * @OA\Patch(
+     *     path="/api/interventions/{interventionId}",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Modifier une intervention",
+     *     description="Modifie les détails d'une intervention",
+     *     operationId="updateIntervention",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="interventionId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'intervention",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=false,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="type_intervention", type="string", description="Type d'intervention"),
+     *             @OA\Property(property="date_intervention", type="string", format="date-time", description="Date de l'intervention"),
+     *             @OA\Property(property="instructions", type="string", description="Instructions pour l'intervention")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Intervention modifiée avec succès"
+     *     )
+     * )
+     */
+    public function update(Request $request, string $interventionId): JsonResponse
+    {
+        Gate::authorize('modifier_intervention');
+
+        $validated = $request->validate([
+            'type_intervention' => 'nullable|string',
+            'date_intervention' => 'nullable|date',
+            'instructions' => 'nullable|string',
+        ]);
+
+        return $this->interventionService->update($interventionId, $validated);
+    }
+
+    /**
+     * Reporter une intervention
+     *
+     * @OA\Post(
+     *     path="/api/interventions/{interventionId}/reporter",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Reporter une intervention",
+     *     description="Reporter une intervention planifiée à une nouvelle date",
+     *     operationId="reporterIntervention",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="interventionId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'intervention",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"nouvelle_date"},
+     *             @OA\Property(property="nouvelle_date", type="string", format="date-time", description="Nouvelle date de l'intervention"),
+     *             @OA\Property(property="motif", type="string", description="Motif du report")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Intervention reportée avec succès"
+     *     )
+     * )
+     */
+    public function reporter(Request $request, string $interventionId): JsonResponse
+    {
+        Gate::authorize('modifier_intervention');
+
+        $validated = $request->validate([
+            'nouvelle_date' => 'required|date',
+            'motif' => 'nullable|string',
+        ]);
+
+        return $this->interventionService->reporterIntervention($interventionId, $validated);
+    }
+
+    /**
+     * Confirmer le programme d'intervention (École)
+     *
+     * @OA\Post(
+     *     path="/api/interventions/{interventionId}/confirmer",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Confirmer le programme d'intervention",
+     *     description="Permet à une école de confirmer le programme d'une intervention planifiée",
+     *     operationId="confirmerIntervention",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="interventionId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'intervention",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Programme confirmé avec succès"
+     *     )
+     * )
+     */
+    public function confirmer(string $interventionId): JsonResponse
+    {
+        Gate::authorize('confirmer_intervention');
+        return $this->interventionService->confirmerProgramme($interventionId);
+    }
+
+    /**
+     * Supprimer une intervention
+     *
+     * @OA\Delete(
+     *     path="/api/interventions/{interventionId}",
+     *     tags={"Pannes & Interventions"},
+     *     summary="Supprimer une intervention",
+     *     description="Supprime une intervention (soft delete)",
+     *     operationId="deleteIntervention",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="interventionId",
+     *         in="path",
+     *         required=true,
+     *         description="ID de l'intervention",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Intervention supprimée avec succès"
+     *     )
+     * )
+     */
+    public function destroy(string $interventionId): JsonResponse
+    {
+        Gate::authorize('supprimer_intervention');
+        return $this->interventionService->delete($interventionId);
     }
 }
