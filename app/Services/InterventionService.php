@@ -253,11 +253,13 @@ class InterventionService extends BaseService implements InterventionServiceInte
                 ]);
             }
 
-            // Assigner le technicien à l'intervention via la table pivot
-            $intervention->techniciens()->attach($missionTechnicien->technicien_id, [
-                'date_assignation' => now(),
-                'role' => null, // Peut être défini plus tard
-                'notes' => null,
+            // Assigner le technicien à l'intervention via la table pivot (sans créer de doublon)
+            $intervention->techniciens()->syncWithoutDetaching([
+                $missionTechnicien->technicien_id => [
+                    'date_assignation' => now(),
+                    'role' => null, // Peut être défini plus tard
+                    'notes' => null,
+                ]
             ]);
 
             // Recharger l'intervention avec les techniciens
