@@ -235,7 +235,7 @@ class PanneController extends Controller
      */
     public function cloturer($panneId)
     {
-        Gate::authorize('resoudre_panne');
+        Gate::authorize('modifier_panne');
         return $this->panneService->cloturerPanne($panneId);
     }
 
