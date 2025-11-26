@@ -399,14 +399,29 @@ class InterventionService extends BaseService implements InterventionServiceInte
     public function terminerIntervention(string $interventionId): JsonResponse
     {
         try {
-            $intervention = $this->repository->update($interventionId, [
-                'statut' => 'en_cours',
-                'date_debut' => now(),
+            DB::beginTransaction();
+
+            $intervention = $this->repository->find($interventionId);
+            if (!$intervention) {
+                return $this->notFoundResponse('Intervention non trouvée.');
+            }
+
+            // Validation: l'intervention doit être en cours
+            if ($intervention->statut !== 'en_cours') {
+                return $this->errorResponse('Seules les interventions en cours peuvent être terminées.', 422);
+            }
+
+            // Terminer l'intervention
+            $intervention->update([
+                'statut' => 'terminee',
+                'date_fin' => now(),
             ]);
 
-            return $this->successResponse('Intervention terminée.', $intervention);
+            DB::commit();
+            return $this->successResponse('Intervention terminée avec succès.', $intervention->fresh());
         } catch (Exception $e) {
-            Log::error("Error in InterventionService::demarrerIntervention - " . $e->getMessage());
+            DB::rollBack();
+            Log::error("Error in InterventionService::terminerIntervention - " . $e->getMessage());
             return $this->errorResponse($e->getMessage(), 500);
         }
     }
