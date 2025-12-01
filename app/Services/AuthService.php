@@ -234,6 +234,7 @@ class AuthService implements AuthServiceInterface
                         'email' => $user->userInfo->email ?? null,
                         'role' => $user->role,
                         'userAccount' => $user->userAccount,
+                        'userInfo' => $user->userInfo,
                     ],
                 ]
             );
