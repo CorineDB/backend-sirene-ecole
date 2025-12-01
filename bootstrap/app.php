@@ -23,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Support\Facades\Route::prefix('api')
                 ->middleware('api')
                 ->group(base_path('routes/api.php'));
+
+            \Illuminate\Support\Facades\Route::middleware('web')
+                ->group(base_path('routes/web.php'));
         }
     )
     ->withMiddleware(function (Middleware $middleware) {
